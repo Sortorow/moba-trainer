@@ -201,10 +201,8 @@ void drawDodgePanel(ImDrawList* dl, const Match& match) {
                      std::format("ドッジ率 {}　　被弾 {}　　ダウン {}", rate, dodge.hit, player ? player->deaths : 0));
 }
 
-void drawHelp(ImDrawList* dl, GameMode mode) {
-    const char* help = mode == GameMode::SkillDodge
-                           ? "右クリック: 移動    移動系スキルのみ使用可    F1: デバッグ表示    Esc: メニュー"
-                           : "右クリック: 移動    Q/W/E/R/D/F: スキル    F1: デバッグ表示    F5: 設定の再読み込み    Esc: メニュー";
+void drawHelp(ImDrawList* dl) {
+    const char* help = "右クリック: 移動    Q/W/E/R/D/F: スキル    F1: デバッグ表示    F5: 設定の再読み込み    Esc: メニュー";
     const float size = px(15.0f);
     const ImVec2 pos = px(12.0f, 10.0f);
     const float shadow = std::max(1.0f, px(1.0f));
@@ -221,7 +219,7 @@ void drawHud(const Match& match, const Camera2D& camera) {
     drawOffscreenIndicators(dl, world, camera);
     drawSkillBar(dl, world);
     if (match.config().mode == GameMode::SkillDodge) drawDodgePanel(dl, match);
-    drawHelp(dl, match.config().mode);
+    drawHelp(dl);
 }
 
 }  // namespace moba

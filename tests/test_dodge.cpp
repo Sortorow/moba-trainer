@@ -23,15 +23,14 @@ namespace {
 
 class DodgeFixture {
 public:
-    explicit DodgeFixture(std::string_view playerCharacter, bool dodgeRules = true)
+    explicit DodgeFixture(std::string_view playerCharacter, bool withPlayerHp = true)
         : data_(makeAppPaths(MOBA_SOURCE_DIR)) {
         data_.loadAll();
         world_ = std::make_unique<World>(data_, kSandboxBounds);
-        if (dodgeRules) world_->setRules(WorldRules{.movementSkillsOnly = true});
         const CharacterDef* def = data_.character(playerCharacter);
         REQUIRE(def != nullptr);
         Unit player = makePlayerUnit(*def);
-        if (dodgeRules) player.maxHp = player.hp = 5;
+        if (withPlayerHp) player.maxHp = player.hp = 5;
         playerId_ = world_->addUnit(player);
     }
 
@@ -135,14 +134,46 @@ TEST_CASE("遅れて爆発するスキルは、予告の間に範囲から出れ
     CHECK(f.world().dodge().hit == 1);
 }
 
-TEST_CASE("スキルドッジでは、自キャラは移動系のスキルだけ使える") {
+TEST_CASE("「移動系だけ使える」ルールを有効にすると、移動系のスキルだけ使える") {
     DodgeFixture f("like_ezreal");
+    f.world().setRules(WorldRules{.movementSkillsOnly = true});
     f.playerCast(SkillSlot::Q, {600, 0});
     CHECK_FALSE(f.player().cast.active);
     CHECK(f.player().cooldowns[static_cast<std::size_t>(index(SkillSlot::Q))] == doctest::Approx(0.0f));
 
     f.playerCast(SkillSlot::D, {1000, 0});  // フラッシュは使える
     CHECK(f.player().pos.x == doctest::Approx(400.0f));
+}
+
+TEST_CASE("スキルドッジでも、自キャラは攻撃スキルを使える") {
+    GameData data(makeAppPaths(MOBA_SOURCE_DIR));
+    data.loadAll();
+    MatchConfig config;
+    config.mode = GameMode::SkillDodge;
+    config.characterId = "like_emma";
+    config.enemyCount = 1;
+    config.seed = 3;
+    Match match(data, config);
+    REQUIRE(match.valid());
+    CHECK_FALSE(match.world().rules().movementSkillsOnly);
+    Unit* player = match.world().player();
+    casting::requestCast(match.world(), *player, CastRequest{SkillSlot::Q, {600, 0}});
+    CHECK(player->cast.active);
+}
+
+TEST_CASE("エマは E で兎にした敵キャラへ R で移動できる（回避に使える）。敵にダメージは無い") {
+    DodgeFixture f("like_emma");
+    const EntityId brand = f.addEnemy("like_brand", {400, 0});
+    f.playerCast(SkillSlot::E, {400, 0});
+    f.run(0.6f);
+    REQUIRE(f.unit(brand).status.has(EffectType::Polymorph));
+    CHECK_FALSE(f.unit(brand).status.canCast());  // 兎になっている間はスキルを撃てない
+
+    f.playerCast(SkillSlot::R, {400, 0});
+    f.run(0.2f);
+    CHECK(Vector2Distance(f.player().pos, f.unit(brand).pos) < 150.0f);
+    CHECK(f.unit(brand).alive);
+    CHECK(f.unit(brand).maxHp == 0);  // 敵には HP が無い
 }
 
 TEST_CASE("敵 AI の狙い: 移動を続ける前提なら偏差撃ちになり、横に動く相手に当たる") {

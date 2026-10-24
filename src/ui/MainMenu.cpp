@@ -57,7 +57,7 @@ void drawSkillDodgeOptions(MatchConfig& config, const GameData& data) {
     std::string enemies;
     for (const CharacterDef* def : data.enemyCandidates()) enemies += (enemies.empty() ? "" : "、") + def->displayName;
     ImGui::TextDisabled("登場する敵: %s（ランダム）", enemies.empty() ? "なし" : enemies.c_str());
-    ImGui::TextDisabled("自キャラは移動系のスキルだけ使えます");
+    ImGui::TextDisabled("自キャラはすべてのスキルを使えます（敵に当たってもダメージはありません）");
 }
 
 }  // namespace

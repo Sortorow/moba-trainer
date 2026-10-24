@@ -20,7 +20,7 @@ struct Settings;
 
 // モードごとのルール
 struct WorldRules {
-    bool movementSkillsOnly = false;  // 自キャラは移動系のスキルだけ使える（スキルドッジ）
+    bool movementSkillsOnly = false;  // 自キャラは移動系のスキルだけ使える（今はどのモードでも使っていない）
 };
 
 class World {

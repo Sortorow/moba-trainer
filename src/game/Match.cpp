@@ -56,7 +56,8 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
 }
 
 void Match::setupSkillDodge(const CharacterDef& character) {
-    world_->setRules(WorldRules{.movementSkillsOnly = true});
+    // 自キャラはすべてのスキルを使える（エマの R のように、他のスキルで置いた物や敵に付けた状態へワープして回避に使うスキルがあるため）。
+    // 攻撃スキルが敵に当たっても、敵には HP が無いのでダメージは無い（状態異常はかかる）
     Unit player = makePlayerUnit(character);
     player.maxHp = player.hp = kPlayerMaxHp;
     world_->addUnit(player);
