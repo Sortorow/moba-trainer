@@ -1,0 +1,133 @@
+// like emma（ER のエマ風）
+//
+// 単位・共通項目の説明は like_ezreal.jsonc の先頭を参照。
+// 数値は公式データが手に入らなかったため、動画から読み取った目安の値です。
+//
+// ■ このキャラで使う handler と params
+//   "emma_q"             カードを投げて、自分の位置に鳩を残す。近くに鳩がいれば鳩もカードになって狙った地点へ飛ぶ
+//                        speed, width, visual, color（エマのカード）
+//                        doveLifetime（鳩が残る時間）, doveLinkRange（この距離以内の鳩がカードになる）,
+//                        doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）,
+//                        doubleHitEffects（2 枚とも同じ敵に当たった時の効果）
+//   "emma_w"             帽子を地点に投げ、着地で爆発。帽子はしばらく残る（R の対象）
+//                        flightTime（着地までの時間）, radius, hatLifetime, color, onHit
+//   "homing_projectile"  対象を追尾する弾（必ず当たる）。speed, width, visual, color, onHit
+//   "emma_r"             鳩・帽子・兎（E で変身させた敵）を指定して、その位置へ瞬間移動する
+//                        pickRadius（カーソルからこの距離以内の対象を選ぶ）, targetKinds,
+//                        dovePathWidth, doveSpeed, doveOnHit（鳩: 鳩がエマの元の位置へ飛び、通り道の敵に効果）,
+//                        hatFlightTime, hatRadius, hatOnHit（帽子: エマの元の位置で爆発し、範囲の敵に効果）,
+//                        rabbitRadius, rabbitOnHit（兎: 兎の周りの敵に効果）
+//   "ground_zone"        地点に投げて、一定時間残る範囲
+//                        flightTime, radius, duration（残る時間）, visual, color,
+//                        slowAmount / lingerTime（範囲内にいる間かかるスロウと、出た後も残る時間）, onHit
+{
+  "id": "like_emma",
+  "displayName": "like emma",
+  "origin": "ER",
+  "moveSpeed": 355,
+  "hitboxRadius": 50,
+  "color": [150, 225, 240],
+
+  "skills": {
+    "Q": {
+      "name": "カード",
+      "handler": "emma_q",
+      "targeting": "direction",
+      "castTime": 0.15,
+      "cooldown": 4,
+      "range": 700,
+      "countsForHitRate": true,
+      "params": {
+        "speed": 1600,
+        "width": 60,
+        "visual": "card",
+        "color": [190, 150, 255],
+        "doveLifetime": 6,
+        "doveLinkRange": 800,
+        "doveCardSpeed": 1600,
+        "doveCardRange": 800,
+        "doveCardColor": [245, 245, 255],
+        "doubleHitEffects": [ { "type": "slow", "amount": 0.4, "duration": 1.5 } ]
+      }
+    },
+
+    "W": {
+      "name": "帽子",
+      "handler": "emma_w",
+      "targeting": "point",
+      "castTime": 0.15,
+      "cooldown": 10,
+      "range": 650,
+      "countsForHitRate": true,
+      "params": {
+        "flightTime": 0.5,
+        "radius": 175,
+        "hatLifetime": 6,
+        "color": [120, 200, 220],
+        "onHit": []
+      }
+    },
+
+    "E": {
+      "name": "マジックビーム",
+      "handler": "homing_projectile",
+      "targeting": "unit",
+      "castTime": 0.2,
+      "cooldown": 12,
+      "range": 550,
+      "countsForHitRate": false,
+      "params": {
+        "speed": 1600,
+        "width": 40,
+        "visual": "beam",
+        "color": [170, 200, 255],
+        // 兎に変身させる（移動以外の行動ができず、移動速度 30% 低下）
+        "onHit": [ { "type": "polymorph", "duration": 1.0, "amount": 0.3 } ]
+      }
+    },
+
+    "R": {
+      "name": "マジックショー",
+      "handler": "emma_r",
+      "targeting": "prop",
+      "castTime": 0.1,
+      "cooldown": 20,
+      "range": 1000,
+      "countsForHitRate": false,
+      "params": {
+        "pickRadius": 150,
+        "targetKinds": ["dove", "hat", "rabbit"],
+        "color": [200, 170, 255],
+        "dovePathWidth": 120,
+        "doveSpeed": 3000,
+        "doveOnHit": [ { "type": "snare", "duration": 1.5 } ],
+        "hatFlightTime": 0.15,
+        "hatRadius": 250,
+        "hatOnHit": [ { "type": "knockup", "duration": 1.0 } ],
+        "rabbitRadius": 250,
+        "rabbitOnHit": [ { "type": "polymorph", "duration": 0.9, "amount": 0.3 } ]
+      }
+    },
+
+    "D": {
+      "name": "鉄菱",
+      "handler": "ground_zone",
+      "targeting": "point",
+      "castTime": 0.1,
+      "cooldown": 15,
+      "range": 600,
+      "countsForHitRate": true,
+      "params": {
+        "flightTime": 0.35,
+        "radius": 220,
+        "duration": 4.5,
+        "visual": "caltrops",
+        "color": [170, 220, 255],
+        "slowAmount": 0.5,
+        "lingerTime": 0.5
+      }
+    },
+
+    "F": null
+  }
+}

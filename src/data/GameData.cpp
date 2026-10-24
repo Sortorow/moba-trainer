@@ -1,0 +1,97 @@
+#include "data/GameData.h"
+
+#include <algorithm>
+#include <format>
+
+#include "core/Log.h"
+
+namespace moba {
+
+GameData::GameData(AppPaths paths) : paths_(std::move(paths)) {}
+
+void GameData::loadAll() {
+    errors_.clear();
+
+    // --- 設定 ---
+    SettingsLoadResult settings = loadSettings(paths_.settingsFile);
+    if (settings.error.empty()) {
+        settings_ = settings.settings;
+        for (const std::string& warning : settings.warnings) {
+            log::warn("data", "settings.jsonc: {}", warning);
+            errors_.push_back("settings.jsonc: " + warning);
+        }
+    } else {
+        log::error("data", "{}", settings.error);
+        errors_.push_back(settings.error);
+    }
+
+    // --- キャラクター ---
+    std::vector<std::filesystem::path> files;
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(paths_.charactersDir, ec)) {
+        if (entry.is_regular_file(ec) && entry.path().extension() == ".jsonc") files.push_back(entry.path());
+    }
+    std::sort(files.begin(), files.end());
+
+    std::map<std::string, CharacterDef, std::less<>> loaded;
+    for (const std::filesystem::path& file : files) {
+        CharacterLoadResult result = loadCharacterFile(file);
+        if (!result.def) {
+            log::error("data", "{}", result.error);
+            errors_.push_back(result.error);
+            // 前回読み込めていたなら、その内容を使い続ける
+            for (const auto& [id, previous] : characters_) {
+                if (previous.sourceFile == file) loaded.emplace(id, previous);
+            }
+            continue;
+        }
+        const std::string id = result.def->id;
+        if (loaded.contains(id)) {
+            const std::string message = std::format("{}: id \"{}\" が他のファイルと重複しています", toUtf8(file.filename()), id);
+            log::error("data", "{}", message);
+            errors_.push_back(message);
+            continue;
+        }
+        loaded.emplace(id, std::move(*result.def));
+    }
+    characters_ = std::move(loaded);
+    fileTimes_ = scanFileTimes();
+    ++generation_;
+
+    log::info("data", "設定を読み込みました（{} 回目）: キャラ {} 体、エラー {} 件", generation_, characters_.size(),
+              errors_.size());
+}
+
+bool GameData::reloadIfChanged() {
+    if (scanFileTimes() == fileTimes_) return false;
+    log::info("data", "設定ファイルの変更を検知したため、再読み込みします");
+    loadAll();
+    return true;
+}
+
+const CharacterDef* GameData::character(std::string_view id) const {
+    const auto it = characters_.find(id);
+    return it == characters_.end() ? nullptr : &it->second;
+}
+
+std::vector<const CharacterDef*> GameData::characterList() const {
+    std::vector<const CharacterDef*> list;
+    for (const auto& [id, def] : characters_) list.push_back(&def);
+    return list;
+}
+
+void GameData::addError(std::string message) { errors_.push_back(std::move(message)); }
+
+std::map<std::filesystem::path, std::filesystem::file_time_type> GameData::scanFileTimes() const {
+    std::map<std::filesystem::path, std::filesystem::file_time_type> times;
+    std::error_code ec;
+    times[paths_.settingsFile] = std::filesystem::last_write_time(paths_.settingsFile, ec);
+    for (const auto& entry : std::filesystem::directory_iterator(paths_.charactersDir, ec)) {
+        if (entry.is_regular_file(ec) && entry.path().extension() == ".jsonc") {
+            times[entry.path()] = std::filesystem::last_write_time(entry.path(), ec);
+        }
+    }
+    return times;
+}
+
+}  // namespace moba

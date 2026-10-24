@@ -1,0 +1,23 @@
+# like emma の動作確認用の入力スクリプト
+# 実行例: build\release\moba_trainer.exe --character like_emma --script tests\scripts\emma_tour.txt
+# スクリーンショットは、実行した時のフォルダ（カレントディレクトリ）に保存される
+# 書式: <秒> <命令> <引数>   座標はワールド座標（自キャラの初期位置が (0, 0)、ダミーA が (650, -200)）
+
+0.30 cast Q 650 -200                  # カードを投げ、(0, 0) に鳩が残る
+0.55 screenshot emma_1_q.png
+0.70 move 0 280                       # 鳩から少し離れる
+1.60 resetcd
+1.60 cast Q 650 -200                  # エマと鳩の両方からカード
+1.85 screenshot emma_2_q_dove.png
+2.30 cast E 650 -200                  # 射程外なので近づいてから E（兎に変身）
+3.60 screenshot emma_3_e_rabbit.png
+3.70 cast R 650 -200                  # R で兎の位置へ
+3.90 screenshot emma_4_r_rabbit.png
+4.20 cast W 900 300                   # 帽子を投げる
+4.50 screenshot emma_5_w.png
+5.20 cast D 1000 0                    # 鉄菱（ダミーB の往復ルート上）
+5.80 screenshot emma_6_d.png
+6.00 resetcd
+6.00 cast R 900 300                   # R で帽子の位置へ（元の位置で打ち上げ）
+6.30 screenshot emma_7_r_hat.png
+6.50 exit

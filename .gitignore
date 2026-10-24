@@ -1,0 +1,6 @@
+build/
+logs/
+*.png
+
+# スキルの参考動画（容量が大きいため git では管理しない）
+skill_videos/

@@ -1,0 +1,19 @@
+# like ezreal の動作確認用の入力スクリプト
+# 実行例: build\release\moba_trainer.exe --character like_ezreal --script tests\scripts\ezreal_tour.txt
+# スクリーンショットは、実行した時のフォルダ（カレントディレクトリ）に保存される
+# 書式: <秒> <命令> <引数>   座標はワールド座標（自キャラの初期位置が (0, 0)、ダミーA が (650, -200)）
+
+0.50 cast W 650 -200                  # ダミーA に W
+0.90 screenshot ezreal_1_w_flight.png
+1.25 screenshot ezreal_2_w_mark.png   # ダミーA に W の印
+1.30 cast Q 650 -200                  # Q で印を起爆
+1.70 screenshot ezreal_3_q_flight.png
+1.86 screenshot ezreal_4_q_detonate.png
+2.20 cast R 1450 250                  # R（詠唱 1 秒）
+2.60 screenshot ezreal_5_r_cast.png
+3.50 screenshot ezreal_6_r_flight.png
+3.80 cast E 400 0                     # E でワープし、近くのダミーへ追尾弾
+4.25 screenshot ezreal_7_e_bolt.png
+4.60 cast D 0 300                     # フラッシュ
+4.70 screenshot ezreal_8_flash.png
+5.00 exit
