@@ -1,6 +1,7 @@
 #include "app/App.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 #include <format>
@@ -15,6 +16,7 @@
 #include "ui/DebugPanel.h"
 #include "ui/Fonts.h"
 #include "ui/ResultScreen.h"
+#include "ui/UiScale.h"
 
 namespace moba {
 namespace {
@@ -62,20 +64,57 @@ int App::run() {
 void App::initWindow() {
     SetTraceLogCallback(raylibLogCallback);
     SetTraceLogLevel(LOG_INFO);
-    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE);
-    const int width = options_.windowWidth.value_or(data_.settings().windowWidth);
-    const int height = options_.windowHeight.value_or(data_.settings().windowHeight);
-    InitWindow(width, height, "MOBA Trainer");
+    // 大きさを決めるまではウィンドウを隠しておく（Windows の拡大率に合わせて大きさを変える時に、ちらつかないように）
+    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIDDEN);
+    const Settings& settings = data_.settings();
+    InitWindow(settings.windowWidth, settings.windowHeight, "MOBA Trainer");
     SetExitKey(KEY_NULL);  // Esc はメニューに戻るキーとして使う
     platform::disableIme(GetWindowHandle());
+
+    dpiScale_ = platform::windowDpiScale(GetWindowHandle());
+    if (options_.windowWidth && options_.windowHeight) {
+        // コマンドラインで指定された大きさは、拡大率を掛けずに実ピクセルとしてそのまま使う（自動での確認用）
+        SetWindowSize(*options_.windowWidth, *options_.windowHeight);
+    } else {
+        fitWindowToScreen(settings.windowWidth, settings.windowHeight);
+    }
+    ClearWindowState(FLAG_WINDOW_HIDDEN);
 
     rlImGuiSetup(true);
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;                               // ウィンドウ配置を imgui.ini に保存しない
     io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;  // Q/W/E/R が UI の操作に取られないように
     ui::loadJapaneseFont(18.0f);
+    applyUiScale();
 
-    log::info("app", "ウィンドウを開きました: {}x{}", width, height);
+    log::info("app", "ウィンドウを開きました: {}x{}（Windows の拡大率 {:.0f}%）", GetScreenWidth(), GetScreenHeight(),
+              dpiScale_ * 100.0f);
+}
+
+// 設定の大きさ（拡大率 100% の時の大きさ）に Windows の拡大率を掛け、画面に収まるようにして中央に置く
+void App::fitWindowToScreen(int logicalWidth, int logicalHeight) {
+    const platform::ScreenRect area = platform::monitorWorkArea(GetWindowHandle());
+    const ui::WindowSize size = ui::fitWindowSize(logicalWidth, logicalHeight, dpiScale_, area.width, area.height);
+    SetWindowSize(size.width, size.height);
+    if (area.width > 0 && area.height > 0) {
+        SetWindowPosition(area.x + (area.width - size.width) / 2, area.y + (area.height - size.height) / 2);
+    }
+}
+
+void App::applyUiScale() {
+    const float scale = dpiScale_ * data_.settings().uiScale;
+    ui::setScale(scale);
+    log::info("ui", "文字・ボタンの倍率を {:.2f} にしました（Windows の拡大率 {:.0f}% × 設定の uiScale {:.2f}）", scale,
+              dpiScale_ * 100.0f, data_.settings().uiScale);
+}
+
+void App::checkDpiChange() {
+    const float dpi = platform::windowDpiScale(GetWindowHandle());
+    if (std::fabs(dpi - dpiScale_) < 0.001f) return;
+    log::info("app", "Windows の拡大率が {:.0f}% から {:.0f}% に変わりました（別のモニターへの移動など）", dpiScale_ * 100.0f,
+              dpi * 100.0f);
+    dpiScale_ = dpi;
+    applyUiScale();
 }
 
 void App::shutdownWindow() {
@@ -94,6 +133,7 @@ void App::frame() {
         reloadCheckTimer_ = 0.0f;
         reloadData(false);
     }
+    checkDpiChange();
 
     const double frameStart = GetTime();
     const ImGuiIO& io = ImGui::GetIO();
@@ -150,6 +190,7 @@ void App::reloadData(bool force) {
     }
     validateData();
     log::setMinLevel(data_.settings().logLevel);
+    applyUiScale();  // uiScale が変わっているかもしれないので反映し直す
     if (match_) match_->world().refreshUnitsFromData();
 }
 

@@ -71,6 +71,21 @@ void disableIme(void* nativeWindowHandle) {
     log::info("platform", "ウィンドウの IME を無効にしました（日本語入力がオンでもキー操作が届くように）");
 }
 
+float windowDpiScale(void* nativeWindowHandle) {
+    if (!nativeWindowHandle) return 1.0f;
+    const UINT dpi = GetDpiForWindow(static_cast<HWND>(nativeWindowHandle));
+    return dpi > 0 ? static_cast<float>(dpi) / static_cast<float>(USER_DEFAULT_SCREEN_DPI) : 1.0f;
+}
+
+ScreenRect monitorWorkArea(void* nativeWindowHandle) {
+    HMONITOR monitor = MonitorFromWindow(static_cast<HWND>(nativeWindowHandle), MONITOR_DEFAULTTONEAREST);
+    MONITORINFO info{};
+    info.cbSize = sizeof(info);
+    if (!monitor || !GetMonitorInfoW(monitor, &info)) return ScreenRect{};
+    return ScreenRect{info.rcWork.left, info.rcWork.top, info.rcWork.right - info.rcWork.left,
+                      info.rcWork.bottom - info.rcWork.top};
+}
+
 void showErrorDialog(std::string_view titleUtf8, std::string_view messageUtf8) {
     MessageBoxW(nullptr, widen(messageUtf8).c_str(), widen(titleUtf8).c_str(), MB_OK | MB_ICONERROR);
 }

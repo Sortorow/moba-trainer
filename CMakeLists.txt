@@ -100,6 +100,7 @@ add_library(moba_lib STATIC
   src/render/Renderer.cpp
   src/render/Hud.cpp
   src/ui/Fonts.cpp
+  src/ui/UiScale.cpp
   src/ui/MainMenu.cpp
   src/ui/DebugPanel.cpp
   src/ui/ResultScreen.cpp
@@ -131,6 +132,7 @@ add_executable(moba_tests
   tests/test_log_retention.cpp
   tests/test_character_data.cpp
   tests/test_world.cpp
-  tests/test_dodge.cpp)
+  tests/test_dodge.cpp
+  tests/test_ui_scale.cpp)
 target_link_libraries(moba_tests PRIVATE moba_lib doctest::doctest)
 target_compile_definitions(moba_tests PRIVATE MOBA_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

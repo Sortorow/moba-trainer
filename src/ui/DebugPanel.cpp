@@ -8,6 +8,7 @@
 #include "data/GameData.h"
 #include "game/Match.h"
 #include "imgui.h"
+#include "ui/UiScale.h"
 
 namespace moba {
 namespace {
@@ -75,8 +76,8 @@ DebugPanelResult drawDebugPanel(Match& match, GameData& data) {
     DebugPanelResult result;
     World& world = match.world();
     // 練習場ではダミーが自キャラの右側にいるので、パネルは左側に置く
-    ImGui::SetNextWindowPos(ImVec2{12.0f, 40.0f}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2{340.0f, 0.0f}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ui::px(12.0f, 40.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2{ui::px(340.0f), 0.0f}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowBgAlpha(0.88f);
     if (!ImGui::Begin("デバッグ（F1 で表示切替）")) {
         ImGui::End();

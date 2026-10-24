@@ -4,6 +4,7 @@
 #include <string>
 
 #include "imgui.h"
+#include "ui/UiScale.h"
 
 namespace moba {
 namespace {
@@ -27,7 +28,7 @@ ResultAction drawResultScreen(const MatchResult& result) {
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2{0.5f, 0.5f});
-    ImGui::SetNextWindowSize(ImVec2{520.0f, 0.0f}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2{ui::px(520.0f), 0.0f}, ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.95f);
     ImGui::Begin("リザルト", nullptr,
                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
@@ -52,9 +53,9 @@ ResultAction drawResultScreen(const MatchResult& result) {
     ImGui::TextDisabled("※ 制限時間の終了時に飛んでいる途中だったスキルは、集計に含めません");
 
     ImGui::Separator();
-    if (ImGui::Button("もう一度", ImVec2{140.0f, 36.0f})) action = ResultAction::Retry;
+    if (ImGui::Button("もう一度", ui::px(140.0f, 36.0f))) action = ResultAction::Retry;
     ImGui::SameLine();
-    if (ImGui::Button("メニューへ", ImVec2{140.0f, 36.0f})) action = ResultAction::Menu;
+    if (ImGui::Button("メニューへ", ui::px(140.0f, 36.0f))) action = ResultAction::Menu;
     ImGui::End();
     return action;
 }

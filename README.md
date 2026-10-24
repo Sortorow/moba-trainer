@@ -48,7 +48,15 @@ build.bat debug      # Debug ビルド   → build\debug\moba_trainer.exe
 |---|---|
 | `data/characters/*.jsonc` | キャラとスキルの数値（項目の説明は like_ezreal.jsonc の先頭） |
 | `data/ai.jsonc` | スキルドッジの敵 AI（賢さ 1〜5 ごとの反応速度・狙い方・撃つ間隔など） |
-| `data/settings.jsonc` | 視点の広さ・クールダウン倍率の初期値・ログの詳しさなど |
+| `data/settings.jsonc` | 文字・ボタンの大きさ（`uiScale`）・視点の広さ・クールダウン倍率の初期値・ログの詳しさなど |
+
+## 資料
+
+| 資料 | 内容 |
+|---|---|
+| [docs/dpi-scaling.md](docs/dpi-scaling.md) | 画面の文字が小さく表示される問題と、Windows の拡大率への対応（背景・原因・修正方法・今後の注意） |
+
+VSCode では、Markdown ファイルを開いて `Ctrl + Shift + V` を押すと、画像や表が整った状態で読めます。
 
 ## ログ
 

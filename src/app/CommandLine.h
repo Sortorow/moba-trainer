@@ -9,7 +9,7 @@
 //   --seed <n>           乱数の種（同じ展開を再現したい時）
 //   --no-cooldown        クールダウン「なし」で始める
 //   --script <file>      入力スクリプトで操作する（--character が無ければ最初のキャラ）
-//   --window <W>x<H>     ウィンドウの大きさ（例: 1280x720）
+//   --window <W>x<H>     ウィンドウの大きさ（例: 1280x720。Windows の拡大率を掛けない実ピクセル）
 //   --no-debug-panel     デバッグパネルを最初から閉じておく
 
 #include <cstdint>

@@ -32,6 +32,7 @@ SettingsLoadResult loadSettings(const std::filesystem::path& file) {
         s.cameraViewHeight = std::clamp(j.value("cameraViewHeight", s.cameraViewHeight), 400.0f, 6000.0f);
         s.cooldownScale = std::max(0.0f, j.value("cooldownScale", s.cooldownScale));
         s.showHitboxes = j.value("showHitboxes", s.showHitboxes);
+        s.uiScale = std::clamp(j.value("uiScale", s.uiScale), 0.5f, 3.0f);
 
         if (const auto it = j.find("window"); it != j.end() && it->is_object()) {
             s.windowWidth = std::max(640, it->value("width", s.windowWidth));

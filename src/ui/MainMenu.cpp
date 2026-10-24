@@ -7,6 +7,7 @@
 
 #include "data/GameData.h"
 #include "imgui.h"
+#include "ui/UiScale.h"
 
 namespace moba {
 namespace {
@@ -78,7 +79,7 @@ MenuAction MainMenu::draw(const GameData& data) {
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2{0.5f, 0.5f});
-    ImGui::SetNextWindowSize(ImVec2{580.0f, 0.0f}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2{ui::px(580.0f), 0.0f}, ImGuiCond_Always);
     ImGui::Begin("MOBA Trainer", nullptr,
                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                      ImGuiWindowFlags_NoSavedSettings);
@@ -125,13 +126,13 @@ MenuAction MainMenu::draw(const GameData& data) {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::BeginDisabled(characters.empty());
-    if (ImGui::Button("開始", ImVec2{140.0f, 36.0f})) {
+    if (ImGui::Button("開始", ui::px(140.0f, 36.0f))) {
         action.kind = MenuAction::Kind::Start;
         action.config = config_;
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::Button("終了", ImVec2{100.0f, 36.0f})) action.kind = MenuAction::Kind::Quit;
+    if (ImGui::Button("終了", ui::px(100.0f, 36.0f))) action.kind = MenuAction::Kind::Quit;
 
     if (!data.errors().empty()) {
         ImGui::SeparatorText("設定ファイルのエラー");
