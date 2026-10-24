@@ -12,6 +12,7 @@ struct AppPaths {
     std::filesystem::path dataDir;        // root/data
     std::filesystem::path charactersDir;  // root/data/characters
     std::filesystem::path settingsFile;   // root/data/settings.jsonc
+    std::filesystem::path aiFile;         // root/data/ai.jsonc
     std::filesystem::path logsDir;        // root/logs
 };
 

@@ -1,11 +1,18 @@
 #pragma once
-// コマンドライン引数
+// コマンドライン引数（主に自動での動作確認用）
 //
-//   --character <id>     メニューを飛ばして、そのキャラで練習場を始める（例: like_emma）
-//   --script <file>      入力スクリプトで操作する（自動での動作確認用。--character が無ければ最初のキャラ）
+//   --character <id>     メニューを飛ばして、そのキャラで始める（例: like_emma）
+//   --mode <name>        sandbox（練習場、既定）/ dodge（スキルドッジ）
+//   --enemies <n>        スキルドッジの敵の数（1〜5）
+//   --ai <n>             スキルドッジの敵の賢さ（1〜5）
+//   --time <seconds>     スキルドッジの制限時間（秒。メニューでは 1〜5 分）
+//   --seed <n>           乱数の種（同じ展開を再現したい時）
+//   --no-cooldown        クールダウン「なし」で始める
+//   --script <file>      入力スクリプトで操作する（--character が無ければ最初のキャラ）
 //   --window <W>x<H>     ウィンドウの大きさ（例: 1280x720）
 //   --no-debug-panel     デバッグパネルを最初から閉じておく
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -14,6 +21,12 @@ namespace moba {
 
 struct CommandLineOptions {
     std::optional<std::string> characterId;
+    std::optional<std::string> mode;
+    std::optional<int> enemyCount;
+    std::optional<int> aiLevel;
+    std::optional<float> timeSeconds;
+    std::optional<std::uint32_t> seed;
+    bool noCooldown = false;
     std::optional<std::filesystem::path> scriptFile;
     std::optional<int> windowWidth;
     std::optional<int> windowHeight;

@@ -64,4 +64,24 @@ void handleGroundZone(SkillContext& ctx) {
     ctx.world.spawnArea(std::move(a));
 }
 
+// params: delay（爆発までの時間）, radius, color, onHit, cooldownRefundOnHit
+void handleGroundBlast(SkillContext& ctx) { ctx.world.spawnArea(makeGroundBlast(ctx, aimPoint(ctx))); }
+
+// params: radius（対象の周りの範囲）, color, onHit
+void handleTargetedBlast(SkillContext& ctx) {
+    Unit* target = ctx.world.findUnit(ctx.request.targetUnit);
+    if (!target || !target->alive) {
+        ctx.caster.cooldowns[static_cast<std::size_t>(index(ctx.def.slot))] = 0.0f;
+        log::debug("skill", "[{}] {}: 対象がいなくなったため不発", toString(ctx.def.slot), ctx.def.name);
+        return;
+    }
+    AreaEffect a = makeArea(ctx, target->pos);
+    a.radius = ctx.def.num("radius", 300.0f);
+    a.visual = AreaVisual::Explosion;
+    const std::vector<EffectSpec> effects = ctx.def.effects("onHit");
+    a.onUnitHit = [effects](World& world, AreaEffect& self, Unit& unit) { applyEffects(world, unit, effects, self.owner); };
+    ctx.world.addVfx(makeTeleportVfx(ctx.caster.pos, target->pos, a.color));  // 爆風が飛んでいく演出
+    ctx.world.spawnArea(std::move(a));
+}
+
 }  // namespace moba::skills

@@ -1,0 +1,15 @@
+# like brand の動作確認用の入力スクリプト（練習場）
+# 実行例: build\release\moba_trainer.exe --character like_brand --script tests\scripts\brand_tour.txt
+# スクリーンショットは、実行した時のフォルダ（カレントディレクトリ）に保存される
+
+0.30 cast Q 650 -200                  # ダミーA に Q
+0.55 screenshot brand_1_q.png
+0.80 cast W 650 -200                  # W（予告円 → 遅れて爆発）
+1.30 screenshot brand_2_w.png
+1.90 resetcd
+1.90 cast E 650 -200                  # E（対象の周りに爆風）
+2.20 screenshot brand_3_e.png
+2.60 cast R 650 -200                  # R（敵と自分の間を跳ね返る）
+3.30 screenshot brand_4_r.png
+4.10 screenshot brand_5_r.png
+5.00 exit

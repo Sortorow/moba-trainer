@@ -84,12 +84,14 @@ void finishCast(World& world, Unit& caster) {
     }
 
     const int castId = world.newCastId();
+    world.beginCast(castId, caster.team, request.slot);
     if (def->countsForHitRate && caster.team == Team::Player) world.stats().recordCast(castId, request.slot);
     log::info("skill", "{} が [{}] {} を発動 castId={} 位置{} カーソル{}", caster.name, toString(request.slot), def->name,
               castId, geo::str(caster.pos), geo::str(request.cursor));
 
     skills::SkillContext ctx{world, caster, *def, request, castId};
     handler(ctx);
+    world.endCastIfIdle(castId);
 
     // 詠唱中に押されていたスキルを続けて発動する
     if (caster.bufferedCast) {
@@ -127,6 +129,10 @@ void requestCast(World& world, Unit& caster, const CastRequest& request) {
     const SkillDef* def = skillOf(world, caster, request.slot);
     if (!def) {
         log::debug("skill", "[{}] にはスキルがありません", toString(request.slot));
+        return;
+    }
+    if (caster.team == Team::Player && world.rules().movementSkillsOnly && !def->movementSkill) {
+        log::debug("skill", "[{}] {}: このモードでは移動系のスキルだけ使えます", toString(request.slot), def->name);
         return;
     }
     const float cooldown = caster.cooldowns[static_cast<std::size_t>(index(request.slot))];

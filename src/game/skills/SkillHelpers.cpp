@@ -47,6 +47,24 @@ AreaEffect makeArea(const SkillContext& ctx, Vector2 center) {
     return a;
 }
 
+AreaEffect makeGroundBlast(const SkillContext& ctx, Vector2 center) {
+    AreaEffect a = makeArea(ctx, center);
+    a.origin = center;
+    a.delay = ctx.def.num("delay", 0.5f);
+    a.radius = ctx.def.num("radius", 200.0f);
+    a.visual = AreaVisual::Telegraph;
+    const std::vector<EffectSpec> effects = ctx.def.effects("onHit");
+    const float refund = ctx.def.numOr("cooldownRefundOnHit", 0.0f);
+    a.onUnitHit = [effects, refund](World& world, AreaEffect& self, Unit& unit) {
+        applyEffects(world, unit, effects, self.owner);
+        // クールダウンの短縮は、何体に当たっても 1 回だけ
+        if (refund > 0.0f && self.hitUnits.size() == 1) {
+            if (Unit* owner = world.findUnit(self.owner)) refundCooldown(world, *owner, self.slot, refund);
+        }
+    };
+    return a;
+}
+
 void applyEffects(World& world, Unit& target, const std::vector<EffectSpec>& effects, EntityId source) {
     for (const EffectSpec& effect : effects) {
         target.status.apply(effect, source);

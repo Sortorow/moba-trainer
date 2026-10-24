@@ -13,6 +13,13 @@ constexpr Color kGridMinor{255, 255, 255, 10};
 constexpr Color kGridMajor{255, 255, 255, 28};
 constexpr Color kHitboxColor{255, 255, 255, 150};
 
+Color lerpColor(Color a, Color b, float t) {
+    auto mix = [t](unsigned char x, unsigned char y) {
+        return static_cast<unsigned char>(static_cast<float>(x) + (static_cast<float>(y) - static_cast<float>(x)) * t);
+    };
+    return Color{mix(a.r, b.r), mix(a.g, b.g), mix(a.b, b.b), mix(a.a, b.a)};
+}
+
 // 頂点の並び順に関係なく三角形を描く（raylib は反時計回りの三角形しか描かないため、両方の順で描く）
 void drawTriangleBothSides(Vector2 a, Vector2 b, Vector2 c, Color color) {
     DrawTriangle(a, b, c, color);
@@ -126,9 +133,13 @@ void drawUnit(const Unit& unit, float time) {
     if (unit.status.has(EffectType::Polymorph)) {
         drawRabbit(body, unit.radius);
     } else {
-        DrawCircleV(body, unit.radius, unit.color);
-        DrawRing(body, unit.radius - 4.0f, unit.radius, 0.0f, 360.0f, 48,
-                 isPlayer ? Color{255, 255, 255, 230} : Color{70, 20, 20, 255});
+        // 外周の輪で見分ける: 自キャラ = 白、敵キャラ = 赤（太め）、ダミー = 暗い赤
+        // 敵キャラは、自キャラと同じキャラでも見分けやすいように体の色を赤寄りにする
+        const bool enemyCharacter = !isPlayer && !unit.characterId.empty();
+        const Color ring = isPlayer ? Color{255, 255, 255, 230} : enemyCharacter ? Color{255, 60, 60, 255} : Color{70, 20, 20, 255};
+        const Color bodyColor = enemyCharacter ? lerpColor(unit.color, Color{200, 50, 50, 255}, 0.4f) : unit.color;
+        DrawCircleV(body, unit.radius, bodyColor);
+        DrawRing(body, unit.radius - (enemyCharacter ? 9.0f : 4.0f), unit.radius, 0.0f, 360.0f, 48, ring);
         DrawLineEx(body, body + unit.facing * unit.radius, 5.0f, Color{255, 255, 255, 200});
     }
     if (unit.hitFlash > 0.0f) DrawCircleV(body, unit.radius, Fade(WHITE, unit.hitFlash / 0.25f * 0.6f));

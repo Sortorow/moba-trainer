@@ -1,0 +1,95 @@
+// スキルドッジモードの敵 AI の設定
+// ゲームの起動中に保存すると、自動で再読み込みされます（次に開始したプレイから反映）
+{
+  // 敵のスキルのクールダウン倍率（キャラ設定の値 × この倍率）
+  "enemyCooldownScale": 0.5,
+
+  // 開始してから、敵が最初にスキルを撃つまでの時間（秒）
+  "firstCastDelay": 1.5,
+
+  // 敵が自キャラと取ろうとする距離の上限。画面の外から撃たれすぎないように抑える
+  "maxEngageRange": 1000,
+
+  // AI が想定する「プレイヤーが弾を見てから避け始めるまでの時間」（秒）
+  "playerReactionTime": 0.25,
+
+  // 賢さ 1〜5 の設定（上から順に 1, 2, 3, 4, 5）
+  //   reactionTime      自キャラの動きを認識するまでの遅れ（秒）。小さいほど、今の動きに合わせて撃ってくる
+  //   castInterval      スキルを撃つ間隔 [最小, 最大]（秒）。この範囲でランダム
+  //   aimError          狙いのぶれ（ゲーム内単位）
+  //   predict           狙う時に想定する、着弾時の自キャラの位置の重み
+  //                       stay = その場に留まる / continue = 今の移動を続ける（偏差撃ち）/ dodge = 弾を見て横に避ける（避けた先を狙う）
+  //   adaptive          自キャラが左右どちらに避けやすいかを学習して、避けた先を読む
+  //   minHitChance      命中見込みがこれ未満の時は、撃つのを少し待つ（0〜1）
+  //   strafe            横移動の多さ（0〜1）
+  //   flank             他の敵と離れて、囲むように動く
+  //   punishCC          自キャラが動けない時（拘束・スタン・打ち上げ）は、間隔を待たずにすぐ撃つ
+  //   engageRangeRatio  自キャラとの距離を「スキルの射程 × この値」に保とうとする
+  "levels": [
+    {
+      "name": "やさしい",
+      "reactionTime": 0.40,
+      "castInterval": [2.6, 3.4],
+      "aimError": 120,
+      "predict": { "stay": 1.0, "continue": 0.0, "dodge": 0.0 },
+      "adaptive": false,
+      "minHitChance": 0.0,
+      "strafe": 0.0,
+      "flank": false,
+      "punishCC": false,
+      "engageRangeRatio": 0.85
+    },
+    {
+      "name": "ややかんたん",
+      "reactionTime": 0.30,
+      "castInterval": [2.0, 2.8],
+      "aimError": 80,
+      "predict": { "stay": 0.5, "continue": 0.5, "dodge": 0.0 },
+      "adaptive": false,
+      "minHitChance": 0.1,
+      "strafe": 0.2,
+      "flank": false,
+      "punishCC": false,
+      "engageRangeRatio": 0.8
+    },
+    {
+      "name": "ふつう",
+      "reactionTime": 0.20,
+      "castInterval": [1.6, 2.3],
+      "aimError": 50,
+      "predict": { "stay": 0.25, "continue": 0.75, "dodge": 0.0 },
+      "adaptive": false,
+      "minHitChance": 0.2,
+      "strafe": 0.4,
+      "flank": true,
+      "punishCC": true,
+      "engageRangeRatio": 0.8
+    },
+    {
+      "name": "むずかしい",
+      "reactionTime": 0.12,
+      "castInterval": [1.3, 1.9],
+      "aimError": 30,
+      "predict": { "stay": 0.2, "continue": 0.5, "dodge": 0.3 },
+      "adaptive": false,
+      "minHitChance": 0.3,
+      "strafe": 0.6,
+      "flank": true,
+      "punishCC": true,
+      "engageRangeRatio": 0.75
+    },
+    {
+      "name": "とてもむずかしい",
+      "reactionTime": 0.05,
+      "castInterval": [1.0, 1.5],
+      "aimError": 15,
+      "predict": { "stay": 0.2, "continue": 0.4, "dodge": 0.4 },
+      "adaptive": true,
+      "minHitChance": 0.35,
+      "strafe": 0.8,
+      "flank": true,
+      "punishCC": true,
+      "engageRangeRatio": 0.75
+    }
+  ]
+}

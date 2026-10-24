@@ -82,12 +82,7 @@ void handleEmmaQ(SkillContext& ctx) {
 //    敵に当たると、W のクールダウンが短くなる。
 // params: delay（爆発までの時間）, radius, hatLifetime, color, onHit, cooldownRefundOnHit
 void handleEmmaW(SkillContext& ctx) {
-    AreaEffect a = makeArea(ctx, aimPoint(ctx));
-    a.origin = a.center;
-    a.delay = ctx.def.num("delay", 0.5f);
-    a.radius = ctx.def.num("radius", 175.0f);
-    a.visual = AreaVisual::Telegraph;
-
+    AreaEffect a = makeGroundBlast(ctx, aimPoint(ctx));
     const float hatLifetime = ctx.def.num("hatLifetime", 6.0f);
     a.onActivate = [hatLifetime](World& world, AreaEffect& self) {
         // 帽子は 1 つまで。古い帽子は消える
@@ -100,16 +95,6 @@ void handleEmmaW(SkillContext& ctx) {
         hat.pos = self.center;
         hat.lifetime = hat.remaining = hatLifetime;
         world.spawnProp(hat);
-    };
-
-    const std::vector<EffectSpec> effects = ctx.def.effects("onHit");
-    const float refund = ctx.def.numOr("cooldownRefundOnHit", 0.0f);
-    a.onUnitHit = [effects, refund](World& world, AreaEffect& self, Unit& unit) {
-        applyEffects(world, unit, effects, self.owner);
-        // クールダウンの短縮は、何体に当たっても 1 回だけ
-        if (self.hitUnits.size() == 1) {
-            if (Unit* owner = world.findUnit(self.owner)) refundCooldown(world, *owner, self.slot, refund);
-        }
     };
     ctx.world.spawnArea(std::move(a));
 }

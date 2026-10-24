@@ -1,0 +1,22 @@
+# スキルドッジの動作確認用の入力スクリプト
+# 実行例: build\release\moba_trainer.exe --character like_ezreal --mode dodge --enemies 3 --ai 3 --time 12 --seed 42 --script tests\scripts\dodge_tour.txt
+# スクリーンショットは、実行した時のフォルダ（カレントディレクトリ）に保存される
+
+0.00 cursor 0 0
+1.00 move 400 300
+2.20 screenshot dodge_1.png
+2.50 move -400 300
+3.50 cast Q 600 0                     # 使えない（スキルドッジでは移動系だけ）
+3.60 screenshot dodge_2_q_blocked.png
+4.00 move -300 -300
+5.20 screenshot dodge_3.png
+5.50 cast D 0 -400                    # フラッシュ（移動系なので使える）
+5.60 screenshot dodge_4_flash.png
+6.00 move 300 -200
+7.50 screenshot dodge_5.png
+8.00 cast E -400 0                    # E（移動系なので使える）
+8.30 screenshot dodge_6_e.png
+9.00 move 0 0
+11.00 screenshot dodge_7.png
+12.60 screenshot dodge_8_result.png   # 制限時間 12 秒の後のリザルト画面
+13.00 exit

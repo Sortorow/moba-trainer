@@ -6,8 +6,7 @@
 #include "core/Log.h"
 #include "core/Paths.h"
 #include "data/GameData.h"
-#include "game/DummyController.h"
-#include "game/World.h"
+#include "game/Match.h"
 #include "imgui.h"
 
 namespace moba {
@@ -39,10 +38,42 @@ void drawStatsTable(const World& world) {
     ImGui::EndTable();
 }
 
+void drawDummyControls(Match& match) {
+    World& world = match.world();
+    for (DummyBrain& brain : match.dummies().brains()) {
+        Unit* unit = world.findUnit(brain.unitId);
+        if (!unit) continue;
+        ImGui::PushID(static_cast<int>(brain.unitId));
+        ImGui::TextUnformatted(unit->name.c_str());
+        int behavior = static_cast<int>(brain.behavior);
+        if (ImGui::Combo("動き", &behavior, "静止\0往復\0")) {
+            brain.behavior = static_cast<DummyBehavior>(behavior);
+            unit->moveTarget.reset();
+            if (brain.behavior == DummyBehavior::Patrol && Vector2Distance(brain.home, brain.patrolTo) < 1.0f) {
+                brain.patrolTo = brain.home + Vector2{0.0f, 800.0f};  // 往復先が無ければ下方向に作る
+            }
+        }
+        ImGui::SliderFloat("移動速度", &unit->baseMoveSpeed, 0.0f, 600.0f, "%.0f");
+        ImGui::PopID();
+    }
+}
+
+void drawSkillDodgeInfo(const Match& match) {
+    const AiLevel& level = match.enemies().level();
+    const DodgeCount& dodge = match.world().dodge();
+    ImGui::Text("賢さ %d（%s）  乱数の種 %u", match.config().aiLevel, level.name.c_str(), match.config().seed);
+    ImGui::Text("反応 %.2fs  間隔 %.1f〜%.1fs  ぶれ %.0f", level.reactionTime, level.castIntervalMin, level.castIntervalMax,
+                level.aimError);
+    ImGui::Text("予測: 留まる %.2f / 移動継続 %.2f / 回避 %.2f%s", level.predictStay, level.predictContinue,
+                level.predictDodge, level.adaptive ? "（学習あり）" : "");
+    ImGui::Text("ドッジ %d / %d（被弾 %d）", dodge.dodged, dodge.total, dodge.hit);
+}
+
 }  // namespace
 
-DebugPanelResult drawDebugPanel(World& world, GameData& data, DummyController& dummies, std::string_view characterId) {
+DebugPanelResult drawDebugPanel(Match& match, GameData& data) {
     DebugPanelResult result;
+    World& world = match.world();
     // 練習場ではダミーが自キャラの右側にいるので、パネルは左側に置く
     ImGui::SetNextWindowPos(ImVec2{12.0f, 40.0f}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2{340.0f, 0.0f}, ImGuiCond_FirstUseEver);
@@ -57,10 +88,12 @@ DebugPanelResult drawDebugPanel(World& world, GameData& data, DummyController& d
     ImGui::TextDisabled("ログ: %s", logFile.c_str());
 
     if (ImGui::CollapsingHeader("キャラクター・設定", ImGuiTreeNodeFlags_DefaultOpen)) {
-        const CharacterDef* current = data.character(characterId);
+        const CharacterDef* current = data.character(match.config().characterId);
         if (ImGui::BeginCombo("キャラ", current ? current->displayName.c_str() : "?")) {
             for (const CharacterDef* def : data.characterList()) {
-                if (ImGui::Selectable(def->displayName.c_str(), def->id == characterId)) result.switchCharacter = def->id;
+                if (ImGui::Selectable(def->displayName.c_str(), def->id == match.config().characterId)) {
+                    result.switchCharacter = def->id;
+                }
             }
             ImGui::EndCombo();
         }
@@ -82,28 +115,14 @@ DebugPanelResult drawDebugPanel(World& world, GameData& data, DummyController& d
         }
     }
 
-    if (ImGui::CollapsingHeader("スキルの命中集計", ImGuiTreeNodeFlags_DefaultOpen)) {
-        drawStatsTable(world);
-        if (ImGui::Button("集計をリセット")) world.stats().reset();
-    }
-
-    if (ImGui::CollapsingHeader("ダミー")) {
-        for (DummyBrain& brain : dummies.brains()) {
-            Unit* unit = world.findUnit(brain.unitId);
-            if (!unit) continue;
-            ImGui::PushID(static_cast<int>(brain.unitId));
-            ImGui::TextUnformatted(unit->name.c_str());
-            int behavior = static_cast<int>(brain.behavior);
-            if (ImGui::Combo("動き", &behavior, "静止\0往復\0")) {
-                brain.behavior = static_cast<DummyBehavior>(behavior);
-                unit->moveTarget.reset();
-                if (brain.behavior == DummyBehavior::Patrol && Vector2Distance(brain.home, brain.patrolTo) < 1.0f) {
-                    brain.patrolTo = brain.home + Vector2{0.0f, 800.0f};  // 往復先が無ければ下方向に作る
-                }
-            }
-            ImGui::SliderFloat("移動速度", &unit->baseMoveSpeed, 0.0f, 600.0f, "%.0f");
-            ImGui::PopID();
+    if (match.config().mode == GameMode::SkillDodge) {
+        if (ImGui::CollapsingHeader("スキルドッジ・敵 AI", ImGuiTreeNodeFlags_DefaultOpen)) drawSkillDodgeInfo(match);
+    } else {
+        if (ImGui::CollapsingHeader("スキルの命中集計", ImGuiTreeNodeFlags_DefaultOpen)) {
+            drawStatsTable(world);
+            if (ImGui::Button("集計をリセット")) world.stats().reset();
         }
+        if (ImGui::CollapsingHeader("ダミー")) drawDummyControls(match);
     }
 
     if (ImGui::CollapsingHeader("自キャラの状態")) {

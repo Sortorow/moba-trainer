@@ -1,5 +1,5 @@
 #pragma once
-// アプリ本体: ウィンドウ・メインループ・画面（メニュー / 練習場）の切り替え
+// アプリ本体: ウィンドウ・メインループ・画面（メニュー / プレイ中 / リザルト）の切り替え
 
 #include <memory>
 #include <optional>
@@ -8,10 +8,8 @@
 #include "app/CommandLine.h"
 #include "core/Paths.h"
 #include "data/GameData.h"
-#include "game/DummyController.h"
+#include "game/Match.h"
 #include "game/MatchConfig.h"
-#include "game/PlayerController.h"
-#include "game/World.h"
 #include "input/InputSource.h"
 #include "raylib.h"
 #include "ui/MainMenu.h"
@@ -24,7 +22,7 @@ public:
     int run();
 
 private:
-    enum class Screen { Menu, Sandbox };
+    enum class Screen { Menu, Playing, Result };
 
     // ゲームの時間は 1/120 秒刻みで進める（描画のフレームレートに左右されないように）
     static constexpr float kFixedDt = 1.0f / 120.0f;
@@ -35,9 +33,10 @@ private:
     void handleGlobalKeys(const InputFrame& input);
     void reloadData(bool force);
     void validateData();
-    void startMatch(MatchConfig config);
+    MatchConfig configFromCommandLine() const;
+    void startMatch(const MatchConfig& config);
     void backToMenu();
-    void updateSandbox(float frameDt, const InputFrame& input);
+    void updateMatch(float frameDt, const InputFrame& input);
     void updateCamera();
     void draw();
     void saveScreenshot(const std::string& file);
@@ -46,17 +45,27 @@ private:
     CommandLineOptions options_;
     Screen screen_ = Screen::Menu;
 
-    std::unique_ptr<World> world_;
-    PlayerController playerController_;
-    DummyController dummies_;
+    std::unique_ptr<Match> match_;
+    std::optional<MatchResult> result_;
     MainMenu menu_;
     std::unique_ptr<InputSource> input_;
-    MatchConfig config_;  // 今のプレイの設定
 
     Camera2D camera_{};
     InputFrame pendingInput_;  // まだゲームの更新に渡していない入力
     float accumulator_ = 0.0f;
     float reloadCheckTimer_ = 0.0f;
+    float scriptClock_ = 0.0f;  // 入力スクリプトの時刻（1 フレームごとに 1/60 秒進む）
+
+    // 処理時間の計測（一定間隔でログに出す）
+    struct PerfCounter {
+        double windowStart = 0.0;
+        int frames = 0;
+        double updateSeconds = 0.0;
+        double drawSeconds = 0.0;
+        double worstFrame = 0.0;
+    };
+    PerfCounter perf_;
+    void recordPerf(double frameStart, double updateEnd, double drawEnd);
     bool debugPanelVisible_ = true;
     bool quit_ = false;
     std::optional<std::string> screenshotRequest_;

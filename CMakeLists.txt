@@ -75,6 +75,7 @@ add_library(moba_lib STATIC
   src/data/Settings.cpp
   src/data/EffectSpec.cpp
   src/data/CharacterDef.cpp
+  src/data/AiConfig.cpp
   src/data/GameData.cpp
   src/game/StatusEffects.cpp
   src/game/Entities.cpp
@@ -84,11 +85,16 @@ add_library(moba_lib STATIC
   src/game/PlayerController.cpp
   src/game/DummyController.cpp
   src/game/Sandbox.cpp
+  src/game/Match.cpp
+  src/game/ai/Aim.cpp
+  src/game/ai/PlayerObserver.cpp
+  src/game/ai/EnemyAI.cpp
   src/game/skills/SkillRegistry.cpp
   src/game/skills/SkillHelpers.cpp
   src/game/skills/CommonSkills.cpp
   src/game/skills/EzrealSkills.cpp
   src/game/skills/EmmaSkills.cpp
+  src/game/skills/BrandSkills.cpp
   src/input/LiveInput.cpp
   src/input/ScriptInput.cpp
   src/render/Renderer.cpp
@@ -96,6 +102,7 @@ add_library(moba_lib STATIC
   src/ui/Fonts.cpp
   src/ui/MainMenu.cpp
   src/ui/DebugPanel.cpp
+  src/ui/ResultScreen.cpp
   src/app/CommandLine.cpp
   src/app/App.cpp)
 target_include_directories(moba_lib PUBLIC src)
@@ -123,6 +130,7 @@ add_executable(moba_tests
   tests/test_geometry.cpp
   tests/test_log_retention.cpp
   tests/test_character_data.cpp
-  tests/test_world.cpp)
+  tests/test_world.cpp
+  tests/test_dodge.cpp)
 target_link_libraries(moba_tests PRIVATE moba_lib doctest::doctest)
 target_compile_definitions(moba_tests PRIVATE MOBA_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

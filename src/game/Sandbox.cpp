@@ -25,7 +25,7 @@ EntityId addDummy(World& world, const char* name, Vector2 pos) {
 
 }  // namespace
 
-void setupSandbox(World& world, DummyController& dummies, const CharacterDef& character) {
+Unit makePlayerUnit(const CharacterDef& character) {
     Unit player;
     player.team = Team::Player;
     player.name = character.displayName;
@@ -34,7 +34,11 @@ void setupSandbox(World& world, DummyController& dummies, const CharacterDef& ch
     player.radius = character.hitboxRadius;
     player.baseMoveSpeed = character.moveSpeed;
     player.color = character.color;
-    world.addUnit(player);
+    return player;
+}
+
+void setupSandbox(World& world, DummyController& dummies, const CharacterDef& character) {
+    world.addUnit(makePlayerUnit(character));
 
     dummies.clear();
     const Vector2 a{650.0f, -200.0f};

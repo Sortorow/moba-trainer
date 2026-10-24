@@ -1,5 +1,6 @@
 #include "ui/MainMenu.h"
 
+#include <algorithm>
 #include <cmath>
 #include <format>
 #include <string>
@@ -42,10 +43,27 @@ void drawCooldownScaleCombo(float& scale, float settingsScale) {
     ImGui::EndCombo();
 }
 
+void drawSkillDodgeOptions(MatchConfig& config, const GameData& data) {
+    ImGui::SeparatorText("スキルドッジの設定");
+    ImGui::SliderInt("敵の数", &config.enemyCount, 1, 5, "%d 体");
+    const AiConfig& ai = data.ai();
+    const std::string levelLabel = std::format("%d（{}）", ai.level(config.aiLevel).name);
+    ImGui::SliderInt("敵の賢さ", &config.aiLevel, 1, std::max(1, static_cast<int>(ai.levels.size())), levelLabel.c_str());
+    int minutes = std::clamp(static_cast<int>(std::lround(config.timeLimitSeconds / 60.0f)), 1, 5);
+    ImGui::SliderInt("制限時間", &minutes, 1, 5, "%d 分");
+    config.timeLimitSeconds = static_cast<float>(minutes) * 60.0f;
+
+    std::string enemies;
+    for (const CharacterDef* def : data.enemyCandidates()) enemies += (enemies.empty() ? "" : "、") + def->displayName;
+    ImGui::TextDisabled("登場する敵: %s（ランダム）", enemies.empty() ? "なし" : enemies.c_str());
+    ImGui::TextDisabled("自キャラは移動系のスキルだけ使えます");
+}
+
 }  // namespace
 
 void MainMenu::setConfig(const MatchConfig& config) {
     config_ = config;
+    config_.seed = 0;  // 次のプレイでは新しい乱数の種を使う
     initialized_ = true;
 }
 
@@ -60,7 +78,7 @@ MenuAction MainMenu::draw(const GameData& data) {
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2{0.5f, 0.5f});
-    ImGui::SetNextWindowSize(ImVec2{560.0f, 0.0f}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2{580.0f, 0.0f}, ImGuiCond_Always);
     ImGui::Begin("MOBA Trainer", nullptr,
                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
                      ImGuiWindowFlags_NoSavedSettings);
@@ -73,9 +91,13 @@ MenuAction MainMenu::draw(const GameData& data) {
     if (characters.empty()) ImGui::TextColored(ImVec4{1.0f, 0.5f, 0.5f, 1.0f}, "キャラクターの設定ファイルがありません");
 
     ImGui::SeparatorText("モード");
-    ImGui::RadioButton("練習場（ダミー相手にスキルを試す）", true);
+    if (ImGui::RadioButton("練習場（ダミー相手にスキルを試す）", config_.mode == GameMode::Sandbox)) {
+        config_.mode = GameMode::Sandbox;
+    }
+    if (ImGui::RadioButton("スキルドッジ（敵のスキルを避ける）", config_.mode == GameMode::SkillDodge)) {
+        config_.mode = GameMode::SkillDodge;
+    }
     ImGui::BeginDisabled();
-    ImGui::RadioButton("スキルドッジ（準備中）", false);
     ImGui::RadioButton("スキルショット（準備中）", false);
     ImGui::EndDisabled();
 
@@ -85,6 +107,8 @@ MenuAction MainMenu::draw(const GameData& data) {
     ImGui::RadioButton("路地裏（準備中）", false);
     ImGui::RadioButton("森（準備中）", false);
     ImGui::EndDisabled();
+
+    if (config_.mode == GameMode::SkillDodge) drawSkillDodgeOptions(config_, data);
 
     ImGui::SeparatorText("スキルのクールダウン");
     if (ImGui::RadioButton("標準", config_.cooldownMode == CooldownMode::Standard)) {

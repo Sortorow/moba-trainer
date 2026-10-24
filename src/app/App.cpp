@@ -7,7 +7,6 @@
 
 #include "core/Log.h"
 #include "core/Platform.h"
-#include "game/Sandbox.h"
 #include "game/skills/Skill.h"
 #include "imgui.h"
 #include "render/Hud.h"
@@ -15,6 +14,7 @@
 #include "rlImGui.h"
 #include "ui/DebugPanel.h"
 #include "ui/Fonts.h"
+#include "ui/ResultScreen.h"
 
 namespace moba {
 namespace {
@@ -53,13 +53,7 @@ int App::run() {
     }
 
     initWindow();
-    if (options_.characterId || options_.scriptFile) {
-        const std::vector<const CharacterDef*> list = data_.characterList();
-        MatchConfig config;
-        config.characterId = options_.characterId.value_or(list.empty() ? std::string{} : list.front()->id);
-        config.cooldownScale = data_.settings().cooldownScale;
-        startMatch(config);
-    }
+    if (options_.characterId || options_.scriptFile || options_.mode) startMatch(configFromCommandLine());
     while (!quit_ && !WindowShouldClose()) frame();
     shutdownWindow();
     return 0;
@@ -77,8 +71,8 @@ void App::initWindow() {
 
     rlImGuiSetup(true);
     ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = nullptr;                                 // ウィンドウ配置を imgui.ini に保存しない
-    io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;    // Q/W/E/R が UI の操作に取られないように
+    io.IniFilename = nullptr;                               // ウィンドウ配置を imgui.ini に保存しない
+    io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;  // Q/W/E/R が UI の操作に取られないように
     ui::loadJapaneseFont(18.0f);
 
     log::info("app", "ウィンドウを開きました: {}x{}", width, height);
@@ -92,7 +86,8 @@ void App::shutdownWindow() {
 
 void App::frame() {
     // 入力スクリプトの時は描画速度に関係なく 1/60 秒ずつ進める（毎回同じ結果になるように）
-    const float frameDt = input_->isScripted() ? 1.0f / 60.0f : std::min(GetFrameTime(), 0.25f);
+    const bool scripted = input_->isScripted();
+    const float frameDt = scripted ? 1.0f / 60.0f : std::min(GetFrameTime(), 0.25f);
 
     reloadCheckTimer_ += frameDt;
     if (reloadCheckTimer_ >= 1.0f) {
@@ -100,27 +95,48 @@ void App::frame() {
         reloadData(false);
     }
 
+    const double frameStart = GetTime();
     const ImGuiIO& io = ImGui::GetIO();
-    const InputPollContext pollContext{camera_, world_ ? world_->time() : 0.0f, io.WantCaptureMouse, io.WantTextInput};
+    const InputPollContext pollContext{camera_, scriptClock_, io.WantCaptureMouse, io.WantTextInput};
     const InputFrame input = input_->poll(pollContext);
     handleGlobalKeys(input);
     if (input.screenshotRequest) screenshotRequest_ = input.screenshotRequest;
 
-    if (screen_ == Screen::Sandbox && world_) updateSandbox(frameDt, input);
+    if (screen_ == Screen::Playing && match_) updateMatch(frameDt, input);
+    const double updateEnd = GetTime();
     draw();
+    recordPerf(frameStart, updateEnd, GetTime());
+    if (scripted) scriptClock_ += frameDt;
     if (input.exitRequested) {
         log::info("app", "入力スクリプトの exit で終了します");
         quit_ = true;
     }
 }
 
+// 5 秒ごとに、FPS と 1 フレームあたりの処理時間（ゲームの更新 / 描画。描画には垂直同期の待ち時間も含む）をログに出す
+void App::recordPerf(double frameStart, double updateEnd, double drawEnd) {
+    constexpr double kInterval = 5.0;
+    if (perf_.frames == 0 && perf_.windowStart == 0.0) perf_.windowStart = frameStart;
+    ++perf_.frames;
+    perf_.updateSeconds += updateEnd - frameStart;
+    perf_.drawSeconds += drawEnd - updateEnd;
+    perf_.worstFrame = std::max(perf_.worstFrame, drawEnd - frameStart);
+
+    const double elapsed = drawEnd - perf_.windowStart;
+    if (elapsed < kInterval) return;
+    log::debug("perf", "FPS {:.1f}  更新 {:.2f}ms  描画 {:.2f}ms  最も遅いフレーム {:.1f}ms", perf_.frames / elapsed,
+               perf_.updateSeconds * 1000.0 / perf_.frames, perf_.drawSeconds * 1000.0 / perf_.frames,
+               perf_.worstFrame * 1000.0);
+    perf_ = PerfCounter{drawEnd};
+}
+
 void App::handleGlobalKeys(const InputFrame& input) {
     if (input.toggleDebugPressed) debugPanelVisible_ = !debugPanelVisible_;
     if (input.reloadPressed) reloadData(true);
     if (input.toggleFullscreenPressed) ToggleBorderlessWindowed();
-    if (input.escapePressed && screen_ == Screen::Sandbox) backToMenu();
-    if (input.resetCooldownsRequested && world_) {
-        if (Unit* player = world_->player()) player->cooldowns = {};
+    if (input.escapePressed && screen_ != Screen::Menu) backToMenu();
+    if (input.resetCooldownsRequested && match_) {
+        if (Unit* player = match_->world().player()) player->cooldowns = {};
         log::debug("app", "入力スクリプト: クールダウンを解除しました");
     }
 }
@@ -134,7 +150,7 @@ void App::reloadData(bool force) {
     }
     validateData();
     log::setMinLevel(data_.settings().logLevel);
-    if (world_) world_->refreshUnitsFromData();
+    if (match_) match_->world().refreshUnitsFromData();
 }
 
 // 設定ファイルの handler 名が実在するかを確認する
@@ -151,58 +167,63 @@ void App::validateData() {
     }
 }
 
-void App::startMatch(MatchConfig config) {
-    const CharacterDef* def = data_.character(config.characterId);
-    if (!def) {
-        const std::vector<const CharacterDef*> list = data_.characterList();
-        if (list.empty()) {
-            log::error("app", "キャラクターの設定が 1 つもないため、練習場を始められません");
-            return;
-        }
-        log::warn("app", "キャラ \"{}\" が見つからないため {} を使います", config.characterId, list.front()->id);
-        def = list.front();
-        config.characterId = def->id;
-    }
+MatchConfig App::configFromCommandLine() const {
+    MatchConfig config;
+    const std::vector<const CharacterDef*> list = data_.characterList();
+    config.characterId = options_.characterId.value_or(list.empty() ? std::string{} : list.front()->id);
+    config.cooldownScale = data_.settings().cooldownScale;
+    if (options_.noCooldown) config.cooldownMode = CooldownMode::None;
+    if (options_.mode == "dodge") config.mode = GameMode::SkillDodge;
+    if (options_.enemyCount) config.enemyCount = *options_.enemyCount;
+    if (options_.aiLevel) config.aiLevel = *options_.aiLevel;
+    if (options_.timeSeconds) config.timeLimitSeconds = *options_.timeSeconds;
+    if (options_.seed) config.seed = *options_.seed;
+    return config;
+}
 
-    world_ = std::make_unique<World>(data_, kSandboxBounds);
-    world_->setCooldownScale(Team::Player, config.playerCooldownScale());
-    setupSandbox(*world_, dummies_, *def);
-    playerController_ = PlayerController{};
+void App::startMatch(const MatchConfig& config) {
+    auto match = std::make_unique<Match>(data_, config);
+    if (!match->valid()) {
+        log::error("app", "プレイを開始できませんでした");
+        return;
+    }
+    match_ = std::move(match);
+    result_.reset();
     pendingInput_ = InputFrame{};
     accumulator_ = 0.0f;
-    config_ = config;
-    menu_.setConfig(config);
-    screen_ = Screen::Sandbox;
+    menu_.setConfig(match_->config());
+    screen_ = Screen::Playing;
     updateCamera();
-    log::info("app", "練習場を開始しました: キャラ={} クールダウン={}（倍率 {:.2f}）", def->id,
-              config.cooldownMode == CooldownMode::None ? "なし" : "標準", config.playerCooldownScale());
 }
 
 void App::backToMenu() {
     log::info("app", "メニューに戻ります");
-    world_.reset();
+    match_.reset();
+    result_.reset();
     screen_ = Screen::Menu;
 }
 
-void App::updateSandbox(float frameDt, const InputFrame& input) {
+void App::updateMatch(float frameDt, const InputFrame& input) {
     pendingInput_.mergeNewer(input);
     accumulator_ += frameDt;
-    while (accumulator_ >= kFixedDt) {
-        playerController_.update(*world_, pendingInput_, kFixedDt);
-        dummies_.update(*world_);
-        world_->update(kFixedDt);
+    while (accumulator_ >= kFixedDt && !match_->finished()) {
+        match_->update(kFixedDt, pendingInput_);
         pendingInput_.clearPressed();
         accumulator_ -= kFixedDt;
     }
     updateCamera();
+    if (match_->finished()) {
+        result_ = match_->result();
+        screen_ = Screen::Result;
+    }
 }
 
 void App::updateCamera() {
     camera_.offset = Vector2{GetScreenWidth() * 0.5f, GetScreenHeight() * 0.5f};
     camera_.rotation = 0.0f;
     camera_.zoom = static_cast<float>(GetScreenHeight()) / data_.settings().cameraViewHeight;
-    if (world_) {
-        if (const Unit* player = world_->player()) camera_.target = player->pos;  // カメラは自キャラに固定
+    if (match_) {
+        if (const Unit* player = match_->world().player()) camera_.target = player->pos;  // カメラは自キャラに固定
     }
 }
 
@@ -210,27 +231,44 @@ void App::draw() {
     BeginDrawing();
     ClearBackground(Color{14, 17, 22, 255});
 
-    if (screen_ == Screen::Sandbox && world_) {
+    if (screen_ != Screen::Menu && match_) {
         BeginMode2D(camera_);
-        drawWorld(*world_, RenderOptions{data_.settings().showHitboxes});
+        drawWorld(match_->world(), RenderOptions{data_.settings().showHitboxes});
         EndMode2D();
     }
 
     rlImGuiBegin();
-    if (screen_ == Screen::Menu) {
-        const MenuAction action = menu_.draw(data_);
-        if (action.kind == MenuAction::Kind::Start) startMatch(action.config);
-        if (action.kind == MenuAction::Kind::Quit) quit_ = true;
-    } else if (world_) {
-        drawHud(*world_, camera_);
-        if (debugPanelVisible_) {
-            const DebugPanelResult result = drawDebugPanel(*world_, data_, dummies_, config_.characterId);
+    switch (screen_) {
+        case Screen::Menu: {
+            const MenuAction action = menu_.draw(data_);
+            if (action.kind == MenuAction::Kind::Start) startMatch(action.config);
+            if (action.kind == MenuAction::Kind::Quit) quit_ = true;
+            break;
+        }
+        case Screen::Playing: {
+            drawHud(*match_, camera_);
+            if (!debugPanelVisible_) break;
+            const DebugPanelResult result = drawDebugPanel(*match_, data_);
             if (result.reloadData) reloadData(true);
             if (result.switchCharacter) {
-                MatchConfig next = config_;
+                MatchConfig next = match_->config();
                 next.characterId = *result.switchCharacter;
+                next.seed = 0;
                 startMatch(next);
             }
+            break;
+        }
+        case Screen::Result: {
+            drawHud(*match_, camera_);
+            const ResultAction action = drawResultScreen(*result_);
+            if (action == ResultAction::Retry) {
+                MatchConfig next = result_->config;
+                next.seed = 0;  // もう一度遊ぶ時は、新しい乱数の種で
+                startMatch(next);
+            } else if (action == ResultAction::Menu) {
+                backToMenu();
+            }
+            break;
         }
     }
     rlImGuiEnd();

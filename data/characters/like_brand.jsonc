@@ -1,0 +1,108 @@
+// like brand（LoL のブランド風）
+//
+// 単位・共通項目の説明は like_ezreal.jsonc の先頭を参照。数値は LoL を参考にした目安の値です。
+//
+// ■ このキャラで使う handler と params
+//   "projectile"      直線に飛ぶ弾（Q）
+//   "ground_blast"    指定した地点が遅れて爆発する（W）。delay（爆発までの時間）, radius, color, onHit
+//   "targeted_blast"  対象の敵とその周りに、すぐに範囲効果（E）。radius（対象の周りの範囲）, color, onHit
+//   "brand_r"         対象の敵へ火炎弾を放ち、敵と自分の間を跳ね返る（R）
+//                     speed, width, color, onHit,
+//                     bounces（跳ね返る回数）, maxHitsPerTarget（同じ敵に当たる上限）,
+//                     bounceRange（次の跳ね返り先を探す距離）, recentWindow（この秒数以内に当たった敵は後回し）
+//                     跳ね返り先の優先順位: まだ当たっていない敵 > recentWindow 秒以内に当たっていない敵 > 自分
+//   "blink"           フラッシュ（D）
+{
+  "id": "like_brand",
+  "displayName": "like brand",
+  "origin": "LoL",
+  "moveSpeed": 340,
+  "hitboxRadius": 65,
+  "color": [255, 140, 60],
+
+  "skills": {
+    "Q": {
+      "name": "Sear",
+      "handler": "projectile",
+      "targeting": "direction",
+      "castTime": 0.25,
+      "cooldown": 8,
+      "range": 1040,
+      "countsForHitRate": true,
+      "usedByEnemy": true,
+      "params": {
+        "speed": 1600,
+        "width": 120,
+        "pierce": false,
+        "visual": "orb",
+        "color": [255, 120, 40]
+      }
+    },
+
+    "W": {
+      "name": "Pillar of Flame",
+      "handler": "ground_blast",
+      "targeting": "point",
+      "castTime": 0.25,
+      "cooldown": 10,
+      "range": 900,
+      "countsForHitRate": true,
+      "usedByEnemy": true,
+      "params": {
+        "delay": 0.625,
+        "radius": 260,
+        "color": [255, 100, 40],
+        "onHit": []
+      }
+    },
+
+    "E": {
+      "name": "Conflagration",
+      "handler": "targeted_blast",
+      "targeting": "unit",
+      "castTime": 0.25,
+      "cooldown": 10,
+      "range": 675,
+      "countsForHitRate": false,
+      "params": {
+        "radius": 300,
+        "color": [255, 150, 60],
+        "onHit": []
+      }
+    },
+
+    "R": {
+      "name": "Pyroclasm",
+      "handler": "brand_r",
+      "targeting": "unit",
+      "castTime": 0.25,
+      "cooldown": 100,
+      "range": 750,
+      "countsForHitRate": false,
+      "params": {
+        "speed": 750,
+        "width": 80,
+        "bounces": 4,
+        "maxHitsPerTarget": 3,
+        "bounceRange": 600,
+        "recentWindow": 1.5,
+        "color": [255, 170, 60],
+        "onHit": []
+      }
+    },
+
+    "D": {
+      "name": "Flash",
+      "handler": "blink",
+      "targeting": "direction",
+      "castTime": 0,
+      "cooldown": 300,
+      "range": 400,
+      "countsForHitRate": false,
+      "movementSkill": true,
+      "params": {}
+    },
+
+    "F": null
+  }
+}

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "core/Paths.h"
+#include "data/AiConfig.h"
 #include "data/CharacterDef.h"
 #include "data/Settings.h"
 
@@ -27,9 +28,12 @@ public:
     const AppPaths& paths() const { return paths_; }
     const Settings& settings() const { return settings_; }
     Settings& mutableSettings() { return settings_; }  // デバッグパネルからの一時的な変更用
+    const AiConfig& ai() const { return ai_; }
 
     const CharacterDef* character(std::string_view id) const;
     std::vector<const CharacterDef*> characterList() const;  // id 順
+    // スキルドッジで敵として出られるキャラ（"usedByEnemy" のスキルを 1 つ以上持つ）
+    std::vector<const CharacterDef*> enemyCandidates() const;
 
     // 直近の読み込みで起きたエラー（画面に表示する）
     const std::vector<std::string>& errors() const { return errors_; }
@@ -43,6 +47,7 @@ private:
 
     AppPaths paths_;
     Settings settings_;
+    AiConfig ai_;
     std::map<std::string, CharacterDef, std::less<>> characters_;
     std::map<std::filesystem::path, std::filesystem::file_time_type> fileTimes_;
     std::vector<std::string> errors_;

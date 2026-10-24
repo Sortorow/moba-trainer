@@ -39,6 +39,7 @@
       "cooldown": 4,
       "range": 700,
       "countsForHitRate": true,
+      "usedByEnemy": true,
       "params": {
         "speed": 1600,
         "width": 60,
@@ -61,6 +62,7 @@
       "cooldown": 10,
       "range": 650,
       "countsForHitRate": true,
+      "usedByEnemy": true,
       "params": {
         "delay": 0.5,
         "radius": 175,

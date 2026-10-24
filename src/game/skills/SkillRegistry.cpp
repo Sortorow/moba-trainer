@@ -7,15 +7,18 @@ namespace moba::skills {
 namespace {
 
 // 設定ファイルの "handler" に書く名前と、処理の対応表。新しいスキルの処理を作ったらここに追加する
-constexpr std::array<std::pair<std::string_view, SkillHandler>, 8> kHandlers = {{
+constexpr std::array<std::pair<std::string_view, SkillHandler>, 11> kHandlers = {{
     {"projectile", handleProjectile},
     {"homing_projectile", handleHomingProjectile},
     {"blink", handleBlink},
     {"ground_zone", handleGroundZone},
+    {"ground_blast", handleGroundBlast},
+    {"targeted_blast", handleTargetedBlast},
     {"ezreal_e", handleEzrealE},
     {"emma_q", handleEmmaQ},
     {"emma_w", handleEmmaW},
     {"emma_r", handleEmmaR},
+    {"brand_r", handleBrandR},
 }};
 
 }  // namespace

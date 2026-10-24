@@ -38,6 +38,9 @@ struct SkillDef {
     float cooldown = 0.0f;                // クールダウン（秒）
     float range = 0.0f;                   // 射程
     bool countsForHitRate = false;        // スキルヒット率の集計に含めるか
+    bool movementSkill = false;           // 移動系のスキルか（スキルドッジでは移動系だけ使える）
+    bool usedByEnemy = false;             // スキルドッジでこのキャラが敵として出た時に使うか
+    float aiPriority = 1.0f;              // 敵 AI がスキルを選ぶ時の重み（大きいほど選ばれやすい）
     nlohmann::json params = nlohmann::json::object();  // 処理ごとの個別パラメータ
 
     // params から値を読む。

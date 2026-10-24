@@ -25,6 +25,15 @@ void GameData::loadAll() {
         errors_.push_back(settings.error);
     }
 
+    // --- 敵 AI ---
+    AiConfigLoadResult ai = loadAiConfig(paths_.aiFile);
+    if (ai.error.empty()) {
+        ai_ = std::move(ai.config);
+    } else {
+        log::error("data", "{}", ai.error);
+        errors_.push_back(ai.error);
+    }
+
     // --- キャラクター ---
     std::vector<std::filesystem::path> files;
     std::error_code ec;
@@ -80,12 +89,23 @@ std::vector<const CharacterDef*> GameData::characterList() const {
     return list;
 }
 
+std::vector<const CharacterDef*> GameData::enemyCandidates() const {
+    std::vector<const CharacterDef*> list;
+    for (const auto& [id, def] : characters_) {
+        const bool usable = std::any_of(def.skills.begin(), def.skills.end(),
+                                        [](const std::optional<SkillDef>& skill) { return skill && skill->usedByEnemy; });
+        if (usable) list.push_back(&def);
+    }
+    return list;
+}
+
 void GameData::addError(std::string message) { errors_.push_back(std::move(message)); }
 
 std::map<std::filesystem::path, std::filesystem::file_time_type> GameData::scanFileTimes() const {
     std::map<std::filesystem::path, std::filesystem::file_time_type> times;
     std::error_code ec;
     times[paths_.settingsFile] = std::filesystem::last_write_time(paths_.settingsFile, ec);
+    times[paths_.aiFile] = std::filesystem::last_write_time(paths_.aiFile, ec);
     for (const auto& entry : std::filesystem::directory_iterator(paths_.charactersDir, ec)) {
         if (entry.is_regular_file(ec) && entry.path().extension() == ".jsonc") {
             times[entry.path()] = std::filesystem::last_write_time(entry.path(), ec);

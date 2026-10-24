@@ -47,6 +47,9 @@ std::optional<SkillDef> parseSkill(const json& j, const std::string& characterId
     skill.cooldown = std::max(0.0f, j.value("cooldown", 0.0f));
     skill.range = std::max(0.0f, j.value("range", 0.0f));
     skill.countsForHitRate = j.value("countsForHitRate", false);
+    skill.movementSkill = j.value("movementSkill", false);
+    skill.usedByEnemy = j.value("usedByEnemy", false);
+    skill.aiPriority = std::max(0.0f, j.value("aiPriority", 1.0f));
     skill.params = j.value("params", json::object());
     if (!skill.params.is_object()) {
         error = "\"params\" は { ... } の形で書いてください";

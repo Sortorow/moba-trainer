@@ -60,6 +60,11 @@ struct Unit {
     std::optional<CastRequest> bufferedCast;    // 詠唱中に押されたスキル（詠唱が終わったら発動する）
     std::array<float, kSkillSlotCount> cooldowns{};  // 各スキルのクールダウンの残り時間
 
+    // HP ゲージ（スキルドッジの自キャラ）。maxHp が 0 なら HP を使わない
+    int hp = 0;
+    int maxHp = 0;
+    int deaths = 0;  // HP が 0 になって全回復した回数
+
     float hitFlash = 0.0f;  // 被弾した時の光る演出の残り時間
     bool alive = true;
 

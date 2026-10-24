@@ -38,12 +38,14 @@ EntityId World::addUnit(Unit unit) {
 
 EntityId World::spawnProjectile(Projectile projectile) {
     projectile.id = ++lastEntityId_;
+    if (const auto it = casts_.find(projectile.castId); it != casts_.end()) ++it->second.liveEntities;
     pendingProjectiles_.push_back(std::move(projectile));
     return pendingProjectiles_.back().id;
 }
 
 EntityId World::spawnArea(AreaEffect area) {
     area.id = ++lastEntityId_;
+    if (const auto it = casts_.find(area.castId); it != casts_.end()) ++it->second.liveEntities;
     pendingAreas_.push_back(std::move(area));
     return pendingAreas_.back().id;
 }
@@ -68,6 +70,12 @@ void World::flushSpawns() {
 }
 
 void World::removeDead() {
+    for (const Projectile& p : projectiles_) {
+        if (!p.alive) releaseCastEntity(p.castId);
+    }
+    for (const AreaEffect& a : areas_) {
+        if (!a.alive) releaseCastEntity(a.castId);
+    }
     std::erase_if(projectiles_, [](const Projectile& p) { return !p.alive; });
     std::erase_if(areas_, [](const AreaEffect& a) { return !a.alive; });
     std::erase_if(props_, [](const Prop& p) { return !p.alive; });
@@ -166,6 +174,59 @@ void World::registerHit(int castId, SkillSlot slot, std::string_view label, Unit
     target.hitFlash = 0.25f;
     log::info("hit", "castId={} [{}] {} が {} に命中 位置{}", castId, toString(slot), label, target.name,
               geo::str(target.pos));
+    if (hitObserver_) hitObserver_(castId, slot, target);
+
+    // 敵の発動が自キャラに当たった: 1 回の発動につき HP を 1 減らす（弾が複数当たっても 1 回）
+    if (target.team != Team::Player) return;
+    const auto it = casts_.find(castId);
+    if (it == casts_.end() || it->second.team != Team::Enemy || it->second.hitPlayer) return;
+    it->second.hitPlayer = true;
+    damagePlayer(target);
+}
+
+void World::damagePlayer(Unit& player) {
+    if (player.maxHp <= 0) return;
+    --player.hp;
+    log::info("dodge", "被弾: HP {} / {}", player.hp, player.maxHp);
+    if (player.hp > 0) return;
+    ++player.deaths;
+    player.hp = player.maxHp;
+    addVfx(makeRingVfx(player.pos, player.radius * 2.5f, Color{255, 90, 90, 255}, 0.6f));
+    addVfx(makeTextVfx(player.pos, "ダウン!", Color{255, 120, 120, 255}));
+    log::info("dodge", "HP が 0 になりました（{} 回目）。全回復します", player.deaths);
+}
+
+// ---------------------------------------------------------------------------
+// 発動の記録（ドッジ率の集計）
+// ---------------------------------------------------------------------------
+void World::beginCast(int castId, Team team, SkillSlot slot) { casts_[castId] = CastRecord{team, slot, 0, false}; }
+
+void World::endCastIfIdle(int castId) {
+    const auto it = casts_.find(castId);
+    if (it != casts_.end() && it->second.liveEntities <= 0) finishCastRecord(castId);
+}
+
+void World::releaseCastEntity(int castId) {
+    const auto it = casts_.find(castId);
+    if (it == casts_.end()) return;
+    if (--it->second.liveEntities <= 0) finishCastRecord(castId);
+}
+
+void World::finishCastRecord(int castId) {
+    const auto it = casts_.find(castId);
+    if (it == casts_.end()) return;
+    const CastRecord record = it->second;
+    casts_.erase(it);
+    if (record.team != Team::Enemy) return;
+
+    ++dodge_.total;
+    if (record.hitPlayer) {
+        ++dodge_.hit;
+    } else {
+        ++dodge_.dodged;
+    }
+    log::debug("dodge", "castId={} [{}] の結果: {}（ドッジ {} / {}）", castId, toString(record.slot),
+               record.hitPlayer ? "被弾" : "回避", dodge_.dodged, dodge_.total);
 }
 
 Vector2 World::clampToBounds(Vector2 point, float radius) const {
@@ -282,7 +343,8 @@ void World::updateHomingProjectile(Projectile& p, float dt) {
 
 void World::hitWithProjectile(Projectile& p, Unit& target) {
     p.hitUnits.push_back(target.id);
-    registerHit(p.castId, p.slot, p.label, target);
+    // 味方（自分自身）への到達は命中として数えない（ブランドの R が自分に跳ね返る時など）
+    if (target.team != p.team) registerHit(p.castId, p.slot, p.label, target);
     if (p.onHit) p.onHit(*this, p, target);
 }
 

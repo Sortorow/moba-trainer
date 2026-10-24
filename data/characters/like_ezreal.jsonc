@@ -13,6 +13,9 @@
 //   cooldown         クールダウン
 //   range            射程
 //   countsForHitRate スキルヒット率の集計に含めるか
+//   movementSkill    移動系のスキルか（スキルドッジでは自キャラは移動系だけ使える）
+//   usedByEnemy      スキルドッジでこのキャラが敵として出た時に、このスキルを使うか
+//   aiPriority       敵 AI がスキルを選ぶ時の重み（省略時 1.0。大きいほど選ばれやすい）
 //   params           処理ごとの個別の数値
 //
 // ■ handler の種類と params
@@ -42,6 +45,7 @@
       "cooldown": 4.5,
       "range": 1200,
       "countsForHitRate": true,
+      "usedByEnemy": true,
       "params": {
         "speed": 2000,
         "width": 120,
@@ -61,6 +65,7 @@
       "cooldown": 8,
       "range": 1200,
       "countsForHitRate": true,
+      "usedByEnemy": true,
       "params": {
         "speed": 1700,
         "width": 160,
@@ -79,6 +84,7 @@
       "cooldown": 20,
       "range": 475,
       "countsForHitRate": false,
+      "movementSkill": true,
       "params": {
         "boltEnabled": true,         // 瞬間移動の後に追尾弾を撃つか（動画で確認できた動き）
         "boltSearchRange": 750,      // 追尾弾の対象を探す距離（移動先から）
@@ -98,6 +104,8 @@
       "cooldown": 120,
       "range": 20000,
       "countsForHitRate": true,
+      "usedByEnemy": true,
+      "aiPriority": 0.6,              // 敵として使う時は、Q / W より選ばれにくくする
       "params": {
         "speed": 2000,
         "width": 320,
@@ -115,6 +123,7 @@
       "cooldown": 300,
       "range": 400,
       "countsForHitRate": false,
+      "movementSkill": true,
       "params": {}
     },
 
