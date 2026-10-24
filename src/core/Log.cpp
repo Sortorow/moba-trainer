@@ -7,6 +7,8 @@
 #define NOMINMAX
 #include <windows.h>
 
+#include <share.h>
+
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -121,8 +123,9 @@ void openNewFile(State& s, std::string_view reason) {
         path = s.config.directory / std::format("{}_{}_{}.log", s.config.filePrefix, stamp, seq);
     }
 
-    if (_wfopen_s(&s.file, path.c_str(), L"wb") != 0) {
-        s.file = nullptr;
+    // ゲームの起動中でもエディターなどでログを読めるように、読み取りは共有する（書き込みだけ禁止する）
+    s.file = _wfsopen(path.c_str(), L"wb", _SH_DENYWR);
+    if (!s.file) {
         OutputDebugStringW(L"[moba_trainer] ログファイルを開けませんでした\n");
         return;
     }
