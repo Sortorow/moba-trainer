@@ -1,0 +1,25 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "MOBA Trainer (MSVC)",
+      "compileCommands": "${workspaceFolder}/build/release/compile_commands.json",
+      "intelliSenseMode": "windows-msvc-x64",
+      "cppStandard": "c++20",
+      "cStandard": "c17",
+      "includePath": [
+        "${workspaceFolder}/src",
+        "${workspaceFolder}/build/release/_deps/raylib-src/src",
+        "${workspaceFolder}/build/release/_deps/imgui-src",
+        "${workspaceFolder}/build/release/_deps/rlimgui-src",
+        "${workspaceFolder}/build/release/_deps/implot-src",
+        "${workspaceFolder}/build/release/_deps/nlohmann_json-src/include",
+        "${workspaceFolder}/build/release/_deps/doctest-src"
+      ],
+      "defines": [
+        "MOBA_VERSION=\"0.1.0\"",
+        "NO_FONT_AWESOME"
+      ]
+    }
+  ]
+}
