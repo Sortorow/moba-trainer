@@ -55,8 +55,10 @@ int App::run() {
     initWindow();
     if (options_.characterId || options_.scriptFile) {
         const std::vector<const CharacterDef*> list = data_.characterList();
-        const std::string id = options_.characterId.value_or(list.empty() ? std::string{} : list.front()->id);
-        startSandbox(id);
+        MatchConfig config;
+        config.characterId = options_.characterId.value_or(list.empty() ? std::string{} : list.front()->id);
+        config.cooldownScale = data_.settings().cooldownScale;
+        startMatch(config);
     }
     while (!quit_ && !WindowShouldClose()) frame();
     shutdownWindow();
@@ -149,28 +151,31 @@ void App::validateData() {
     }
 }
 
-void App::startSandbox(const std::string& characterId) {
-    const CharacterDef* def = data_.character(characterId);
+void App::startMatch(MatchConfig config) {
+    const CharacterDef* def = data_.character(config.characterId);
     if (!def) {
         const std::vector<const CharacterDef*> list = data_.characterList();
         if (list.empty()) {
             log::error("app", "キャラクターの設定が 1 つもないため、練習場を始められません");
             return;
         }
-        log::warn("app", "キャラ \"{}\" が見つからないため {} を使います", characterId, list.front()->id);
+        log::warn("app", "キャラ \"{}\" が見つからないため {} を使います", config.characterId, list.front()->id);
         def = list.front();
+        config.characterId = def->id;
     }
 
     world_ = std::make_unique<World>(data_, kSandboxBounds);
+    world_->setCooldownScale(Team::Player, config.playerCooldownScale());
     setupSandbox(*world_, dummies_, *def);
     playerController_ = PlayerController{};
     pendingInput_ = InputFrame{};
     accumulator_ = 0.0f;
-    characterId_ = def->id;
-    menu_.select(def->id);
+    config_ = config;
+    menu_.setConfig(config);
     screen_ = Screen::Sandbox;
     updateCamera();
-    log::info("app", "練習場を開始しました: キャラ={}", def->id);
+    log::info("app", "練習場を開始しました: キャラ={} クールダウン={}（倍率 {:.2f}）", def->id,
+              config.cooldownMode == CooldownMode::None ? "なし" : "標準", config.playerCooldownScale());
 }
 
 void App::backToMenu() {
@@ -214,14 +219,18 @@ void App::draw() {
     rlImGuiBegin();
     if (screen_ == Screen::Menu) {
         const MenuAction action = menu_.draw(data_);
-        if (action.kind == MenuAction::Kind::Start) startSandbox(action.characterId);
+        if (action.kind == MenuAction::Kind::Start) startMatch(action.config);
         if (action.kind == MenuAction::Kind::Quit) quit_ = true;
     } else if (world_) {
         drawHud(*world_, camera_);
         if (debugPanelVisible_) {
-            const DebugPanelResult result = drawDebugPanel(*world_, data_, dummies_, characterId_);
+            const DebugPanelResult result = drawDebugPanel(*world_, data_, dummies_, config_.characterId);
             if (result.reloadData) reloadData(true);
-            if (result.switchCharacter) startSandbox(*result.switchCharacter);
+            if (result.switchCharacter) {
+                MatchConfig next = config_;
+                next.characterId = *result.switchCharacter;
+                startMatch(next);
+            }
         }
     }
     rlImGuiEnd();

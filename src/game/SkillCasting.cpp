@@ -100,7 +100,7 @@ void finishCast(World& world, Unit& caster) {
 }
 
 void beginCast(World& world, Unit& caster, const SkillDef& def, const CastRequest& request) {
-    caster.cooldowns[static_cast<std::size_t>(index(def.slot))] = def.cooldown * world.settings().cooldownScale;
+    caster.cooldowns[static_cast<std::size_t>(index(def.slot))] = def.cooldown * world.cooldownScaleFor(caster);
     caster.cast = CastState{true, request, def.castTime, def.castTime};
 
     const Vector2 aim = needsTarget(def.targeting) ? targetPosition(world, request).value_or(request.cursor)

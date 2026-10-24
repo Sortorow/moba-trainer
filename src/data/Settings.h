@@ -21,7 +21,7 @@ struct Settings {
     CastMode castMode = CastMode::Quick;
     CameraMode cameraMode = CameraMode::Locked;
     float cameraViewHeight = 1500.0f;  // 画面の縦方向に映るゲーム内の距離
-    float cooldownScale = 1.0f;        // クールダウンの倍率（0 でクールダウンなし）
+    float cooldownScale = 0.25f;       // クールダウン「標準」モードの倍率の初期値（メニューで変更できる）
     bool showHitboxes = true;          // 弾・範囲の当たり判定の円を表示する
     int windowWidth = 1600;
     int windowHeight = 900;

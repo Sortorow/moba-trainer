@@ -173,6 +173,10 @@ Vector2 World::clampToBounds(Vector2 point, float radius) const {
                    std::clamp(point.y, bounds_.y + radius, bounds_.y + bounds_.height - radius)};
 }
 
+void World::setCooldownScale(Team team, float scale) {
+    (team == Team::Player ? playerCooldownScale_ : enemyCooldownScale_) = std::max(0.0f, scale);
+}
+
 void World::refreshUnitsFromData() {
     for (Unit& unit : units_) {
         const CharacterDef* def = characterOf(unit);

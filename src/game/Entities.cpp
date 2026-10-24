@@ -20,6 +20,7 @@ ProjectileVisual projectileVisualFromString(std::string_view text) {
 
 AreaVisual areaVisualFromString(std::string_view text) {
     if (text == "explosion") return AreaVisual::Explosion;
+    if (text == "telegraph") return AreaVisual::Telegraph;
     if (text == "hat") return AreaVisual::ThrownHat;
     if (text == "caltrops") return AreaVisual::Caltrops;
     log::warn("data", "範囲の見た目 \"{}\" は不明なため \"explosion\" を使います", text);

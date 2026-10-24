@@ -13,7 +13,7 @@ namespace {
 
 constexpr Color kDoveColor{245, 245, 255, 255};
 
-void refundCooldown(SkillContext& ctx, std::string_view reason) {
+void cancelAndRefund(SkillContext& ctx, std::string_view reason) {
     ctx.caster.cooldowns[static_cast<std::size_t>(index(ctx.def.slot))] = 0.0f;
     log::info("skill", "[{}] {} は不発（{}）。クールダウンを戻します", toString(ctx.def.slot), ctx.def.name, reason);
 }
@@ -21,9 +21,10 @@ void refundCooldown(SkillContext& ctx, std::string_view reason) {
 }  // namespace
 
 // Q: カードを投げ、自分の位置に鳩を残す。
-//    近くに鳩がいれば、その鳩もカードになって狙った地点へ飛ぶ。両方のカードが同じ敵に当たると追加効果。
-// params: speed, width, visual, color（エマのカード）,
-//         doveLifetime, doveLinkRange, doveCardSpeed, doveCardRange, doveCardColor, doubleHitEffects
+//    鳩がいれば（どれだけ離れていても）、その鳩もカードになって狙った地点へ飛ぶ。
+//    エマ本体のカードが当たると、Q のクールダウンが短くなる。両方のカードが同じ敵に当たると追加効果。
+// params: speed, width, visual, color, cooldownRefundOnHit（エマのカード）,
+//         doveLifetime, doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）, doubleHitEffects
 void handleEmmaQ(SkillContext& ctx) {
     World& world = ctx.world;
     Unit& emma = ctx.caster;
@@ -47,19 +48,18 @@ void handleEmmaQ(SkillContext& ctx) {
     };
 
     Projectile card = makeProjectile(ctx, emma.pos, dir, def.range);
-    card.onHit = makeOnHit(1);
+    const float refund = def.numOr("cooldownRefundOnHit", 0.0f);
+    const SkillSlot slot = def.slot;
+    card.onHit = [recordHit = makeOnHit(1), refund, slot](World& w, Projectile& self, Unit& unit) {
+        recordHit(w, self, unit);
+        if (Unit* owner = w.findUnit(self.owner)) refundCooldown(w, *owner, slot, refund);
+    };
     world.spawnProjectile(std::move(card));
 
-    // 鳩は 1 羽まで。近くの鳩はカードになり、遠い鳩はそのまま消える
-    const float linkRange = def.num("doveLinkRange", 800.0f);
+    // 鳩は 1 羽まで。今いる鳩は、距離に関係なくカードになって狙った地点へ飛ぶ
     for (Prop& dove : world.props()) {
-        if (!dove.alive || dove.owner != emma.id || dove.kind != PropKind::Dove || dove.hiddenTime > 0.0f) continue;
+        if (!dove.alive || dove.owner != emma.id || dove.kind != PropKind::Dove) continue;
         dove.alive = false;
-        const float distance = Vector2Distance(dove.pos, emma.pos);
-        if (distance > linkRange) {
-            log::debug("skill", "鳩 #{} はエマから {:.0f} 離れているため、カードにならずに消えます", dove.id, distance);
-            continue;
-        }
         Projectile doveCard = makeProjectile(ctx, dove.pos, geo::normalizedOr(target - dove.pos, dir),
                                              def.num("doveCardRange", 800.0f));
         doveCard.speed = def.num("doveCardSpeed", doveCard.speed);
@@ -67,7 +67,7 @@ void handleEmmaQ(SkillContext& ctx) {
         doveCard.label = def.name + "（鳩のカード）";
         doveCard.onHit = makeOnHit(2);
         world.spawnProjectile(std::move(doveCard));
-        log::debug("skill", "鳩 #{} がカードになって {} へ飛びます", dove.id, geo::str(target));
+        log::debug("skill", "鳩 #{} が {} からカードになって {} へ飛びます", dove.id, geo::str(dove.pos), geo::str(target));
     }
 
     Prop newDove;
@@ -78,13 +78,15 @@ void handleEmmaQ(SkillContext& ctx) {
     world.spawnProp(newDove);
 }
 
-// W: 帽子を地点に投げ、着地で爆発する。帽子はしばらくその場に残る（R の対象になる）
-// params: flightTime, radius, hatLifetime, color, onHit
+// W: 指定した地点が少し遅れて爆発し（ブランドの W のように予告円が出る）、その場に帽子が残る（R の対象）。
+//    敵に当たると、W のクールダウンが短くなる。
+// params: delay（爆発までの時間）, radius, hatLifetime, color, onHit, cooldownRefundOnHit
 void handleEmmaW(SkillContext& ctx) {
     AreaEffect a = makeArea(ctx, aimPoint(ctx));
-    a.delay = ctx.def.num("flightTime", 0.5f);
+    a.origin = a.center;
+    a.delay = ctx.def.num("delay", 0.5f);
     a.radius = ctx.def.num("radius", 175.0f);
-    a.visual = AreaVisual::ThrownHat;
+    a.visual = AreaVisual::Telegraph;
 
     const float hatLifetime = ctx.def.num("hatLifetime", 6.0f);
     a.onActivate = [hatLifetime](World& world, AreaEffect& self) {
@@ -99,15 +101,23 @@ void handleEmmaW(SkillContext& ctx) {
         hat.lifetime = hat.remaining = hatLifetime;
         world.spawnProp(hat);
     };
+
     const std::vector<EffectSpec> effects = ctx.def.effects("onHit");
-    a.onUnitHit = [effects](World& world, AreaEffect& self, Unit& unit) { applyEffects(world, unit, effects, self.owner); };
+    const float refund = ctx.def.numOr("cooldownRefundOnHit", 0.0f);
+    a.onUnitHit = [effects, refund](World& world, AreaEffect& self, Unit& unit) {
+        applyEffects(world, unit, effects, self.owner);
+        // クールダウンの短縮は、何体に当たっても 1 回だけ
+        if (self.hitUnits.size() == 1) {
+            if (Unit* owner = world.findUnit(self.owner)) refundCooldown(world, *owner, self.slot, refund);
+        }
+    };
     ctx.world.spawnArea(std::move(a));
 }
 
 // R: 鳩・帽子・兎（変身させた敵）のいずれかを指定して、その位置へ瞬間移動し、対象ごとの追加効果を出す
-//   鳩: 鳩がエマの元の位置へ飛び、通り道の敵に効果（拘束）
-//   帽子: 帽子がエマの元の位置へ移って爆発し、範囲の敵に効果（打ち上げ）
-//   兎: 兎の周りの敵に効果（変身）
+//   鳩: エマと鳩の位置が入れ替わる。鳩はエマの元の位置へ飛び、通り道の敵に効果（拘束）。鳩は残り時間を戻して残る
+//   帽子: エマと帽子の位置が入れ替わる。帽子はエマの元の位置で爆発し、範囲の敵に効果（打ち上げ）。帽子は残り時間を戻して残る
+//   兎: 兎の位置へ移動し、兎の周りの敵に効果（変身）
 // params: pickRadius, targetKinds, dovePathWidth, doveSpeed, doveOnHit, hatFlightTime, hatRadius, hatOnHit,
 //         rabbitRadius, rabbitOnHit, color
 void handleEmmaR(SkillContext& ctx) {
@@ -120,7 +130,7 @@ void handleEmmaR(SkillContext& ctx) {
     switch (ctx.request.propKind) {
         case PropTargetKind::Dove: {
             Prop* dove = world.findProp(ctx.request.propId);
-            if (!dove || !dove->alive) return refundCooldown(ctx, "鳩が消えていた");
+            if (!dove || !dove->alive) return cancelAndRefund(ctx, "鳩が消えていた");
             const Vector2 dovePos = dove->pos;
             teleport(world, emma, dovePos, color);
 
@@ -145,22 +155,28 @@ void handleEmmaR(SkillContext& ctx) {
                 path.onHit = [effects](World& w, Projectile& self, Unit& unit) { applyEffects(w, unit, effects, self.owner); };
                 world.spawnProjectile(std::move(path));
             }
-            // 鳩はエマの元の位置へ移る。飛んでいる間は表示しない
+            // 鳩はエマの元の位置へ移り、残り時間を最初からにして残る（飛んでいる間は表示しない）
             dove->pos = oldPos;
             dove->hiddenTime = distance / speed;
+            dove->remaining = dove->lifetime;
             break;
         }
         case PropTargetKind::Hat: {
             Prop* hat = world.findProp(ctx.request.propId);
-            if (!hat || !hat->alive) return refundCooldown(ctx, "帽子が消えていた");
+            if (!hat || !hat->alive) return cancelAndRefund(ctx, "帽子が消えていた");
             const Vector2 hatPos = hat->pos;
-            hat->alive = false;
             teleport(world, emma, hatPos, color);
+
+            // 帽子はエマの元の位置へ移って爆発し、残り時間を最初からにして残る（飛んでいる間は表示しない）
+            const float flightTime = def.numOr("hatFlightTime", 0.15f);
+            hat->pos = oldPos;
+            hat->hiddenTime = flightTime;
+            hat->remaining = hat->lifetime;
 
             AreaEffect a = makeArea(ctx, oldPos);
             a.origin = hatPos;
             a.label = def.name + "（帽子）";
-            a.delay = def.numOr("hatFlightTime", 0.15f);
+            a.delay = flightTime;
             a.radius = def.num("hatRadius", 250.0f);
             a.visual = AreaVisual::ThrownHat;
             const std::vector<EffectSpec> effects = def.effects("hatOnHit");
@@ -171,7 +187,7 @@ void handleEmmaR(SkillContext& ctx) {
         case PropTargetKind::Rabbit: {
             Unit* rabbit = world.findUnit(ctx.request.targetUnit);
             if (!rabbit || !rabbit->alive || !rabbit->status.has(EffectType::Polymorph)) {
-                return refundCooldown(ctx, "兎の変身が解けていた");
+                return cancelAndRefund(ctx, "兎の変身が解けていた");
             }
             // 兎のすぐ手前（エマ側）に移動する
             const Vector2 fromRabbit = geo::normalizedOr(oldPos - rabbit->pos, Vector2{-1.0f, 0.0f});

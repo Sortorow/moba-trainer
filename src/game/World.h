@@ -52,6 +52,11 @@ public:
     // 設定ファイルの再読み込み後に、キャラの大きさ・移動速度・色を反映する
     void refreshUnitsFromData();
 
+    // クールダウンの倍率（自キャラと敵で別々に持つ。0 ならクールダウンなし）
+    void setCooldownScale(Team team, float scale);
+    float cooldownScale(Team team) const { return team == Team::Player ? playerCooldownScale_ : enemyCooldownScale_; }
+    float cooldownScaleFor(const Unit& unit) const { return cooldownScale(unit.team); }
+
     // --- 参照 ---
     const GameData& data() const { return *data_; }
     const Settings& settings() const;
@@ -83,6 +88,8 @@ private:
     const GameData* data_;
     Rectangle bounds_;
     float time_ = 0.0f;
+    float playerCooldownScale_ = 1.0f;
+    float enemyCooldownScale_ = 1.0f;
     EntityId lastEntityId_ = kInvalidId;
     int lastCastId_ = 0;
     CastStats stats_;

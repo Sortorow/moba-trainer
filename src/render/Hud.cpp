@@ -62,7 +62,7 @@ void drawSkillBar(ImDrawList* dl, const World& world) {
     const Unit* player = world.player();
     if (!player) return;
     const CharacterDef* def = world.characterOf(*player);
-    const float cooldownScale = world.settings().cooldownScale;
+    const float cooldownScale = world.cooldownScaleFor(*player);
 
     constexpr float kBox = 58.0f;
     constexpr float kGap = 10.0f;

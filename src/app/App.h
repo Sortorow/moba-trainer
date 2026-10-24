@@ -9,6 +9,7 @@
 #include "core/Paths.h"
 #include "data/GameData.h"
 #include "game/DummyController.h"
+#include "game/MatchConfig.h"
 #include "game/PlayerController.h"
 #include "game/World.h"
 #include "input/InputSource.h"
@@ -34,7 +35,7 @@ private:
     void handleGlobalKeys(const InputFrame& input);
     void reloadData(bool force);
     void validateData();
-    void startSandbox(const std::string& characterId);
+    void startMatch(MatchConfig config);
     void backToMenu();
     void updateSandbox(float frameDt, const InputFrame& input);
     void updateCamera();
@@ -50,7 +51,7 @@ private:
     DummyController dummies_;
     MainMenu menu_;
     std::unique_ptr<InputSource> input_;
-    std::string characterId_;
+    MatchConfig config_;  // 今のプレイの設定
 
     Camera2D camera_{};
     InputFrame pendingInput_;  // まだゲームの更新に渡していない入力

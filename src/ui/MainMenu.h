@@ -1,7 +1,7 @@
 #pragma once
-// メインメニュー（キャラ・モード・ステージの選択）
+// メインメニュー（キャラ・モード・ステージ・クールダウンの選択）
 
-#include <string>
+#include "game/MatchConfig.h"
 
 namespace moba {
 
@@ -10,16 +10,18 @@ class GameData;
 struct MenuAction {
     enum class Kind { None, Start, Quit };
     Kind kind = Kind::None;
-    std::string characterId;
+    MatchConfig config;  // Start の時に、選ばれた設定
 };
 
 class MainMenu {
 public:
     MenuAction draw(const GameData& data);
-    void select(std::string characterId) { selectedCharacter_ = std::move(characterId); }
+    // 前回のプレイの設定を、次にメニューを開いた時の初期値にする
+    void setConfig(const MatchConfig& config);
 
 private:
-    std::string selectedCharacter_;
+    MatchConfig config_;
+    bool initialized_ = false;  // 設定ファイルの初期値を読み込んだか
 };
 
 }  // namespace moba

@@ -43,6 +43,8 @@ void applyEffects(World& world, Unit& target, const std::vector<EffectSpec>& eff
 // 印が付いていれば消費して起爆の演出を出す。起爆したら true
 bool detonateMark(World& world, Unit& target, std::string_view markTag, Color color);
 void teleport(World& world, Unit& unit, Vector2 destination, Color color);
+// スキル slot のクールダウンを、本来のクールダウン（倍率込み）の ratio 分だけ短くする（0.3 = 30%）
+void refundCooldown(World& world, Unit& unit, SkillSlot slot, float ratio);
 
 // --- 汎用のスキル（CommonSkills.cpp） ---
 void handleProjectile(SkillContext& ctx);        // "projectile": 直線に飛ぶ弾

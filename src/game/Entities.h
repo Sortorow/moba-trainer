@@ -54,7 +54,12 @@ struct Projectile {
 // 地面の範囲効果
 // delay 秒後に発動する。duration が 0 なら発動の瞬間だけ判定し、0 より大きければその間ずっと残る
 // ---------------------------------------------------------------------------
-enum class AreaVisual { Explosion, ThrownHat, Caltrops };
+enum class AreaVisual {
+    Explosion,  // 発動まで範囲の輪だけを表示
+    Telegraph,  // 予告円の内側が少しずつ埋まり、埋まりきると爆発（ブランドの W のような表示）
+    ThrownHat,  // 帽子が飛んでいく
+    Caltrops,   // 鉄菱が飛んでいき、着地後は範囲に残る
+};
 AreaVisual areaVisualFromString(std::string_view text);
 
 struct AreaEffect {

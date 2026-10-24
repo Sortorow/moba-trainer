@@ -4,19 +4,21 @@
 // 数値は公式データが手に入らなかったため、動画から読み取った目安の値です。
 //
 // ■ このキャラで使う handler と params
-//   "emma_q"             カードを投げて、自分の位置に鳩を残す。近くに鳩がいれば鳩もカードになって狙った地点へ飛ぶ
-//                        speed, width, visual, color（エマのカード）
-//                        doveLifetime（鳩が残る時間）, doveLinkRange（この距離以内の鳩がカードになる）,
-//                        doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）,
+//   "emma_q"             カードを投げて、自分の位置に鳩を残す。鳩がいれば（どれだけ離れていても）鳩もカードになって狙った地点へ飛ぶ
+//                        speed, width, visual, color（エマのカード）,
+//                        cooldownRefundOnHit（エマのカードが当たった時に、Q のクールダウンを本来の値の何割分短くするか）,
+//                        doveLifetime（鳩が残る時間）, doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）,
 //                        doubleHitEffects（2 枚とも同じ敵に当たった時の効果）
-//   "emma_w"             帽子を地点に投げ、着地で爆発。帽子はしばらく残る（R の対象）
-//                        flightTime（着地までの時間）, radius, hatLifetime, color, onHit
+//   "emma_w"             指定した地点が少し遅れて爆発し、その場に帽子が残る（R の対象）
+//                        delay（爆発までの時間）, radius, hatLifetime, color, onHit,
+//                        cooldownRefundOnHit（敵に当たった時に、W のクールダウンを本来の値の何割分短くするか）
 //   "homing_projectile"  対象を追尾する弾（必ず当たる）。speed, width, visual, color, onHit
 //   "emma_r"             鳩・帽子・兎（E で変身させた敵）を指定して、その位置へ瞬間移動する
 //                        pickRadius（カーソルからこの距離以内の対象を選ぶ）, targetKinds,
-//                        dovePathWidth, doveSpeed, doveOnHit（鳩: 鳩がエマの元の位置へ飛び、通り道の敵に効果）,
-//                        hatFlightTime, hatRadius, hatOnHit（帽子: エマの元の位置で爆発し、範囲の敵に効果）,
+//                        dovePathWidth, doveSpeed, doveOnHit（鳩: 位置を入れ替え、鳩がエマの元の位置へ飛ぶ。通り道の敵に効果）,
+//                        hatFlightTime, hatRadius, hatOnHit（帽子: 位置を入れ替え、エマの元の位置で爆発。範囲の敵に効果）,
 //                        rabbitRadius, rabbitOnHit（兎: 兎の周りの敵に効果）
+//                        ※ 入れ替わった鳩・帽子は、残り時間が最初に戻って残り続ける
 //   "ground_zone"        地点に投げて、一定時間残る範囲
 //                        flightTime, radius, duration（残る時間）, visual, color,
 //                        slowAmount / lingerTime（範囲内にいる間かかるスロウと、出た後も残る時間）, onHit
@@ -42,8 +44,8 @@
         "width": 60,
         "visual": "card",
         "color": [190, 150, 255],
+        "cooldownRefundOnHit": 0.3,
         "doveLifetime": 6,
-        "doveLinkRange": 800,
         "doveCardSpeed": 1600,
         "doveCardRange": 800,
         "doveCardColor": [245, 245, 255],
@@ -60,10 +62,11 @@
       "range": 650,
       "countsForHitRate": true,
       "params": {
-        "flightTime": 0.5,
+        "delay": 0.5,
         "radius": 175,
         "hatLifetime": 6,
         "color": [120, 200, 220],
+        "cooldownRefundOnHit": 0.3,
         "onHit": []
       }
     },

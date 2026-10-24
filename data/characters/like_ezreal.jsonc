@@ -75,7 +75,7 @@
       "name": "Arcane Shift",
       "handler": "ezreal_e",
       "targeting": "direction",
-      "castTime": 0.4,              // 仕様書の値。動画では 0.25 秒前後に見える
+      "castTime": 0.25,
       "cooldown": 20,
       "range": 475,
       "countsForHitRate": false,
@@ -85,9 +85,7 @@
         "boltSpeed": 2000,
         "boltWidth": 60,
         "boltPreferMark": "ezreal_w",  // この印が付いた敵を優先して狙う
-        // 追尾弾で起爆する印。LoL 本家では E の追尾弾でも W の印が起爆する。
-        // 起爆させる場合は "ezreal_w" を指定（仕様書では Q のみのため、空にしている）
-        "boltDetonateMark": "",
+        "boltDetonateMark": "ezreal_w", // 追尾弾が当たった時に起爆する印（空にすると起爆しない）
         "color": [255, 220, 120]
       }
     },

@@ -64,8 +64,14 @@ DebugPanelResult drawDebugPanel(World& world, GameData& data, DummyController& d
             }
             ImGui::EndCombo();
         }
+        float cooldownScale = world.cooldownScale(Team::Player);
+        if (ImGui::SliderFloat("クールダウン倍率", &cooldownScale, 0.0f, 1.0f, "%.2f")) {
+            world.setCooldownScale(Team::Player, cooldownScale);
+        }
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            log::info("ui", "デバッグパネル: 自キャラのクールダウン倍率を {:.2f} に変更", cooldownScale);
+        }
         Settings& settings = data.mutableSettings();
-        ImGui::SliderFloat("クールダウン倍率", &settings.cooldownScale, 0.0f, 2.0f, "%.2f");
         ImGui::SliderFloat("視点の広さ", &settings.cameraViewHeight, 600.0f, 4000.0f, "%.0f");
         ImGui::Checkbox("当たり判定の円を表示", &settings.showHitboxes);
         ImGui::TextDisabled("※ここでの変更は一時的です（設定ファイルを保存すると上書きされます）");

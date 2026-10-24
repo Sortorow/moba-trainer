@@ -63,13 +63,24 @@ void drawGround(const World& world) {
 
 void drawArea(const AreaEffect& area, bool showHitboxes) {
     if (!area.activated) {
-        // 着弾前: 着弾地点の範囲と、飛んでいく物
+        // 発動前: 範囲の輪と、範囲ごとの予告の表示
         const float t = area.delay > 0.0f ? Clamp(area.elapsed / area.delay, 0.0f, 1.0f) : 1.0f;
         DrawCircleV(area.center, area.radius, Fade(area.color, 0.10f));
         DrawRing(area.center, area.radius - 3.0f, area.radius, 0.0f, 360.0f, 64, Fade(area.color, 0.55f));
-        const Vector2 flying = Vector2Lerp(area.origin, area.center, t) - Vector2{0.0f, std::sin(t * PI) * 70.0f};
-        if (area.visual == AreaVisual::ThrownHat) drawHat(flying, 22.0f);
-        else DrawCircleV(flying, 14.0f, area.color);
+        switch (area.visual) {
+            case AreaVisual::Telegraph:
+                DrawCircleV(area.center, area.radius * t, Fade(area.color, 0.30f));
+                break;
+            case AreaVisual::ThrownHat:
+            case AreaVisual::Caltrops: {
+                const Vector2 flying = Vector2Lerp(area.origin, area.center, t) - Vector2{0.0f, std::sin(t * PI) * 70.0f};
+                if (area.visual == AreaVisual::ThrownHat) drawHat(flying, 22.0f);
+                else DrawCircleV(flying, 14.0f, area.color);
+                break;
+            }
+            case AreaVisual::Explosion:
+                break;
+        }
         return;
     }
     if (area.visual == AreaVisual::Caltrops) {

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <format>
 
 #include "core/Geometry.h"
@@ -66,6 +67,17 @@ bool detonateMark(World& world, Unit& target, std::string_view markTag, Color co
     world.addVfx(makeTextVfx(target.pos, "起爆!", color));
     log::info("skill", "{} の印「{}」を起爆", target.name, markTag);
     return true;
+}
+
+void refundCooldown(World& world, Unit& unit, SkillSlot slot, float ratio) {
+    const CharacterDef* character = world.characterOf(unit);
+    const SkillDef* skill = character ? character->skill(slot) : nullptr;
+    if (!skill || ratio <= 0.0f) return;
+    float& remaining = unit.cooldowns[static_cast<std::size_t>(index(slot))];
+    const float before = remaining;
+    remaining = std::max(0.0f, remaining - skill->cooldown * world.cooldownScaleFor(unit) * ratio);
+    log::debug("skill", "{} の [{}] のクールダウンを {:.0f}% 短縮（残り {:.2f}s → {:.2f}s）", unit.name, toString(slot),
+               ratio * 100.0f, before, remaining);
 }
 
 void teleport(World& world, Unit& unit, Vector2 destination, Color color) {

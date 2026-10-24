@@ -1,16 +1,62 @@
 #include "ui/MainMenu.h"
 
+#include <cmath>
 #include <format>
+#include <string>
 
 #include "data/GameData.h"
 #include "imgui.h"
 
 namespace moba {
+namespace {
+
+struct ScalePreset {
+    float value;
+    const char* label;
+};
+
+constexpr ScalePreset kCooldownPresets[] = {
+    {1.0f, "実戦どおり（×1）"},
+    {0.5f, "2 分の 1（×0.5）"},
+    {0.25f, "4 分の 1（×0.25）"},
+};
+
+bool nearlyEqual(float a, float b) { return std::fabs(a - b) < 0.001f; }
+
+// 標準モードの倍率を選ぶ。設定ファイルの値がプリセットに無ければ、それも選択肢に加える
+void drawCooldownScaleCombo(float& scale, float settingsScale) {
+    std::string current = std::format("×{:.2f}", scale);
+    for (const ScalePreset& preset : kCooldownPresets) {
+        if (nearlyEqual(preset.value, scale)) current = preset.label;
+    }
+    if (!ImGui::BeginCombo("倍率", current.c_str())) return;
+    for (const ScalePreset& preset : kCooldownPresets) {
+        if (ImGui::Selectable(preset.label, nearlyEqual(preset.value, scale))) scale = preset.value;
+    }
+    bool settingsIsPreset = false;
+    for (const ScalePreset& preset : kCooldownPresets) settingsIsPreset = settingsIsPreset || nearlyEqual(preset.value, settingsScale);
+    if (!settingsIsPreset) {
+        const std::string label = std::format("設定ファイルの値（×{:.2f}）", settingsScale);
+        if (ImGui::Selectable(label.c_str(), nearlyEqual(settingsScale, scale))) scale = settingsScale;
+    }
+    ImGui::EndCombo();
+}
+
+}  // namespace
+
+void MainMenu::setConfig(const MatchConfig& config) {
+    config_ = config;
+    initialized_ = true;
+}
 
 MenuAction MainMenu::draw(const GameData& data) {
+    if (!initialized_) {
+        config_.cooldownScale = data.settings().cooldownScale;
+        initialized_ = true;
+    }
     MenuAction action;
     const std::vector<const CharacterDef*> characters = data.characterList();
-    if (data.character(selectedCharacter_) == nullptr && !characters.empty()) selectedCharacter_ = characters.front()->id;
+    if (data.character(config_.characterId) == nullptr && !characters.empty()) config_.characterId = characters.front()->id;
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2{0.5f, 0.5f});
@@ -22,7 +68,7 @@ MenuAction MainMenu::draw(const GameData& data) {
     ImGui::SeparatorText("キャラクター");
     for (const CharacterDef* def : characters) {
         const std::string label = std::format("{}（{} のキャラ風）", def->displayName, def->origin);
-        if (ImGui::Selectable(label.c_str(), def->id == selectedCharacter_)) selectedCharacter_ = def->id;
+        if (ImGui::Selectable(label.c_str(), def->id == config_.characterId)) config_.characterId = def->id;
     }
     if (characters.empty()) ImGui::TextColored(ImVec4{1.0f, 0.5f, 0.5f, 1.0f}, "キャラクターの設定ファイルがありません");
 
@@ -40,12 +86,24 @@ MenuAction MainMenu::draw(const GameData& data) {
     ImGui::RadioButton("森（準備中）", false);
     ImGui::EndDisabled();
 
+    ImGui::SeparatorText("スキルのクールダウン");
+    if (ImGui::RadioButton("標準", config_.cooldownMode == CooldownMode::Standard)) {
+        config_.cooldownMode = CooldownMode::Standard;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("なし（すぐに使える）", config_.cooldownMode == CooldownMode::None)) {
+        config_.cooldownMode = CooldownMode::None;
+    }
+    ImGui::BeginDisabled(config_.cooldownMode == CooldownMode::None);
+    drawCooldownScaleCombo(config_.cooldownScale, data.settings().cooldownScale);
+    ImGui::EndDisabled();
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::BeginDisabled(characters.empty());
     if (ImGui::Button("開始", ImVec2{140.0f, 36.0f})) {
         action.kind = MenuAction::Kind::Start;
-        action.characterId = selectedCharacter_;
+        action.config = config_;
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
