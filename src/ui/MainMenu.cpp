@@ -7,6 +7,7 @@
 
 #include "data/GameData.h"
 #include "imgui.h"
+#include "ui/SandboxPanel.h"
 #include "ui/UiScale.h"
 
 namespace moba {
@@ -70,7 +71,7 @@ void MainMenu::setConfig(const MatchConfig& config) {
     initialized_ = true;
 }
 
-MenuAction MainMenu::draw(const GameData& data, CameraMode& cameraMode) {
+MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode) {
     if (!initialized_) {
         config_.cooldownScale = data.settings().cooldownScale;
         initialized_ = true;
@@ -113,6 +114,11 @@ MenuAction MainMenu::draw(const GameData& data, CameraMode& cameraMode) {
     ImGui::RadioButton("森（準備中）", false);
     ImGui::EndDisabled();
 
+    if (config_.mode == GameMode::Sandbox) {
+        ImGui::SeparatorText("練習場の設定");
+        drawSandboxPresetSelector(data);
+        ImGui::TextDisabled("練習場の画面右下でも切り替えられます");
+    }
     if (config_.mode == GameMode::SkillDodge) drawSkillDodgeOptions(config_, data);
 
     ImGui::SeparatorText("スキルのクールダウン");

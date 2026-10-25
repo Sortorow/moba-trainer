@@ -34,6 +34,21 @@ void GameData::loadAll() {
         errors_.push_back(ai.error);
     }
 
+    // --- 練習場のダミー ---
+    SandboxConfigLoadResult sandbox = loadSandboxConfig(paths_.sandboxFile);
+    if (sandbox.error.empty()) {
+        // 中身が変わった時だけ番号を増やす（キャラのファイルを保存しただけで、ダミーが置き直されないように）
+        if (sandboxRevision_ == 0 || !sameSandboxConfig(sandbox_, sandbox.config)) ++sandboxRevision_;
+        sandbox_ = std::move(sandbox.config);
+        for (const std::string& warning : sandbox.warnings) {
+            log::warn("data", "sandbox.jsonc: {}", warning);
+            errors_.push_back("sandbox.jsonc: " + warning);
+        }
+    } else {
+        log::error("data", "{}", sandbox.error);
+        errors_.push_back(sandbox.error);
+    }
+
     // --- キャラクター ---
     std::vector<std::filesystem::path> files;
     std::error_code ec;
@@ -101,6 +116,22 @@ std::vector<const CharacterDef*> GameData::enemyCandidates() const {
     return list;
 }
 
+bool GameData::selectSandboxPreset(std::string_view name) {
+    if (!sandbox_.preset(name)) return false;
+    sandbox_.selectedPreset = std::string(name);
+    ++sandboxRevision_;
+    const std::string error = saveSelectedSandboxPreset(paths_.sandboxFile, name);
+    if (!error.empty()) {
+        log::error("data", "練習場のダミーの選択を保存できませんでした: {}", error);
+        errors_.push_back(error);
+        return true;  // 保存はできなかったが、選択は反映している
+    }
+    // 自分で書き込んだ変更で、再読み込みが起きないようにする
+    fileTimes_ = scanFileTimes();
+    log::info("data", "練習場のダミーを「{}」にして、sandbox.jsonc に保存しました", name);
+    return true;
+}
+
 void GameData::addError(std::string message) { errors_.push_back(std::move(message)); }
 
 std::map<std::filesystem::path, std::filesystem::file_time_type> GameData::scanFileTimes() const {
@@ -108,6 +139,7 @@ std::map<std::filesystem::path, std::filesystem::file_time_type> GameData::scanF
     std::error_code ec;
     times[paths_.settingsFile] = std::filesystem::last_write_time(paths_.settingsFile, ec);
     times[paths_.aiFile] = std::filesystem::last_write_time(paths_.aiFile, ec);
+    times[paths_.sandboxFile] = std::filesystem::last_write_time(paths_.sandboxFile, ec);
     for (const auto& entry : std::filesystem::directory_iterator(paths_.charactersDir, ec)) {
         if (entry.is_regular_file(ec) && entry.path().extension() == ".jsonc") {
             times[entry.path()] = std::filesystem::last_write_time(entry.path(), ec);

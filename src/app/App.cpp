@@ -17,6 +17,7 @@
 #include "ui/DebugPanel.h"
 #include "ui/Fonts.h"
 #include "ui/ResultScreen.h"
+#include "ui/SandboxPanel.h"
 #include "ui/UiScale.h"
 
 namespace moba {
@@ -201,7 +202,10 @@ void App::reloadData(bool force) {
         settingsCameraMode_ = cameraMode_ = data_.settings().cameraMode;
         log::info("camera", "設定ファイルにより、カメラを「{}」にしました", displayName(cameraMode_));
     }
-    if (match_) match_->world().refreshUnitsFromData();
+    if (match_) {
+        match_->world().refreshUnitsFromData();
+        match_->refreshDummiesIfChanged();  // sandbox.jsonc が書き換えられていれば、ダミーを置き直す
+    }
 }
 
 // 設定ファイルの handler 名が実在するかを確認する
@@ -332,6 +336,10 @@ void App::draw() {
         }
         case Screen::Playing: {
             drawHud(*match_, camera_, cameraMode_);
+            if (match_->config().mode == GameMode::Sandbox) {
+                drawSandboxPanel(data_);
+                match_->refreshDummiesIfChanged();  // プリセットを選び直していれば、ダミーを置き直す
+            }
             if (!debugPanelVisible_) break;
             const DebugPanelResult result = drawDebugPanel(*match_, data_);
             if (result.reloadData) reloadData(true);

@@ -8,10 +8,11 @@
 2. [共通のルール（書き方・単位・再読み込み）](#2-共通のルール)
 3. [settings.jsonc（ゲーム全体の設定）](#3-settingsjsoncゲーム全体の設定)
 4. [ai.jsonc（スキルドッジの敵 AI）](#4-aijsoncスキルドッジの敵-ai)
-5. [characters/*.jsonc（キャラとスキル）](#5-charactersjsoncキャラとスキル)
-6. [handler ごとの params 一覧](#6-handler-ごとの-params-一覧)
-7. [効果（onHit など）の書き方](#7-効果onhit-などの書き方)
-8. [参照しているソースコードの一覧](#8-参照しているソースコードの一覧)
+5. [sandbox.jsonc（練習場のダミー）](#5-sandboxjsonc練習場のダミー)
+6. [characters/*.jsonc（キャラとスキル）](#6-charactersjsoncキャラとスキル)
+7. [handler ごとの params 一覧](#7-handler-ごとの-params-一覧)
+8. [効果（onHit など）の書き方](#8-効果onhit-などの書き方)
+9. [参照しているソースコードの一覧](#9-参照しているソースコードの一覧)
 
 ---
 
@@ -21,6 +22,7 @@
 data/
 ├─ settings.jsonc          ゲーム全体の設定（画面・カメラ・クールダウンの初期値・ログ）
 ├─ ai.jsonc                スキルドッジの敵 AI（賢さ 1〜5 ごとの動き方）
+├─ sandbox.jsonc           練習場のダミー（大きさ・速さ・数・位置・動き方のプリセット）
 └─ characters/
     ├─ like_ezreal.jsonc   キャラ 1 体につき 1 ファイル（ステータスとスキル）
     ├─ like_emma.jsonc
@@ -31,11 +33,12 @@ data/
 |---|---|---|---|
 | `settings.jsonc` | 画面・カメラ・クールダウン倍率の初期値・ログの詳しさ | `src/data/Settings.cpp` | `src/app/App.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ App.cpp から `src/render/Renderer.cpp`、`src/render/CameraControl.cpp`、`src/render/Hud.cpp`、`src/ui/UiScale.cpp`、`src/core/Log.cpp` へ渡される |
 | `ai.jsonc` | スキルドッジの敵の強さ・動き方 | `src/data/AiConfig.cpp` | `src/game/Match.cpp`、`src/game/ai/EnemyAI.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ EnemyAI.cpp から `src/game/ai/Aim.cpp` へ、Match.cpp から `src/ui/ResultScreen.cpp` へ渡される |
-| `characters/*.jsonc` | キャラのステータスとスキルの数値・動き | `src/data/CharacterDef.cpp` | `src/app/App.cpp`<br>`src/data/GameData.cpp`<br>`src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`、`src/game/SkillCasting.cpp`<br>`src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`、`SkillRegistry.cpp`<br>`src/game/ai/`：`Aim.cpp`、`EnemyAI.cpp`<br>`src/render/Hud.cpp`<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ キャラの大きさ・移動速度・色は配置時にキャラの情報（`Unit`）へコピーされ、`src/render/Renderer.cpp` などでも使われる（[5 章](#5-charactersjsoncキャラとスキル)の表を参照） |
+| `sandbox.jsonc` | 練習場のダミーのプリセット | `src/data/SandboxConfig.cpp` | `src/data/GameData.cpp`、`src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/ui/SandboxPanel.cpp`<br>→ Sandbox.cpp から `src/game/DummyController.cpp` へ、ダミーの大きさ・移動速度・色はキャラの情報（`Unit`）へコピーされて `src/game/World.cpp`、`src/render/Renderer.cpp` などで使われる（[5 章](#5-sandboxjsonc練習場のダミー)の表を参照）。SandboxPanel.cpp は `src/ui/MainMenu.cpp` と `src/app/App.cpp` から呼ばれる |
+| `characters/*.jsonc` | キャラのステータスとスキルの数値・動き | `src/data/CharacterDef.cpp` | `src/app/App.cpp`<br>`src/data/GameData.cpp`<br>`src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`、`src/game/SkillCasting.cpp`<br>`src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`、`SkillRegistry.cpp`<br>`src/game/ai/`：`Aim.cpp`、`EnemyAI.cpp`<br>`src/render/Hud.cpp`<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ キャラの大きさ・移動速度・色は配置時にキャラの情報（`Unit`）へコピーされ、`src/render/Renderer.cpp` などでも使われる（[6 章](#6-charactersjsoncキャラとスキル)の表を参照） |
 
-3 種類のファイルは、すべて `src/data/GameData.cpp` がまとめて読み込みます。
+4 種類のファイルは、すべて `src/data/GameData.cpp` がまとめて読み込みます。
 
-この資料の「使うコード」には、その値を使うファイルをすべて書いています。値が別のファイルへ渡されてから使われる場合は、「→」で渡し先も書いています。自動テスト（`tests/` フォルダ）での使い方は、[8 章](#8-参照しているソースコードの一覧)にまとめています。
+この資料の「使うコード」には、その値を使うファイルをすべて書いています。値が別のファイルへ渡されてから使われる場合は、「→」で渡し先も書いています。自動テスト（`tests/` フォルダ）での使い方は、[9 章](#9-参照しているソースコードの一覧)にまとめています。
 
 ---
 
@@ -130,7 +133,47 @@ data/
 
 ---
 
-## 5. characters/*.jsonc（キャラとスキル）
+## 5. sandbox.jsonc（練習場のダミー）
+
+練習場に置くダミー（的）の組み合わせを、**プリセット**として複数書いておくファイルです。読み込みは `src/data/SandboxConfig.cpp` です。
+
+- プリセットは、メニュー（モードで「練習場」を選んだ時）と、練習場の画面右下の「練習場のダミー」で選べます。
+- 選ぶとすぐにダミーが置き直され、選んだプリセットの名前がこのファイルの `"preset"` に書き戻されます（次に起動した時も、そのプリセットで始まります）。書き戻すのは `"preset"` の値だけで、コメントや他の行はそのまま残ります。
+- 練習場で遊んでいる途中にこのファイルを保存すると、中身が変わっていればダミーが置き直されます。
+- デバッグパネル（`F1`）の「ダミー」で、ダミーごとの動き方・移動速度を一時的に変えることもできます（ファイルには保存されません）。
+
+### プリセットの選択と一覧
+
+| 項目 | 既定値 | 意味 | 使うコード |
+|---|---|---|---|
+| `preset` | 最初のプリセット | 今選んでいるプリセットの名前。`presets` に無い名前なら、最初のプリセットを使う | `src/data/SandboxConfig.cpp`（読み込み・値の書き戻し）<br>`src/data/GameData.cpp`（選び直す処理）<br>`src/ui/SandboxPanel.cpp`（選ぶ UI。`src/ui/MainMenu.cpp` と `src/app/App.cpp` から呼ばれる）<br>`src/game/Match.cpp` → `src/game/Sandbox.cpp`（開始時と、選び直した時にダミーを置く） |
+| `presets` | （必須） | プリセットの一覧（下の表）。名前が重複したプリセットは、後の方を使わない | `src/data/SandboxConfig.cpp`（読み込み）<br>`src/ui/SandboxPanel.cpp`（選ぶ UI の一覧） |
+
+### プリセットの項目
+
+| 項目 | 既定値 | 意味 | 使うコード |
+|---|---|---|---|
+| `name` | `プリセット1` など | 名前。メニューと練習場の画面に出る | `src/data/SandboxConfig.cpp`（`preset` との照合）<br>`src/ui/SandboxPanel.cpp`（表示）<br>`src/game/Sandbox.cpp`（ログ） |
+| `description` | 空 | 説明。選んでいるプリセットの下に出る | `src/ui/SandboxPanel.cpp` |
+| `radius` | `65` | このプリセットのダミーの当たり判定の半径（10〜400） | `src/data/SandboxConfig.cpp`（ダミーごとの `radius` の既定値にする） |
+| `moveSpeed` | `300` | このプリセットのダミーの移動速度（0〜2000） | `src/data/SandboxConfig.cpp`（ダミーごとの `moveSpeed` の既定値にする） |
+| `color` | `[215, 75, 75]`（赤） | このプリセットのダミーの色 | `src/data/SandboxConfig.cpp`（ダミーごとの `color` の既定値にする） |
+| `dummies` | `[]` | ダミーの一覧（下の表）。0 体でもよい | `src/game/Sandbox.cpp`（ダミーを置く）<br>`src/ui/SandboxPanel.cpp`（体数・静止と往復の数・半径をまとめて表示） |
+
+### ダミーの項目
+
+| 項目 | 既定値 | 意味 | 使うコード |
+|---|---|---|---|
+| `name` | `ダミー1` など | 名前。ダミーの頭上に出る | `src/game/Sandbox.cpp`（キャラの情報にコピー）→ `src/render/Hud.cpp`（頭上に表示）、`src/ui/DebugPanel.cpp`（ダミーの一覧） |
+| `position` | `[0, 0]`（書かないと警告） | 置く位置 `[x, y]`。自キャラは (0, 0) から始まる。x は右、y は下がプラス。ステージの外なら端に寄せる | `src/game/Sandbox.cpp`（置く位置・静止する位置）→ `src/game/DummyController.cpp`（押し出された時に戻る位置・往復の一方） |
+| `patrolTo` | なし | 書くと、`position` とこの位置の間を往復する。書かなければ静止する | `src/game/Sandbox.cpp`（動き方を決める）→ `src/game/DummyController.cpp`（往復） |
+| `radius` | プリセットの `radius` | このダミーだけの当たり判定の半径 | `src/game/Sandbox.cpp`（キャラの情報にコピー）→ 自キャラ・敵と同じく、キャラの当たり判定の半径として使われる（使うコードは [6 章](#6-charactersjsoncキャラとスキル)の `hitboxRadius` の行と同じ）<br>`src/ui/SandboxPanel.cpp`（半径の表示） |
+| `moveSpeed` | プリセットの `moveSpeed` | このダミーだけの移動速度 | `src/game/Sandbox.cpp`（キャラの情報にコピー）→ `src/game/World.cpp`（移動）、`src/ui/DebugPanel.cpp`（一時的に変えるスライダー） |
+| `color` | プリセットの `color` | このダミーだけの色 | `src/game/Sandbox.cpp`（キャラの情報にコピー）→ `src/render/Renderer.cpp`（描画） |
+
+---
+
+## 6. characters/*.jsonc（キャラとスキル）
 
 `data/characters` フォルダの `.jsonc` ファイルは、すべて読み込まれます。**ファイルを 1 つ追加すれば、メニューに新しいキャラが増えます**（スキルの処理 `handler` が既にあるものだけで作れる場合）。読み込みは `src/data/CharacterDef.cpp` です。
 
@@ -151,7 +194,7 @@ data/
 | 項目 | 既定値 | 意味 | 使うコード |
 |---|---|---|---|
 | `name` | キー名 | 表示名（スキルバー・ログ） | `src/render/Hud.cpp`（スキルバー・詠唱バー）<br>`src/game/SkillCasting.cpp`（ログ）<br>`src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`（弾・範囲の名前、ログ）<br>`src/game/ai/EnemyAI.cpp`（ログ） |
-| `handler` | （必須） | スキルの処理の種類（[6 章](#6-handler-ごとの-params-一覧)）。存在しない名前はエラー | `src/game/skills/SkillRegistry.cpp`（名前から処理を探す）<br>`src/game/SkillCasting.cpp`（処理の呼び出し）<br>`src/app/App.cpp`（読み込み時に、存在する名前かを確認） |
+| `handler` | （必須） | スキルの処理の種類（[7 章](#7-handler-ごとの-params-一覧)）。存在しない名前はエラー | `src/game/skills/SkillRegistry.cpp`（名前から処理を探す）<br>`src/game/SkillCasting.cpp`（処理の呼び出し）<br>`src/app/App.cpp`（読み込み時に、存在する名前かを確認） |
 | `targeting` | `"direction"` | 対象の取り方（下の表） | `src/game/SkillCasting.cpp`（対象の選択・射程の確認）<br>`src/game/ai/Aim.cpp`（直線か円かの判断） |
 | `castTime` | `0` | 詠唱時間（秒）。この間は移動しない | `src/game/SkillCasting.cpp`（→ `src/render/Hud.cpp` が詠唱バーを表示）<br>`src/game/ai/Aim.cpp`（着弾までの時間の計算） |
 | `cooldown` | `0` | クールダウン（秒）。実際の値は、メニューで選んだ倍率を掛けたもの | `src/game/SkillCasting.cpp`（クールダウンの設定）<br>`src/game/skills/SkillHelpers.cpp`（命中時のクールダウン短縮）<br>`src/render/Hud.cpp`（残り時間の表示） |
@@ -161,7 +204,7 @@ data/
 | `usedByEnemy` | `false` | スキルドッジで、このキャラが敵として出た時に使うか。1 つでも `true` があるキャラが、敵として登場する | `src/game/ai/EnemyAI.cpp`（使うスキルの選択）<br>`src/data/GameData.cpp`（敵として出られるキャラの一覧 → `src/game/Match.cpp` が敵を選ぶ、`src/ui/MainMenu.cpp` が一覧を表示） |
 | `aiPriority` | `1.0` | 敵 AI がスキルを選ぶ時の重み（大きいほど選ばれやすい） | `src/game/ai/EnemyAI.cpp` |
 | `usableDuringCast` | なし | このスキルの詠唱中でも、詠唱を中断せずにすぐ使えるスキルのキー（例: `["R"]`）。詠唱時間 0 のスキルだけ | `src/game/SkillCasting.cpp` |
-| `params` | `{}` | handler ごとの個別の数値（[6 章](#6-handler-ごとの-params-一覧)） | `src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`（各 handler の処理）<br>`src/game/SkillCasting.cpp`（`pickRadius`・`targetKinds`）<br>`src/game/ai/Aim.cpp`（`speed`・`width`・`radius`・`delay`・`flightTime`）<br>`src/game/skills/EmmaSkills.cpp` → `src/render/Renderer.cpp`（`doveCardDrawOffsetForward`・`doveCardDrawOffsetSide`） |
+| `params` | `{}` | handler ごとの個別の数値（[7 章](#7-handler-ごとの-params-一覧)） | `src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`（各 handler の処理）<br>`src/game/SkillCasting.cpp`（`pickRadius`・`targetKinds`）<br>`src/game/ai/Aim.cpp`（`speed`・`width`・`radius`・`delay`・`flightTime`）<br>`src/game/skills/EmmaSkills.cpp` → `src/render/Renderer.cpp`（`doveCardDrawOffsetForward`・`doveCardDrawOffsetSide`） |
 
 ### targeting の値
 
@@ -175,7 +218,7 @@ data/
 
 ---
 
-## 6. handler ごとの params 一覧
+## 7. handler ごとの params 一覧
 
 スキルの `handler` によって、`params` に書ける項目が変わります。表の「必須」は、書かないと既定値を使ってログに警告を出す項目です。処理は `src/game/skills/` のファイルにあります。
 
@@ -190,7 +233,7 @@ data/
 | `pierce` | | `true` で貫通（同じ敵には 1 回だけ当たる）。既定は `false`（最初の敵 1 体に当たって消える） |
 | `visual` | | 見た目（下の表）。既定は `"orb"` |
 | `color` | | 弾の色。既定はキャラの色 |
-| `onHit` | | 当たった時の効果（[7 章](#7-効果onhit-などの書き方)） |
+| `onHit` | | 当たった時の効果（[8 章](#8-効果onhit-などの書き方)） |
 | `detonateMark` | | 当たった敵にこの名前の印があれば、消費して起爆する（エズリアルの Q） |
 
 **`"homing_projectile"`**：対象を追いかけて必ず当たる弾（`CommonSkills.cpp`）。例：エマの E。項目は `projectile` と同じです（`pierce` は使いません）。
@@ -296,11 +339,11 @@ data/
 1. `src/game/skills/` に処理を書く
 2. `src/game/skills/Skill.h` に宣言を追加する
 3. `src/game/skills/SkillRegistry.cpp` の対応表に、名前と処理を追加する
-4. この資料の 6 章に、params の表を追加する
+4. この資料の 7 章に、params の表を追加する
 
 ---
 
-## 7. 効果（onHit など）の書き方
+## 8. 効果（onHit など）の書き方
 
 `onHit`、`doubleHitEffects`、`doveOnHit` などの効果は、次の形の配列で書きます。読み込みは `src/data/EffectSpec.cpp`、効果の働きは `src/game/StatusEffects.cpp` です。
 
@@ -322,9 +365,9 @@ data/
 
 ---
 
-## 8. 参照しているソースコードの一覧
+## 9. 参照しているソースコードの一覧
 
-フォルダごとに、そのフォルダにあるファイルをすべて載せています。「関係するファイル」の settings は `settings.jsonc`、ai は `ai.jsonc`、characters は `characters/*.jsonc`（キャラのファイル全部）のことです。
+フォルダごとに、そのフォルダにあるファイルをすべて載せています。「関係するファイル」の settings は `settings.jsonc`、ai は `ai.jsonc`、sandbox は `sandbox.jsonc`、characters は `characters/*.jsonc`（キャラのファイル全部）のことです。
 `.h` は、同じ名前の `.cpp` と同じ行にまとめています。
 
 ### src/（直下）
@@ -337,7 +380,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `App.cpp` / `App.h` | ウィンドウの大きさ・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。読み込み時に handler が実在するかを確認する。コマンドラインで指定したキャラを探す | settings、characters |
+| `App.cpp` / `App.h` | ウィンドウの大きさ・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。読み込み時に handler が実在するかを確認する。コマンドラインで指定したキャラを探す。練習場では、ダミーのプリセットを選ぶパネル（`src/ui/SandboxPanel.cpp`）を出し、選び直されたり sandbox.jsonc が書き換えられたりしたらダミーを置き直させる | settings、sandbox、characters |
 | `CommandLine.cpp` / `CommandLine.h` | 使わない | — |
 
 ### src/core/
@@ -356,9 +399,10 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `GameData.cpp` / `GameData.h` | 3 種類のファイルをまとめて読み込み、変更を検知して再読み込みする。キャラの一覧と、敵として出られるキャラの一覧を作る | すべて |
+| `GameData.cpp` / `GameData.h` | 4 種類のファイルをまとめて読み込み、変更を検知して再読み込みする。キャラの一覧と、敵として出られるキャラの一覧を作る。練習場のダミーのプリセットを選び直して保存する | すべて |
 | `Settings.cpp` / `Settings.h` | `settings.jsonc` を読み、値の範囲をチェックする | settings |
 | `AiConfig.cpp` / `AiConfig.h` | `ai.jsonc` を読む | ai |
+| `SandboxConfig.cpp` / `SandboxConfig.h` | `sandbox.jsonc` を読む。選んだプリセットの名前を `"preset"` に書き戻す（コメントや他の行は変えない） | sandbox |
 | `CharacterDef.cpp` / `CharacterDef.h` | キャラのファイルを読む。`params` から値を取り出す関数（`num` / `numOr` / `flagOr` / `text` / `color` / `effects`）もここ | characters |
 | `EffectSpec.cpp` / `EffectSpec.h` | 効果の配列を読む | characters |
 
@@ -366,13 +410,13 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `Match.cpp` / `Match.h` | スキルドッジでキャラを配置し、敵を選ぶ。敵のクールダウン倍率と、敵 AI の賢さを設定する。リザルトに出すキャラ名を渡す | ai、characters |
-| `Sandbox.cpp` / `Sandbox.h` | 練習場でキャラを配置する | characters |
+| `Match.cpp` / `Match.h` | スキルドッジでキャラを配置し、敵を選ぶ。敵のクールダウン倍率と、敵 AI の賢さを設定する。リザルトに出すキャラ名を渡す。練習場では、選んでいるプリセットのダミーを置き、プリセットが変わったら置き直す | ai、sandbox、characters |
+| `Sandbox.cpp` / `Sandbox.h` | 練習場で自キャラとダミーを配置する（ダミーの名前・位置・往復先・大きさ・移動速度・色） | sandbox、characters |
 | `World.cpp` / `World.h` | キャラの設定を ID で探す。移動速度・当たり判定の半径を使って移動と当たり判定をする。敵のクールダウン倍率を保持する | ai、characters |
 | `SkillCasting.cpp` / `SkillCasting.h` | スキル発動の流れ（詠唱・クールダウン・射程・対象の選択・詠唱中に使えるスキル・移動系だけ使えるルール） | characters |
 | `StatusEffects.cpp` / `StatusEffects.h` | スキルの効果（`onHit` などに書いた状態異常）を働かせる | characters |
 | `CastStats.cpp` / `CastStats.h` | `countsForHitRate` が `true` のスキルだけを、ヒット率として集計する（判定は `SkillCasting.cpp` から受け取る） | characters |
-| `DummyController.cpp` / `DummyController.h` | 使わない | — |
+| `DummyController.cpp` / `DummyController.h` | ダミーを静止・往復させる（静止する位置・往復先は `Sandbox.cpp` から受け取る） | sandbox |
 | `Entities.cpp` / `Entities.h` | 使わない | — |
 | `MatchConfig.h` | 使わない | — |
 | `PlayerController.cpp` / `PlayerController.h` | 使わない | — |
@@ -419,7 +463,8 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ | settings、ai、characters |
+| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ。練習場を選んでいる時は、ダミーのプリセットを選ぶ（`SandboxPanel.cpp` を使う） | settings、ai、sandbox、characters |
+| `SandboxPanel.cpp` / `SandboxPanel.h` | 練習場のダミーのプリセットを選ぶ UI（メニューと、練習場の画面右下のパネル）。プリセットの名前・説明・体数・半径を表示する | sandbox |
 | `DebugPanel.cpp` / `DebugPanel.h` | 視点の広さ・当たり判定の円の表示を一時的に変える。キャラの選択、敵 AI の賢さの名前、移動速度の表示 | settings、ai、characters |
 | `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名と敵 AI の賢さの名前を表示する（値は `Match.cpp` から受け取る） | ai、characters |
 | `UiScale.cpp` / `UiScale.h` | `uiScale` とウィンドウの大きさから、画面に出す大きさを計算する（値は `App.cpp` から受け取る） | settings |
@@ -437,4 +482,5 @@ data/
 | `test_main.cpp` | 使わない | — |
 | `test_ui_scale.cpp` | 使わない（`UiScale.cpp` の計算を、テスト用の値で確かめる） | — |
 | `test_camera.cpp` | 使わない（`CameraControl.cpp` の計算を、テスト用の値で確かめる） | — |
+| `test_sandbox.cpp` | sandbox.jsonc が読み込めること、プリセットを選ぶと `"preset"` だけが書き換わること、練習場のダミーが置き直されることのテスト（data フォルダを一時フォルダへ写して使う） | sandbox、characters |
 | `scripts/brand_tour.txt`、`scripts/camera_tour.txt`、`scripts/dodge_tour.txt`、`scripts/emma_tour.txt`、`scripts/ezreal_tour.txt` | 使わない（`--script` で使う入力スクリプト） | — |

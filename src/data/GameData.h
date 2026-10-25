@@ -1,5 +1,5 @@
 #pragma once
-// 設定ファイル一式（settings.jsonc とキャラクター定義）の読み込みと、自動での再読み込み
+// 設定ファイル一式（settings.jsonc・ai.jsonc・sandbox.jsonc とキャラクター定義）の読み込みと、自動での再読み込み
 
 #include <filesystem>
 #include <functional>
@@ -11,6 +11,7 @@
 #include "core/Paths.h"
 #include "data/AiConfig.h"
 #include "data/CharacterDef.h"
+#include "data/SandboxConfig.h"
 #include "data/Settings.h"
 
 namespace moba {
@@ -29,6 +30,12 @@ public:
     const Settings& settings() const { return settings_; }
     Settings& mutableSettings() { return settings_; }  // デバッグパネルからの一時的な変更用
     const AiConfig& ai() const { return ai_; }
+    const SandboxConfig& sandbox() const { return sandbox_; }
+
+    // 練習場のダミーのプリセットを選び、sandbox.jsonc の "preset" に保存する。戻り値は成功したかどうか
+    bool selectSandboxPreset(std::string_view name);
+    // ダミーの設定（sandbox.jsonc の中身）が変わるたびに増える番号（ゲームの中のダミーを置き直すかの判断に使う）
+    int sandboxRevision() const { return sandboxRevision_; }
 
     const CharacterDef* character(std::string_view id) const;
     std::vector<const CharacterDef*> characterList() const;  // id 順
@@ -48,6 +55,8 @@ private:
     AppPaths paths_;
     Settings settings_;
     AiConfig ai_;
+    SandboxConfig sandbox_;
+    int sandboxRevision_ = 0;
     std::map<std::string, CharacterDef, std::less<>> characters_;
     std::map<std::filesystem::path, std::filesystem::file_time_type> fileTimes_;
     std::vector<std::string> errors_;

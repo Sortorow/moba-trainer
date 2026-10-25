@@ -47,6 +47,9 @@ public:
     DummyController& dummies() { return dummies_; }
     const ai::EnemyDirector& enemies() const { return enemies_; }
 
+    // 練習場: ダミーの設定（プリセットの選択や sandbox.jsonc の中身）が変わっていれば、ダミーを置き直す
+    void refreshDummiesIfChanged();
+
 private:
     void setupSkillDodge(const CharacterDef& character);
 
@@ -56,6 +59,7 @@ private:
     PlayerController player_;
     DummyController dummies_;
     ai::EnemyDirector enemies_;
+    int sandboxRevision_ = 0;  // 今のダミーを置いた時の GameData::sandboxRevision()
     float elapsed_ = 0.0f;
     bool finished_ = false;
 };

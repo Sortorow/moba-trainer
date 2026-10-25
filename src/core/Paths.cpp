@@ -9,6 +9,7 @@ AppPaths makeAppPaths(const std::filesystem::path& root) {
     paths.charactersDir = paths.dataDir / "characters";
     paths.settingsFile = paths.dataDir / "settings.jsonc";
     paths.aiFile = paths.dataDir / "ai.jsonc";
+    paths.sandboxFile = paths.dataDir / "sandbox.jsonc";
     paths.logsDir = root / "logs";
     return paths;
 }

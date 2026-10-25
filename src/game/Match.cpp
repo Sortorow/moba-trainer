@@ -40,7 +40,10 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
     world_->setCooldownScale(Team::Enemy, data_.ai().enemyCooldownScale);
 
     switch (config_.mode) {
-        case GameMode::Sandbox: setupSandbox(*world_, dummies_, *character); break;
+        case GameMode::Sandbox:
+            setupSandbox(*world_, dummies_, *character, data_.sandbox().current());
+            sandboxRevision_ = data_.sandboxRevision();
+            break;
         case GameMode::SkillDodge: setupSkillDodge(*character); break;
     }
     log::info("match", "{}を開始: キャラ={} クールダウン={}（倍率 {:.2f}）{}", displayName(config_.mode), character->id,
@@ -102,6 +105,12 @@ void Match::update(float dt, const InputFrame& input) {
         log::info("match", "制限時間になりました: ドッジ率 {:.1f}%（{} / {}）被弾 {} 回 ダウン {} 回",
                   r.dodge.rate() * 100.0f, r.dodge.dodged, r.dodge.total, r.hitsTaken, r.deaths);
     }
+}
+
+void Match::refreshDummiesIfChanged() {
+    if (!world_ || config_.mode != GameMode::Sandbox || sandboxRevision_ == data_.sandboxRevision()) return;
+    placeDummies(*world_, dummies_, data_.sandbox().current());
+    sandboxRevision_ = data_.sandboxRevision();
 }
 
 float Match::remaining() const { return config_.timed() ? std::max(0.0f, config_.timeLimitSeconds - elapsed_) : 0.0f; }

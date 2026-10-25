@@ -36,6 +36,10 @@ EntityId World::addUnit(Unit unit) {
     return units_.back().id;
 }
 
+void World::removeUnit(EntityId id) {
+    std::erase_if(units_, [id](const Unit& unit) { return unit.id == id; });
+}
+
 EntityId World::spawnProjectile(Projectile projectile) {
     projectile.id = ++lastEntityId_;
     if (const auto it = casts_.find(projectile.castId); it != casts_.end()) ++it->second.liveEntities;

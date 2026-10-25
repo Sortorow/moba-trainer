@@ -32,6 +32,8 @@ public:
 
     // --- 追加 ---
     EntityId addUnit(Unit unit);
+    // キャラを取り除く（練習場のダミーを置き直す時用）
+    void removeUnit(EntityId id);
     // 弾・範囲・設置物は、更新処理の区切りでまとめて追加される（更新中に配列が変わらないように）
     EntityId spawnProjectile(Projectile projectile);
     EntityId spawnArea(AreaEffect area);

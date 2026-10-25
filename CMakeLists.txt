@@ -76,6 +76,7 @@ add_library(moba_lib STATIC
   src/data/EffectSpec.cpp
   src/data/CharacterDef.cpp
   src/data/AiConfig.cpp
+  src/data/SandboxConfig.cpp
   src/data/GameData.cpp
   src/game/StatusEffects.cpp
   src/game/Entities.cpp
@@ -103,6 +104,7 @@ add_library(moba_lib STATIC
   src/ui/Fonts.cpp
   src/ui/UiScale.cpp
   src/ui/MainMenu.cpp
+  src/ui/SandboxPanel.cpp
   src/ui/DebugPanel.cpp
   src/ui/ResultScreen.cpp
   src/app/CommandLine.cpp
@@ -135,6 +137,7 @@ add_executable(moba_tests
   tests/test_world.cpp
   tests/test_dodge.cpp
   tests/test_ui_scale.cpp
-  tests/test_camera.cpp)
+  tests/test_camera.cpp
+  tests/test_sandbox.cpp)
 target_link_libraries(moba_tests PRIVATE moba_lib doctest::doctest)
 target_compile_definitions(moba_tests PRIVATE MOBA_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

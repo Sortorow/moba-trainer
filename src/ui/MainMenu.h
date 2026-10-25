@@ -17,7 +17,8 @@ struct MenuAction {
 class MainMenu {
 public:
     // cameraMode はプレイ中に Y キーでも変わるので、メニューでは持たずに App の値をそのまま変える
-    MenuAction draw(const GameData& data, CameraMode& cameraMode);
+    // data は、練習場のダミーのプリセットを選んだ時に書き換える（sandbox.jsonc に保存する）
+    MenuAction draw(GameData& data, CameraMode& cameraMode);
     // 前回のプレイの設定を、次にメニューを開いた時の初期値にする
     void setConfig(const MatchConfig& config);
 
