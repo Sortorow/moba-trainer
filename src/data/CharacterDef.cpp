@@ -48,6 +48,7 @@ std::optional<SkillDef> parseSkill(const json& j, const std::string& characterId
         return std::nullopt;
     }
     skill.castTime = std::max(0.0f, j.value("castTime", 0.0f));
+    skill.lockMovement = j.value("lockMovement", true);
     skill.cooldown = std::max(0.0f, j.value("cooldown", 0.0f));
     skill.range = std::max(0.0f, j.value("range", 0.0f));
     skill.countsForHitRate = j.value("countsForHitRate", false);

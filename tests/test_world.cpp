@@ -218,6 +218,35 @@ TEST_CASE("エマ W → R（帽子）: 帽子の位置へ移動し、元の位�
     CHECK(f.unit(nearStart).status.has(EffectType::Knockup));
 }
 
+TEST_CASE("硬直: 硬直のあるスキル（エズリアル Q）は詠唱の間止まり、硬直のないスキル（エマ W）は歩き続けられる") {
+    {
+        Fixture f("like_ezreal");
+        REQUIRE(f.skill(SkillSlot::Q).lockMovement);
+        casting::orderMove(f.world(), f.player(), {0, 1000});
+        f.run(0.2f);
+        f.cast(SkillSlot::Q, {600, 0});
+        const Vector2 before = f.player().pos;
+        f.run(f.skill(SkillSlot::Q).castTime * 0.8f);  // 詠唱の途中
+        CHECK(f.player().cast.active);
+        CHECK(Vector2Distance(f.player().pos, before) < 1.0f);
+    }
+    {
+        Fixture f("like_emma");
+        REQUIRE_FALSE(f.skill(SkillSlot::W).lockMovement);
+        REQUIRE(f.skill(SkillSlot::W).castTime > 0.0f);
+        casting::orderMove(f.world(), f.player(), {0, 1000});
+        f.run(0.2f);
+        f.cast(SkillSlot::W, {600, 0});
+        const Vector2 before = f.player().pos;
+        const float during = f.skill(SkillSlot::W).castTime * 0.8f;  // 溜めの途中
+        f.run(during);
+        CHECK(f.player().cast.active);
+        CHECK(Vector2Distance(f.player().pos, before) == doctest::Approx(f.player().moveSpeed() * during).epsilon(0.1));
+        f.run(1.0f);
+        CHECK(f.findProp(PropKind::Hat) != nullptr);  // 溜めの後に、狙った地点に帽子が出る
+    }
+}
+
 TEST_CASE("エマ Q: 鳩がどれだけ離れていても、鳩のカードが飛ぶ") {
     Fixture f("like_emma");
     f.cast(SkillSlot::Q, {500, 0});

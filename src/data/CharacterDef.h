@@ -38,7 +38,8 @@ struct SkillDef {
     std::string name;     // 表示名
     std::string handler;  // 処理の種類（skills/SkillRegistry.cpp に登録された名前）
     Targeting targeting = Targeting::Direction;
-    float castTime = 0.0f;          // 詠唱時間（秒）。この間は移動できない
+    float castTime = 0.0f;          // 詠唱時間（秒）。キーを押してからスキルが出るまで
+    bool lockMovement = true;       // 硬直: true なら詠唱時間の間は移動できない。false なら詠唱中も移動できる
     float cooldown = 0.0f;          // クールダウン（秒）
     float range = 0.0f;             // 射程
     bool countsForHitRate = false;  // スキルヒット率の集計に含めるか

@@ -304,7 +304,8 @@ data/
 | `name` | キー名 | 表示名（スキルバー・ログ） | `src/render/Hud.cpp`（スキルバー・詠唱バー）<br>`src/game/SkillCasting.cpp`（ログ）<br>`src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`（弾・範囲の名前、ログ）<br>`src/game/ai/EnemyAI.cpp`（ログ） |
 | `handler` | （必須） | スキルの処理の種類（[8 章](#8-handler-ごとの-params-一覧)）。存在しない名前はエラー | `src/game/skills/SkillRegistry.cpp`（名前から処理を探す）<br>`src/game/SkillCasting.cpp`（処理の呼び出し）<br>`src/app/App.cpp`（読み込み時に、存在する名前かを確認） |
 | `targeting` | `"direction"` | 対象の取り方（下の表） | `src/game/SkillCasting.cpp`（対象の選択・射程の確認）<br>`src/game/ai/Aim.cpp`（直線か円かの判断） |
-| `castTime` | `0` | 詠唱時間（秒）。この間は移動しない | `src/game/SkillCasting.cpp`（→ `src/render/Hud.cpp` が詠唱バーを表示）<br>`src/game/ai/Aim.cpp`（着弾までの時間の計算） |
+| `castTime` | `0` | 詠唱時間（秒）。キーを押してからスキルが出るまでの時間 | `src/game/SkillCasting.cpp`（→ `src/render/Hud.cpp` が詠唱バーを表示）<br>`src/game/ai/Aim.cpp`（着弾までの時間の計算） |
+| `lockMovement` | `true` | 硬直。`true` なら詠唱時間の間は移動できない。`false` なら詠唱中も移動できる（エマの W など） | `src/game/SkillCasting.cpp`（詠唱の状態に写す）→ `src/game/World.cpp`（詠唱中に移動させるか） |
 | `cooldown` | `0` | クールダウン（秒）。実際の値は、メニューで選んだ倍率を掛けたもの | `src/game/SkillCasting.cpp`（クールダウンの設定）<br>`src/game/skills/SkillHelpers.cpp`（命中時のクールダウン短縮）<br>`src/render/Hud.cpp`（残り時間の表示） |
 | `range` | `0` | 射程 | `src/game/SkillCasting.cpp`（射程外の判定）<br>`src/game/skills/SkillHelpers.cpp`（地点・ワープ先を射程内に収める）<br>`src/game/skills/CommonSkills.cpp`（弾の飛距離）<br>`src/game/skills/EmmaSkills.cpp`（カードの飛距離）<br>`src/game/ai/Aim.cpp`（狙えるかの判断）<br>`src/game/ai/EnemyAI.cpp`（保つ距離の計算） |
 | `countsForHitRate` | `false` | スキルヒット率の集計に含めるか | `src/game/SkillCasting.cpp` → `src/game/CastStats.cpp` |

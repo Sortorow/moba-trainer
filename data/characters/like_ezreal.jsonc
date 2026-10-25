@@ -9,7 +9,8 @@
 //   name             表示名
 //   handler          処理の種類（下記）
 //   targeting        "direction"（方向指定） / "point"（地点指定） / "unit"（対象指定） / "prop"（設置物を指定） / "none"
-//   castTime         詠唱時間。この間は移動できない
+//   castTime         詠唱時間（キーを押してからスキルが出るまで）
+//   lockMovement     硬直。true（省略時）なら詠唱時間の間は移動できない。false なら詠唱中も移動できる
 //   cooldown         クールダウン
 //   range            射程
 //   countsForHitRate スキルヒット率の集計に含めるか

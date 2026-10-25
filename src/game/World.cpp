@@ -288,8 +288,9 @@ void World::updateUnit(Unit& unit, float dt) {
 
     casting::update(*this, unit, dt);
 
-    // 詠唱中と、拘束などで動けない間は移動しない（目的地は覚えておき、動けるようになったら再開する）
-    if (unit.moveTarget && !unit.cast.active && unit.status.canMove()) moveAlongPath(unit, dt);
+    // 硬直のある詠唱中と、拘束などで動けない間は移動しない（目的地は覚えておき、動けるようになったら再開する）
+    const bool castLocked = unit.cast.active && unit.cast.locksMovement;
+    if (unit.moveTarget && !castLocked && unit.status.canMove()) moveAlongPath(unit, dt);
     if (!unit.moveTarget) {
         unit.path.clear();
         unit.pathGoal.reset();

@@ -128,7 +128,7 @@ void finishCast(World& world, Unit& caster) {
 /// 詠唱を始める（クールダウンを入れ、対象の方を向く）。詠唱時間が 0 なら、すぐに発動する
 void beginCast(World& world, Unit& caster, const SkillDef& def, const CastRequest& request) {
     caster.cooldowns[static_cast<std::size_t>(index(def.slot))] = def.cooldown * world.cooldownScaleFor(caster);
-    caster.cast = CastState{true, request, def.castTime, def.castTime};
+    caster.cast = CastState{true, request, def.castTime, def.castTime, def.lockMovement};
 
     const Vector2 aim =
         needsTarget(def.targeting) ? targetPosition(world, request).value_or(request.cursor) : request.cursor;

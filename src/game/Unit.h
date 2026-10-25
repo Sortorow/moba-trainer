@@ -44,8 +44,9 @@ struct CastRequest {
 struct CastState {
     bool active = false;
     CastRequest request;
-    float remaining = 0.0f;  // 詠唱の残り時間
-    float total = 0.0f;      // 詠唱時間
+    float remaining = 0.0f;     // 詠唱の残り時間
+    float total = 0.0f;         // 詠唱時間
+    bool locksMovement = true;  // 硬直（詠唱中は移動できない）。スキルの lockMovement
 };
 
 /// キャラ 1 体（自キャラ・敵キャラ・ダミー）。位置・移動・詠唱・状態異常・クールダウン・HP などを持つ

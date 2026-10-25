@@ -72,6 +72,7 @@
       "handler": "emma_w",
       "targeting": "point",
       "castTime": 0.15,
+      "lockMovement": false,          // 硬直なし（溜めの間も移動できる）
       "cooldown": 10,
       "range": 700,
       "countsForHitRate": true,
