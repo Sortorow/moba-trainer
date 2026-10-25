@@ -10,6 +10,7 @@
 #include "data/GameData.h"
 #include "game/Match.h"
 #include "game/MatchConfig.h"
+#include "game/ResultStore.h"
 #include "input/InputSource.h"
 #include "raylib.h"
 #include "ui/MainMenu.h"
@@ -62,7 +63,9 @@ private:
     void pauseOrLeave();
     /// ポーズを解いてプレイに戻る（ポーズ中の入力は捨てる。進行状況・キャラ・弾の状態はそのまま）
     void resume();
-    /// たまった時間の分だけ、固定の時間刻みでゲームを進める。終わったらリザルト画面へ
+    /// 制限時間まで遊んだ結果を保存する（入力スクリプトの時は --results-dir を指定した時だけ）
+    void saveResult();
+    /// たまった時間の分だけ、固定の時間刻みでゲームを進める。終わったら結果を保存して、リザルト画面へ
     /// @param frameDt 前のフレームからの経過時間（秒）
     void updateMatch(float frameDt, const InputFrame& input);
     /// カメラの拡大率と注視点を決める（自キャラに固定・固定しない・Space）
@@ -82,6 +85,8 @@ private:
 
     std::unique_ptr<Match> match_;
     std::optional<MatchResult> result_;
+    ResultStore results_;                       // 保存したリザルト（results フォルダ）
+    std::optional<std::string> savedPlayedAt_;  // 今回の結果を保存した日時（保存していなければ空）
     MainMenu menu_;
     std::unique_ptr<InputSource> input_;
 

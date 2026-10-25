@@ -37,7 +37,8 @@ void raylibLogCallback(int logLevel, const char* text, va_list args) {
 
 }  // namespace
 
-App::App(AppPaths paths, CommandLineOptions options) : data_(std::move(paths)), options_(std::move(options)) {
+App::App(AppPaths paths, CommandLineOptions options)
+    : data_(paths), options_(std::move(options)), results_(options_.resultsDir.value_or(paths.resultsDir)) {
     debugPanelVisible_ = !options_.hideDebugPanel;
 }
 
@@ -46,6 +47,7 @@ int App::run() {
     validateData();
     log::setMinLevel(data_.settings().logLevel);
     cameraMode_ = settingsCameraMode_ = data_.settings().cameraMode;
+    results_.load(localNow().date);
 
     if (options_.scriptFile) {
         std::string error;
@@ -297,8 +299,19 @@ void App::updateMatch(float frameDt, const InputFrame& input) {
     updateCamera(frameDt, input);
     if (match_->finished()) {
         result_ = match_->result();
+        saveResult();
         screen_ = Screen::Result;
     }
+}
+
+void App::saveResult() {
+    savedPlayedAt_.reset();
+    if (!result_) return;
+    if (input_->isScripted() && !options_.resultsDir) {
+        log::info("results", "入力スクリプトの実行中なので、結果は保存しません（保存するには --results-dir を指定）");
+        return;
+    }
+    if (const std::optional<SavedResult> saved = results_.save(*result_, localNow())) savedPlayedAt_ = saved->playedAt;
 }
 
 void App::updateCamera(float frameDt, const InputFrame& input) {
@@ -354,7 +367,7 @@ void App::draw() {
     rlImGuiBegin();
     switch (screen_) {
         case Screen::Menu: {
-            const MenuAction action = menu_.draw(data_, cameraMode_);
+            const MenuAction action = menu_.draw(data_, cameraMode_, results_);
             if (action.kind == MenuAction::Kind::Start) startMatch(action.config);
             if (action.kind == MenuAction::Kind::Quit) quit_ = true;
             break;
@@ -393,7 +406,9 @@ void App::draw() {
         }
         case Screen::Result: {
             drawHud(*match_, camera_, cameraMode_);
-            const ResultAction action = drawResultScreen(*result_);
+            const ResultAction action =
+                drawResultScreen(*result_, results_.recent(result_->config.mode, kRecentResultCount),
+                                 savedPlayedAt_ ? &*savedPlayedAt_ : nullptr);
             if (action == ResultAction::Retry) {
                 MatchConfig next = result_->config;
                 next.seed = 0;  // もう一度遊ぶ時は、新しい乱数の種で

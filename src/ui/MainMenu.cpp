@@ -7,6 +7,7 @@
 
 #include "data/GameData.h"
 #include "imgui.h"
+#include "ui/RecordsPanel.h"
 #include "ui/SandboxPanel.h"
 #include "ui/UiScale.h"
 
@@ -115,12 +116,16 @@ void MainMenu::setConfig(const MatchConfig& config) {
     initialized_ = true;
 }
 
-MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode) {
+MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultStore& results) {
     if (!initialized_) {
         config_.cooldownScale = data.settings().cooldownScale;
         initialized_ = true;
     }
     MenuAction action;
+    if (showRecords_) {
+        if (drawRecordsWindow(results)) showRecords_ = false;
+        return action;
+    }
     const std::vector<const CharacterDef*> characters = data.characterList();
     if (data.character(config_.characterId) == nullptr && !characters.empty())
         config_.characterId = characters.front()->id;
@@ -199,6 +204,8 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode) {
         action.config = config_;
     }
     ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (ImGui::Button("記録を見る", ui::px(140.0f, 36.0f))) showRecords_ = true;
     ImGui::SameLine();
     if (ImGui::Button("終了", ui::px(100.0f, 36.0f))) action.kind = MenuAction::Kind::Quit;
 

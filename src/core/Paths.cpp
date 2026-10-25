@@ -12,6 +12,7 @@ AppPaths makeAppPaths(const std::filesystem::path& root) {
     paths.aiFile = paths.dataDir / "ai.jsonc";
     paths.sandboxFile = paths.dataDir / "sandbox.jsonc";
     paths.logsDir = root / "logs";
+    paths.resultsDir = root / "results";
     return paths;
 }
 

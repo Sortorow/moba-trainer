@@ -1,9 +1,11 @@
 #include "ui/ResultScreen.h"
 
+#include <algorithm>
 #include <format>
 #include <string>
 
 #include "imgui.h"
+#include "ui/RecordsPanel.h"
 #include "ui/UiScale.h"
 
 namespace moba {
@@ -56,13 +58,14 @@ void drawShotResult(const MatchResult& result) {
 
 }  // namespace
 
-ResultAction drawResultScreen(const MatchResult& result) {
+ResultAction drawResultScreen(const MatchResult& result, const std::vector<SavedResult>& recent,
+                              const std::string* savedPlayedAt) {
     ResultAction action = ResultAction::None;
     const MatchConfig& config = result.config;
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2{0.5f, 0.5f});
-    ImGui::SetNextWindowSize(ImVec2{ui::px(520.0f), 0.0f}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2{ui::px(860.0f), 0.0f}, ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.95f);
     ImGui::Begin("リザルト", nullptr,
                  ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse |
@@ -89,6 +92,18 @@ ResultAction drawResultScreen(const MatchResult& result) {
     else drawDodgeResult(result);
     ImGui::Spacing();
     ImGui::TextDisabled("※ 制限時間の終了時に飛んでいる途中だったスキルは、集計に含めません");
+
+    ImGui::SeparatorText("直近 10 回の記録");
+    if (savedPlayedAt) {
+        const int rank = rankOf(recent, *savedPlayedAt);
+        if (rank > 0) textCentered(std::format("今回の成績は、直近 {} 回の中で {} 位です", recent.size(), rank));
+    } else {
+        ImGui::TextDisabled("今回の結果は保存していません");
+    }
+    // 画面に収まらない時は、表をスクロールさせる（下のボタンの分を残す）
+    const float available =
+        viewport->Size.y * 0.95f - (ImGui::GetCursorScreenPos().y - viewport->Pos.y) - ui::px(80.0f);
+    drawRecordTable(config.mode, recent, savedPlayedAt, std::max(available, ui::px(120.0f)));
 
     ImGui::Separator();
     if (ImGui::Button("もう一度", ui::px(140.0f, 36.0f))) action = ResultAction::Retry;

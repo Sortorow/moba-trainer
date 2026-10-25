@@ -520,6 +520,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
+| `ResultStore.cpp` / `ResultStore.h` | 使わない（リザルトの保存。[docs/results.md](results.md) を参照） | — |
 | `Match.cpp` / `Match.h` | スキルドッジでキャラを配置し、敵を選ぶ。敵のクールダウン倍率と、敵 AI の賢さを設定する。スキルショットで的を置き（メニューで選んだ大きさ・移動速度）、的の AI の賢さを設定する。リザルトに出すキャラ名・ステージ名・賢さの名前・的の大きさの名前を渡す。選んだステージの地形で World を作り、自キャラ・敵を立てる位置に置く。練習場では、選んでいるプリセットのダミーを置き、プリセットが変わったら置き直す | ai、sandbox、stages、characters |
 | `Sandbox.cpp` / `Sandbox.h` | 練習場で自キャラとダミーを配置する（ダミーの名前・位置・往復先・大きさ・移動速度・色）。建物や木と重なる位置はずらす | sandbox、stages、characters |
 | `World.cpp` / `World.h` | キャラの設定を ID で探す。移動速度・当たり判定の半径を使って移動と当たり判定をする。地形（`Terrain.cpp`）を持ち、道のりに沿って移動させ、障害物から押し出す。ブッシュの見え方を判定する（`bushRevealTime`）。敵のクールダウン倍率を保持する | settings、ai、stages、characters |
@@ -579,7 +580,8 @@ data/
 | `SandboxPanel.cpp` / `SandboxPanel.h` | 練習場のダミーのプリセットを選ぶ UI（メニューと、練習場の画面右下のパネル）。プリセットの名前・説明・体数・半径を表示する | sandbox |
 | `DebugPanel.cpp` / `DebugPanel.h` | 視点の広さ・当たり判定の円の表示を一時的に変える。キャラの選択、敵 AI の賢さの名前、スキルショットの的の設定、移動速度の表示 | settings、ai、characters |
 | `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名・ステージ名・敵 AI（スキルショットでは的）の賢さの名前・的の大きさの名前を表示する（値は `Match.cpp` から受け取る） |
-| `PauseDialog.cpp` / `PauseDialog.h` | 使わない（スキルドッジ・スキルショットで Esc を押した時の確認ダイアログ） | — | ai、stages、characters |
+| `PauseDialog.cpp` / `PauseDialog.h` | 使わない（スキルドッジ・スキルショットで Esc を押した時の確認ダイアログ） | — |
+| `RecordsPanel.cpp` / `RecordsPanel.h` | 使わない（直近 10 回の順位表と、メニューから開く記録の画面） | — | ai、stages、characters |
 | `UiScale.cpp` / `UiScale.h` | `uiScale` とウィンドウの大きさから、画面に出す大きさを計算する（値は `App.cpp` から受け取る） | settings |
 | `Fonts.cpp` / `Fonts.h` | 使わない | — |
 
@@ -590,6 +592,7 @@ data/
 | `test_character_data.cpp` | 設定ファイルがすべて読み込めること、handler が実在することを確認するテスト | すべて |
 | `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する | characters |
 | `test_dodge.cpp` | スキルドッジのテスト。設定ファイルを読み込み、`src/game/Match.cpp` を通してキャラと敵 AI の設定を使う | ai、characters |
+| `test_results.cpp` | 使わない（リザルトの保存のテスト。一時フォルダを使う） | — |
 | `test_shot.cpp` | スキルショットのテスト。的の置き方（`sizes`・`moveSpeeds`・`minDistance`・`maxDistance`）、`reactionTime` の下限（ai.jsonc の写しを一時フォルダに作って読む）、動き方のパターン（往復・リズムを崩す・接近）、的の回避（`skillShot.levels` を書き換えて確かめる）、賢さとヒット率、飛んでいる途中の発動を数えないこと | ai、stages、characters |
 | `test_geometry.cpp` | 使わない | — |
 | `test_log_retention.cpp` | 使わない | — |

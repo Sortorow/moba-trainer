@@ -89,6 +89,7 @@ add_library(moba_lib STATIC
   src/game/DummyController.cpp
   src/game/Sandbox.cpp
   src/game/Match.cpp
+  src/game/ResultStore.cpp
   src/game/ai/Aim.cpp
   src/game/ai/PlayerObserver.cpp
   src/game/ai/EnemyAI.cpp
@@ -111,6 +112,7 @@ add_library(moba_lib STATIC
   src/ui/DebugPanel.cpp
   src/ui/ResultScreen.cpp
   src/ui/PauseDialog.cpp
+  src/ui/RecordsPanel.cpp
   src/app/CommandLine.cpp
   src/app/App.cpp)
 target_include_directories(moba_lib PUBLIC src)
@@ -141,6 +143,7 @@ add_executable(moba_tests
   tests/test_world.cpp
   tests/test_dodge.cpp
   tests/test_shot.cpp
+  tests/test_results.cpp
   tests/test_ui_scale.cpp
   tests/test_camera.cpp
   tests/test_sandbox.cpp

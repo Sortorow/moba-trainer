@@ -76,6 +76,9 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::s
             ++i;
         } else if (arg == "--no-debug-panel") {
             options.hideDebugPanel = true;
+        } else if (arg == "--results-dir" && hasValue) {
+            options.resultsDir = std::filesystem::path(value);
+            ++i;
         } else {
             error = std::format("不明な引数です: {}", arg);
             return std::nullopt;

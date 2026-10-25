@@ -12,6 +12,7 @@
 //   --script <file>      入力スクリプトで操作する（--character が無ければ最初のキャラ）
 //   --window <W>x<H>     ウィンドウの大きさ（例: 1280x720。Windows の拡大率を掛けない実ピクセル）
 //   --no-debug-panel     デバッグパネルを最初から閉じておく
+//   --results-dir <dir>  リザルトの保存先（既定は results フォルダ）。入力スクリプトの時は、これを指定した時だけ保存する
 
 #include <cstdint>
 #include <filesystem>
@@ -34,6 +35,7 @@ struct CommandLineOptions {
     std::optional<int> windowWidth;
     std::optional<int> windowHeight;
     bool hideDebugPanel = false;
+    std::optional<std::filesystem::path> resultsDir;
 };
 
 /// コマンドライン引数を読む（使える引数は、このファイルの先頭の一覧）。

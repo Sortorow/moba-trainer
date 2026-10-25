@@ -7,7 +7,7 @@
 
 namespace moba {
 
-/// ゲームが使うファイルとフォルダの場所（data フォルダの各設定ファイルと logs フォルダ）
+/// ゲームが使うファイルとフォルダの場所（data フォルダの各設定ファイルと logs・results フォルダ）
 struct AppPaths {
     std::filesystem::path root;           // data フォルダがある場所（プロジェクトのルート、または exe のフォルダ）
     std::filesystem::path dataDir;        // root/data
@@ -17,9 +17,10 @@ struct AppPaths {
     std::filesystem::path aiFile;         // root/data/ai.jsonc
     std::filesystem::path sandboxFile;    // root/data/sandbox.jsonc
     std::filesystem::path logsDir;        // root/logs
+    std::filesystem::path resultsDir;     // root/results（保存したリザルト）
 };
 
-/// root を基準に、data フォルダの各ファイルと logs フォルダの場所を決める（ファイルがあるかは確かめない）
+/// root を基準に、data フォルダの各ファイルと logs・results フォルダの場所を決める（ファイルがあるかは確かめない）
 AppPaths makeAppPaths(const std::filesystem::path& root);
 
 /// startDir から親フォルダへ順に data/settings.jsonc を探す。
