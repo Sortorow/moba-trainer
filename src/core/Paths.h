@@ -7,6 +7,7 @@
 
 namespace moba {
 
+/// ゲームが使うファイルとフォルダの場所（data フォルダの各設定ファイルと logs フォルダ）
 struct AppPaths {
     std::filesystem::path root;           // data フォルダがある場所（プロジェクトのルート、または exe のフォルダ）
     std::filesystem::path dataDir;        // root/data

@@ -14,6 +14,7 @@
 
 namespace moba {
 
+/// 練習場のダミー 1 体の設定
 struct DummyDef {
     std::string name;
     Vector2 position{};               // 置く位置（自キャラは (0, 0) から始まる）
@@ -23,12 +24,14 @@ struct DummyDef {
     Color color{215, 75, 75, 255};
 };
 
+/// ダミーの組み合わせ 1 つ（プリセット）
 struct SandboxPreset {
     std::string name;
     std::string description;  // メニューなどに出す説明
     std::vector<DummyDef> dummies;
 };
 
+/// sandbox.jsonc の内容（今選んでいるプリセットと、すべてのプリセット）
 struct SandboxConfig {
     std::string selectedPreset;  // 今選んでいるプリセットの名前
     std::vector<SandboxPreset> presets;
@@ -42,6 +45,7 @@ struct SandboxConfig {
 /// 中身（プリセットの選択と、すべてのプリセットの値）が同じか（再読み込みでダミーを置き直すかの判断に使う）
 bool sameSandboxConfig(const SandboxConfig& a, const SandboxConfig& b);
 
+/// sandbox.jsonc の読み込み結果（設定とおかしかった項目、または読めなかった理由）
 struct SandboxConfigLoadResult {
     SandboxConfig config;
     std::string error;                  // 空なら成功

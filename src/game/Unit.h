@@ -13,7 +13,7 @@
 
 namespace moba {
 
-// 設置物などを指定するスキル（エマの R）の対象の種類
+/// 設置物などを指定するスキル（エマの R）の対象の種類
 enum class PropTargetKind { None, Dove, Hat, Rabbit };
 
 /// 対象の種類の、設定ファイル（params の targetKinds）での表記（"dove" / "hat" / "rabbit"）
@@ -27,7 +27,7 @@ constexpr std::string_view toString(PropTargetKind kind) {
     return "?";
 }
 
-// スキル発動の依頼（キーを押した瞬間の情報）
+/// スキル発動の依頼（キーを押した瞬間の情報）
 struct CastRequest {
     SkillSlot slot = SkillSlot::Q;
     Vector2 cursor{};                  // キーを押した時のカーソル位置（ワールド座標）
@@ -40,7 +40,7 @@ struct CastRequest {
     std::optional<Vector2> doveCardOrigin;
 };
 
-// 詠唱中の状態
+/// 詠唱中の状態
 struct CastState {
     bool active = false;
     CastRequest request;
@@ -48,6 +48,7 @@ struct CastState {
     float total = 0.0f;      // 詠唱時間
 };
 
+/// キャラ 1 体（自キャラ・敵キャラ・ダミー）。位置・移動・詠唱・状態異常・クールダウン・HP などを持つ
 struct Unit {
     EntityId id = kInvalidId;
     Team team = Team::Enemy;

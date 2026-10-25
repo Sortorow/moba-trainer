@@ -18,8 +18,10 @@
 
 namespace moba::log {
 
+/// ログのレベル（重要度）。Trace が最も詳しく、Fatal が最も重大
 enum class Level { Trace, Debug, Info, Warn, Error, Fatal };
 
+/// ログの設定（保存するフォルダ・最低レベル・1 ファイルの上限・残す日数・ファイル名の先頭）
 struct Config {
     std::filesystem::path directory;                   // ログを保存するフォルダ
     Level minLevel = Level::Debug;                     // これより低いレベルは書き込まない

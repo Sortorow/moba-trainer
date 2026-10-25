@@ -347,6 +347,8 @@ void World::updateProjectiles(float dt) {
         const Vector2 to = p.pos + p.dir * step;
 
         // この刻みで通過した範囲にいる敵を、弾の進行方向に近い順に並べる
+
+        /// 弾がこの刻みで触れた敵（進行方向に沿った距離と一緒に持つ）
         struct Candidate {
             Unit* unit;
             float along;  // 弾の進行方向に沿った距離

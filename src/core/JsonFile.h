@@ -8,6 +8,7 @@
 
 namespace moba {
 
+/// JSON ファイルの読み込み結果（読んだ内容か、読めなかった理由）
 struct JsonLoadResult {
     nlohmann::json value;
     std::string error;  // 空なら成功

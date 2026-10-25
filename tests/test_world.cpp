@@ -16,6 +16,7 @@ using namespace moba;
 
 namespace {
 
+/// スキルのテスト用の準備。障害物のない World に自キャラを置き、ダミーを足して動かす
 class Fixture {
 public:
     /// data フォルダの設定を読み込み、障害物のない World に、指定したキャラの自キャラを (0, 0) に置く

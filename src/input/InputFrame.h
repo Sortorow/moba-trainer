@@ -10,6 +10,7 @@
 
 namespace moba {
 
+/// 1 フレーム分の入力（実際のマウス・キーボードからでも、入力スクリプトからでも同じ形）
 struct InputFrame {
     Vector2 cursorWorld{};                             // カーソルのワールド座標
     bool rightPressed = false;                         // 右クリックした瞬間

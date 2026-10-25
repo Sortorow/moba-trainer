@@ -9,6 +9,7 @@
 
 namespace moba::log {
 
+/// 削除の判断に使う、ログファイル 1 つの情報（パスと作成日）
 struct LogFileEntry {
     std::filesystem::path path;
     int date = 0;  // 作成日（ローカル時刻）を YYYYMMDD の整数で表したもの

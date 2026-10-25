@@ -10,6 +10,7 @@
 
 namespace moba {
 
+/// カメラの動きを決めるための入力（カーソルの位置・画面の大きさ・端の幅・Space）
 struct CameraControlInput {
     Vector2 mouse{};  // カーソルの位置（ウィンドウ内の実ピクセル）
     float screenWidth = 0.0f;

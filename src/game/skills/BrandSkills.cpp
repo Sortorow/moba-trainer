@@ -12,7 +12,7 @@
 namespace moba::skills {
 namespace {
 
-// 跳ね返る火炎弾の設定（1 回の発動で共有する）
+/// 跳ね返る火炎弾の設定（1 回の発動で共有する）
 struct BounceParams {
     EntityId caster = kInvalidId;
     Team team = Team::Player;
@@ -28,7 +28,7 @@ struct BounceParams {
     std::vector<EffectSpec> effects;
 };
 
-// 跳ね返りの途中経過（1 回の発動で共有する）
+/// 跳ね返りの途中経過（1 回の発動で共有する）
 struct BounceState {
     int bouncesLeft = 0;
     std::map<EntityId, int> hitCount;

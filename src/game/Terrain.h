@@ -13,6 +13,7 @@
 
 namespace moba {
 
+/// ステージの地形（障害物・ブッシュ）。当たりと押し出し、経路探索、ブッシュの判定を行う
 class Terrain {
 public:
     // 経路探索のマス目の大きさ（ゲーム内単位）
@@ -46,7 +47,7 @@ public:
     int bushAt(Vector2 pos) const;
 
 private:
-    // 半径ごとの「立てるマス目」
+    /// 半径ごとの「立てるマス目」
     struct Grid {
         int cols = 0;
         int rows = 0;

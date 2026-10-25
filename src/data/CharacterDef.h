@@ -16,7 +16,7 @@
 
 namespace moba {
 
-// スキルの対象の取り方
+/// スキルの対象の取り方
 enum class Targeting {
     None,       // 対象なし（自己強化など）
     Direction,  // 方向指定（カーソルの方向）
@@ -31,6 +31,7 @@ std::string_view toString(Targeting targeting);
 /// @return 読めたかどうか（知らない表記なら false で、out は変えない）
 bool targetingFromString(std::string_view text, Targeting& out);
 
+/// スキル 1 つの定義（設定ファイルの "Q": { ... } の中身）。共通の項目と、handler ごとの params
 struct SkillDef {
     std::string characterId;
     SkillSlot slot = SkillSlot::Q;
@@ -68,6 +69,7 @@ struct SkillDef {
     std::vector<EffectSpec> effects(std::string_view key) const;
 };
 
+/// キャラ 1 体の定義（data/characters/*.jsonc の 1 ファイル）。ステータスと Q〜F のスキル
 struct CharacterDef {
     std::string id;           // "like_ezreal"
     std::string displayName;  // "like ezreal"
@@ -83,6 +85,7 @@ struct CharacterDef {
     const SkillDef* skill(SkillSlot slot) const;
 };
 
+/// キャラのファイルの読み込み結果（キャラか、読めなかった理由）
 struct CharacterLoadResult {
     std::optional<CharacterDef> def;
     std::string error;  // 空なら成功

@@ -13,6 +13,7 @@
 namespace moba {
 namespace {
 
+/// クールダウン倍率の選択肢 1 つ（値と表示名）
 struct ScalePreset {
     float value;
     const char* label;

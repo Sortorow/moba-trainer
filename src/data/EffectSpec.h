@@ -9,6 +9,7 @@
 
 namespace moba {
 
+/// スキルが当たった相手に与える効果の種類
 enum class EffectType {
     Slow,       // 移動速度低下（amount = 低下率 0〜1）
     Snare,      // 移動不可（スキルは使える）
@@ -18,6 +19,7 @@ enum class EffectType {
     Mark,       // 印。tag で種類を区別する（エズリアルの W など）
 };
 
+/// 効果 1 つ（設定ファイルの { "type": ..., "duration": ... } の中身）
 struct EffectSpec {
     EffectType type = EffectType::Slow;
     float duration = 0.0f;  // 秒

@@ -20,7 +20,7 @@ void disableIme(void* nativeWindowHandle);
 /// raylib の GetWindowScaleDPI() は FLAG_WINDOW_HIGHDPI を付けないと常に 1.0 を返すため、Windows から直接取得する
 float windowDpiScale(void* nativeWindowHandle);
 
-// ウィンドウがあるモニターの作業領域（タスクバーを除いた範囲。実ピクセル）
+/// ウィンドウがあるモニターの作業領域（タスクバーを除いた範囲。実ピクセル）
 struct ScreenRect {
     int x = 0;
     int y = 0;

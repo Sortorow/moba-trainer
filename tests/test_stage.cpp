@@ -45,7 +45,7 @@ StageDef makeStage(std::vector<Shape> walls, std::vector<Shape> bushes = {}) {
     return stage;
 }
 
-// 地形のあるステージで、キャラを置いて動かす
+/// 地形のあるステージで、キャラを置いて動かす
 class StageFixture {
 public:
     /// data フォルダの設定を読み込み、stage の地形で World を作る

@@ -17,6 +17,7 @@
 
 namespace moba {
 
+/// 設定ファイル一式（settings・ai・sandbox・キャラ・ステージ）。読み込みと、変更を検知した時の再読み込みを行う
 class GameData {
 public:
     /// ファイルの場所だけを覚える（読み込みは loadAll() で行う）

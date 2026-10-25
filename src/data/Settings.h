@@ -10,10 +10,12 @@
 
 namespace moba {
 
+/// スキルの発動方式
 enum class CastMode {
     Quick,  // キーを押した瞬間にカーソル方向へ発動
 };
 
+/// カメラの動かし方
 enum class CameraMode {
     Locked,  // 自キャラに固定（自キャラが常に画面の中央）
     Free,    // 固定しない（自キャラが動いてもカメラは動かず、画面の端にカーソルを置くとその方向へ動く）
@@ -37,6 +39,7 @@ constexpr std::string_view displayName(CameraMode mode) {
     return "?";
 }
 
+/// ゲーム全体の設定（data/settings.jsonc）
 struct Settings {
     CastMode castMode = CastMode::Quick;
     CameraMode cameraMode = CameraMode::Locked;  // 起動時のカメラ（メニューと Y キーでも切り替えられる）
@@ -53,6 +56,7 @@ struct Settings {
     log::Level logLevel = log::Level::Debug;
 };
 
+/// settings.jsonc の読み込み結果（設定とおかしかった項目、または読めなかった理由）
 struct SettingsLoadResult {
     Settings settings;
     std::string error;                  // 空なら成功

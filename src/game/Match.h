@@ -17,6 +17,7 @@ namespace moba {
 
 class GameData;
 
+/// 1 回のプレイの結果（リザルト画面に出す内容）
 struct MatchResult {
     MatchConfig config;
     std::string characterName;
@@ -29,6 +30,7 @@ struct MatchResult {
     HitCount playerHits;  // 自キャラのスキルの命中
 };
 
+/// 1 回のプレイ（練習場・スキルドッジ）。World と、自キャラ・ダミー・敵 AI の操作、制限時間、結果をまとめて持つ
 class Match {
 public:
     /// プレイを始める。ステージの地形で World を作り、モードに合わせて自キャラ・ダミー・敵を置く。

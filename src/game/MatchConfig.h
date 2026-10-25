@@ -7,6 +7,7 @@
 
 namespace moba {
 
+/// モードの種類
 enum class GameMode {
     Sandbox,     // 練習場（ダミー相手にスキルを試す。制限時間なし）
     SkillDodge,  // スキルドッジ（敵のスキルを避ける）
@@ -21,11 +22,13 @@ constexpr std::string_view displayName(GameMode mode) {
     return "?";
 }
 
+/// 自キャラのクールダウンの扱い
 enum class CooldownMode {
     Standard,  // 標準: キャラ設定のクールダウン × cooldownScale
     None,      // なし: スキルをすぐに再使用できる
 };
 
+/// 1 回のプレイの設定（メニューで選び、モードの開始時に決まる）
 struct MatchConfig {
     GameMode mode = GameMode::Sandbox;
     std::string characterId;

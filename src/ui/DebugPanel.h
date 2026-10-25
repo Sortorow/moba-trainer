@@ -9,6 +9,7 @@ namespace moba {
 class Match;
 class GameData;
 
+/// デバッグパネルで押された操作（実際の処理は App が行う）
 struct DebugPanelResult {
     bool reloadData = false;
     std::optional<std::string> switchCharacter;  // キャラを切り替えて、同じモードをやり直す

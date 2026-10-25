@@ -19,6 +19,7 @@
 namespace moba::log {
 namespace {
 
+/// ログ全体の状態（設定・開いているファイル・書いた大きさ）。複数のスレッドから書けるよう mutex で守る
 struct State {
     std::mutex mutex;
     Config config;
@@ -35,6 +36,7 @@ State& state() {
     return s;
 }
 
+/// ログの各行に書く時刻（ローカル時刻とミリ秒）
 struct Timestamp {
     std::tm local{};
     int millis = 0;

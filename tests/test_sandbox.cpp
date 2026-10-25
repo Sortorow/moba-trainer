@@ -17,7 +17,7 @@ using namespace moba;
 
 namespace {
 
-// data フォルダを一時フォルダへ写して使う（プリセットを選ぶと sandbox.jsonc に書き込むため、本物を書き換えないように）
+/// data フォルダを一時フォルダへ写して使う（プリセットを選ぶと sandbox.jsonc に書き込むため、本物を書き換えないように）
 class TempDataCopy {
 public:
     /// data フォルダを、一時フォルダの中の新しいフォルダへ丸ごと写す

@@ -7,6 +7,7 @@ namespace moba {
 
 class World;
 
+/// 入力を自キャラへの命令（移動・スキル）に変える
 class PlayerController {
 public:
     /// 入力を自キャラへの命令に変える。右クリックは移動（押しっぱなしならカーソルを追いかける）、

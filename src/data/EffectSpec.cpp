@@ -8,6 +8,7 @@
 namespace moba {
 namespace {
 
+/// 効果の種類と、設定ファイルでの表記・画面に出す名前の対応
 struct EffectName {
     EffectType type;
     std::string_view id;

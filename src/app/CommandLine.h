@@ -20,6 +20,7 @@
 
 namespace moba {
 
+/// コマンドライン引数で指定された内容（指定されなかった項目は空。引数の一覧はこのファイルの先頭）
 struct CommandLineOptions {
     std::optional<std::string> characterId;
     std::optional<std::string> mode;

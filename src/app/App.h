@@ -16,6 +16,7 @@
 
 namespace moba {
 
+/// アプリ本体。ウィンドウとメインループを持ち、画面（メニュー・プレイ中・リザルト）を切り替える
 class App {
 public:
     /// 設定ファイルの場所とコマンドライン引数を覚える（ウィンドウはまだ開かない）
@@ -25,6 +26,7 @@ public:
     int run();
 
 private:
+    /// 今の画面（メニュー・プレイ中・リザルト）
     enum class Screen { Menu, Playing, Result };
 
     // ゲームの時間は 1/120 秒刻みで進める（描画のフレームレートに左右されないように）
@@ -88,7 +90,7 @@ private:
     float scriptClock_ = 0.0f;  // 入力スクリプトの時刻（1 フレームごとに 1/60 秒進む）
     float dpiScale_ = 1.0f;     // ウィンドウがあるモニターの Windows の拡大率（150% なら 1.5）
 
-    // 処理時間の計測（一定間隔でログに出す）
+    /// 処理時間の計測（一定間隔でログに出す）
     struct PerfCounter {
         double windowStart = 0.0;
         int frames = 0;

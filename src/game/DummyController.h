@@ -10,11 +10,13 @@ namespace moba {
 
 class World;
 
+/// ダミーの動き方
 enum class DummyBehavior {
     Stationary,  // その場で動かない
     Patrol,      // 2 点の間を往復する
 };
 
+/// ダミー 1 体の動き方と、静止する位置・往復する 2 点
 struct DummyBrain {
     EntityId unitId = kInvalidId;
     DummyBehavior behavior = DummyBehavior::Stationary;
@@ -23,6 +25,7 @@ struct DummyBrain {
     bool headingToPatrolTo = true;
 };
 
+/// 練習場のダミーを動かす（静止・往復）
 class DummyController {
 public:
     /// すべてのダミーの動きを消す（ダミーのキャラ自体は World に残るので、先に取り除いておく）

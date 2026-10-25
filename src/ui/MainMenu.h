@@ -8,12 +8,15 @@ namespace moba {
 
 class GameData;
 
+/// メニューで押された操作（開始・終了）と、開始する時の設定
 struct MenuAction {
+    /// 押された操作の種類
     enum class Kind { None, Start, Quit };
     Kind kind = Kind::None;
     MatchConfig config;  // Start の時に、選ばれた設定
 };
 
+/// メインメニュー（キャラ・モード・ステージ・ダミー・クールダウン・カメラの選択）
 class MainMenu {
 public:
     /// cameraMode はプレイ中に Y キーでも変わるので、メニューでは持たずに App の値をそのまま変える

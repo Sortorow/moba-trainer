@@ -18,7 +18,7 @@ class World;
 
 namespace moba::skills {
 
-// スキルの処理に渡す情報
+/// スキルの処理に渡す情報
 struct SkillContext {
     World& world;
     Unit& caster;
@@ -37,6 +37,7 @@ bool handlerExists(std::string_view name);
 std::vector<std::string_view> handlerNames();
 
 // --- 共通の部品（SkillHelpers.cpp） ---
+
 /// 発動者からカーソルへの向き（カーソルが発動者と重なっていれば、今向いている方向）
 Vector2 aimDirection(const SkillContext& ctx);
 /// カーソルの位置（射程より遠ければ射程の端）
@@ -62,6 +63,7 @@ void teleport(World& world, Unit& unit, Vector2 destination, Color color);
 void refundCooldown(World& world, Unit& unit, SkillSlot slot, float ratio);
 
 // --- 汎用のスキル（CommonSkills.cpp） ---
+
 /// "projectile": 直線に飛ぶ弾
 void handleProjectile(SkillContext& ctx);
 /// "homing_projectile": 対象を追尾する弾（必ず当たる）
@@ -76,6 +78,7 @@ void handleGroundBlast(SkillContext& ctx);
 void handleTargetedBlast(SkillContext& ctx);
 
 // --- キャラ固有のスキル ---
+
 /// "ezreal_e": ワープ後、近くの敵に追尾弾
 void handleEzrealE(SkillContext& ctx);
 /// "emma_q": カードを投げて鳩を残す。前に置いた鳩もカードになって飛ぶ

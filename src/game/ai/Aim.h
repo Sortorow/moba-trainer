@@ -17,12 +17,13 @@ struct SkillDef;
 
 namespace moba::ai {
 
+/// スキルの当たり方の形
 enum class AimShape {
     Line,    // 直線に飛ぶ弾（方向指定）
     Circle,  // 地点に遅れて発生する円（地点指定）
 };
 
-// スキルの当たり方
+/// スキルの当たり方
 struct AimModel {
     AimShape shape = AimShape::Line;
     float range = 0.0f;
@@ -36,6 +37,7 @@ struct AimModel {
 /// スキル定義から当たり方を作る（方向指定 → Line、地点指定 → Circle）。狙いの計算に使えないスキルなら nullopt
 std::optional<AimModel> aimModelFor(const SkillDef& def);
 
+/// AI が認識している狙う相手（位置・速度・移動速度・当たり判定の半径）
 struct AimTarget {
     Vector2 pos{};        // AI が認識している位置
     Vector2 velocity{};   // AI が認識している速度
@@ -43,7 +45,7 @@ struct AimTarget {
     float radius = 0;     // 当たり判定の半径
 };
 
-// 着弾時に自キャラがいそうな位置の重み
+/// 着弾時に自キャラがいそうな位置の重み
 struct AimWeights {
     float stay = 1.0f;        // その場に留まる
     float keepMoving = 0.0f;  // 今の移動を続ける
@@ -51,6 +53,7 @@ struct AimWeights {
     float dodgeLeft = 0.0f;   // 左へ避ける
 };
 
+/// 狙いの計算の結果（カーソルを置く位置・命中見込み・着弾までの時間）
 struct AimResult {
     Vector2 aimPoint{};         // カーソルを置く位置
     float expectedHit = 0.0f;   // 命中見込み（0〜1）

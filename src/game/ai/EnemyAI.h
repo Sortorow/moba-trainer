@@ -22,6 +22,7 @@ struct Unit;
 
 namespace moba::ai {
 
+/// スキルドッジの敵 AI。すべての敵の移動とスキルを決める
 class EnemyDirector {
 public:
     /// 敵 AI を準備する（賢さの設定を選び、乱数の種を決める）。敵を加える前に呼ぶ
@@ -39,6 +40,7 @@ public:
     std::size_t enemyCount() const { return brains_.size(); }
 
 private:
+    /// 敵 1 体ごとの、次に撃てる時刻・移動先を決め直す時刻・横移動の向き
     struct Brain {
         EntityId unitId = kInvalidId;
         float nextCastTime = 0.0f;  // 次にスキルを撃ってよい時刻

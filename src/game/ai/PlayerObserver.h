@@ -9,6 +9,7 @@
 
 namespace moba::ai {
 
+/// 敵 AI が見ている自キャラの動き（位置の履歴と、弾を避けた向きの記録）
 class PlayerObserver {
 public:
     /// 記録をすべて消す（新しいプレイの始め）
@@ -28,10 +29,12 @@ public:
     float rightBias() const;
 
 private:
+    /// ある時刻の自キャラの位置
     struct Sample {
         float time;
         Vector2 pos;
     };
+    /// 敵が撃った直線の弾 1 つ（撃った時刻・その時の自キャラの位置・弾の向き）
     struct Shot {
         float time;
         Vector2 playerPos;

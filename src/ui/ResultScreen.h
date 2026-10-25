@@ -5,6 +5,7 @@
 
 namespace moba {
 
+/// リザルト画面で押されたボタン
 enum class ResultAction { None, Retry, Menu };
 
 /// リザルト画面（ドッジ率・被弾・ダウン・プレイの設定）を描く

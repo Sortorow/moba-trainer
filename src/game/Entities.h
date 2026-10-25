@@ -18,11 +18,14 @@ struct Unit;
 // ---------------------------------------------------------------------------
 // 弾
 // ---------------------------------------------------------------------------
+
+/// 弾の見た目の種類（当たり判定はどれも同じ）
 enum class ProjectileVisual { Orb, Ring, Crescent, Card, Beam, Bolt, Dove };
 /// 設定ファイルの "visual"（"orb" / "ring" / "crescent" / "card" / "beam" / "bolt" / "dove"）を弾の見た目にする。
 /// 知らない表記なら Orb（球）
 ProjectileVisual projectileVisualFromString(std::string_view text);
 
+/// 飛んでいる弾 1 つ。まっすぐ飛ぶ弾と、対象を追尾する弾がある
 struct Projectile {
     EntityId id = kInvalidId;
     EntityId owner = kInvalidId;
@@ -60,6 +63,8 @@ struct Projectile {
 // 地面の範囲効果
 // delay 秒後に発動する。duration が 0 なら発動の瞬間だけ判定し、0 より大きければその間ずっと残る
 // ---------------------------------------------------------------------------
+
+/// 地面の範囲効果の見た目の種類
 enum class AreaVisual {
     Explosion,  // 発動まで範囲の輪だけを表示
     Telegraph,  // 予告円の内側が少しずつ埋まり、埋まりきると爆発（ブランドの W のような表示）
@@ -70,6 +75,7 @@ enum class AreaVisual {
 /// 知らない表記なら Explosion
 AreaVisual areaVisualFromString(std::string_view text);
 
+/// 地面の範囲効果 1 つ。delay 秒後に発動し、duration が 0 なら発動の瞬間だけ、0 より大きければその間ずっと判定する
 struct AreaEffect {
     EntityId id = kInvalidId;
     EntityId owner = kInvalidId;
@@ -102,10 +108,13 @@ struct AreaEffect {
 // ---------------------------------------------------------------------------
 // 設置物（エマの鳩・帽子）
 // ---------------------------------------------------------------------------
+
+/// 設置物の種類
 enum class PropKind { Dove, Hat };
 /// 設置物の、ログに出す名前（「鳩」/「帽子」）
 std::string_view displayName(PropKind kind);
 
+/// 設置物 1 つ（エマの鳩・帽子）。エマの R の対象になる
 struct Prop {
     EntityId id = kInvalidId;
     EntityId owner = kInvalidId;
@@ -120,8 +129,11 @@ struct Prop {
 // ---------------------------------------------------------------------------
 // 演出（当たり判定は無い）
 // ---------------------------------------------------------------------------
+
+/// 演出の種類
 enum class VfxKind { Burst, Ring, Teleport, ClickMarker, Text };
 
+/// 演出 1 つ（当たり判定は無い。残り時間が 0 になったら消える）
 struct Vfx {
     VfxKind kind = VfxKind::Burst;
     Vector2 pos{};

@@ -23,6 +23,7 @@ using namespace moba;
 
 namespace {
 
+/// スキルドッジのテスト用の準備。障害物のない World に自キャラを置き、敵やダミーを足して動かす
 class DodgeFixture {
 public:
     /// data フォルダの設定を読み込み、障害物のない World に自キャラを置く

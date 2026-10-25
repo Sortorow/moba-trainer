@@ -65,6 +65,7 @@ std::optional<AimResult> chooseAim(Vector2 shooter, const AimModel& model, const
     const float hitReach = (model.shape == AimShape::Line ? model.halfWidth : model.radius) + target.radius;
     const float dodgeDistance = std::min(target.moveSpeed * std::max(0.0f, t - playerReactionTime), hitReach * 1.6f);
 
+    /// 着弾時に相手がいそうな位置の候補と、その重み
     struct Candidate {
         Vector2 pos;
         float weight;

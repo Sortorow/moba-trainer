@@ -24,6 +24,7 @@ inline ImVec2 px(float x, float y) { return ImVec2{x * scale(), y * scale()}; }
 /// 倍率を変え、Dear ImGui の文字と余白にも反映する（最初に呼んだ時の見た目を、倍率 1.0 の基準として覚える）
 void setScale(float scale);
 
+/// ウィンドウの大きさ（実ピクセル）
 struct WindowSize {
     int width = 0;
     int height = 0;

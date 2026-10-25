@@ -19,11 +19,12 @@ class GameData;
 struct CharacterDef;
 struct Settings;
 
-// モードごとのルール
+/// モードごとのルール
 struct WorldRules {
     bool movementSkillsOnly = false;  // 自キャラは移動系のスキルだけ使える（今はどのモードでも使っていない）
 };
 
+/// 1 回のプレイの中身（キャラ・弾・範囲効果・設置物・演出・地形）をまとめて持ち、時間を進める
 class World {
 public:
     /// 障害物のないステージで作る（自動テスト用）
@@ -35,12 +36,14 @@ public:
     void update(float dt);
 
     // --- 追加 ---
+
     /// キャラを加える（通し番号を振る）
     /// @return 振った通し番号
     EntityId addUnit(Unit unit);
     /// キャラを取り除く（練習場のダミーを置き直す時用）
     void removeUnit(EntityId id);
     // 弾・範囲・設置物は、更新処理の区切りでまとめて追加される（更新中に配列が変わらないように）
+
     /// 弾を加える（更新の区切りで実際に加わる）。発動の記録に「まだ飛んでいる物」として数える
     EntityId spawnProjectile(Projectile projectile);
     /// 地面の範囲効果を加える（更新の区切りで実際に加わる）。発動の記録に「まだ残っている物」として数える
@@ -53,6 +56,7 @@ public:
     int newCastId() { return ++lastCastId_; }
 
     // --- 検索 ---
+
     /// 通し番号でキャラを探す。見つからなければ nullptr
     Unit* findUnit(EntityId id);
     /// 通し番号でキャラを探す。見つからなければ nullptr
@@ -73,6 +77,7 @@ public:
     std::vector<Unit*> enemiesInCircle(Vector2 center, float radius, Team myTeam);
 
     // --- ブッシュと見え方 ---
+
     /// observer の陣営から target が見えるか。ブッシュの中のキャラは、同じブッシュに observer の陣営のキャラがいるか、
     /// 対象指定のスキルを使って見えている間（revealTime）だけ見える
     bool canSee(Team observer, const Unit& target) const;
@@ -89,6 +94,7 @@ public:
     void setHitObserver(HitObserver observer) { hitObserver_ = std::move(observer); }
 
     // 発動の記録（ドッジ率の集計用）。SkillCasting がスキルの処理の前後に呼ぶ
+
     /// 発動の記録を始める（この後に出す弾・範囲がすべて消えた時に、当たったかどうかが確定する）
     void beginCast(int castId, Team team, SkillSlot slot);
     /// 弾も範囲も出さなかった発動（ワープなど）は、ここで記録を閉じる
@@ -102,6 +108,7 @@ public:
     void refreshUnitsFromData();
 
     // クールダウンの倍率（自キャラと敵で別々に持つ。0 ならクールダウンなし）
+
     /// 陣営ごとのクールダウンの倍率を決める（0 ならクールダウンなし。マイナスは 0 にする）
     void setCooldownScale(Team team, float scale);
     /// 陣営ごとのクールダウンの倍率
@@ -115,6 +122,7 @@ public:
     const WorldRules& rules() const { return rules_; }
 
     // --- 参照 ---
+
     /// 設定ファイル一式
     const GameData& data() const { return *data_; }
     /// settings.jsonc の内容
@@ -147,7 +155,7 @@ public:
     const std::vector<Vfx>& vfx() const { return vfx_; }
 
 private:
-    // 発動 1 回分の記録。出した弾・範囲が残っている間は結果が確定しない
+    /// 発動 1 回分の記録。出した弾・範囲が残っている間は結果が確定しない
     struct CastRecord {
         Team team = Team::Player;
         SkillSlot slot = SkillSlot::Q;

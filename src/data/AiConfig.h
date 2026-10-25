@@ -8,7 +8,7 @@
 
 namespace moba {
 
-// 賢さ 1 段階分の設定
+/// 賢さ 1 段階分の設定
 struct AiLevel {
     std::string name;
     float reactionTime = 0.3f;     // 自キャラの動きを認識するまでの遅れ（秒）
@@ -29,6 +29,7 @@ struct AiLevel {
     float engageRangeRatio = 0.85f;  // 自キャラとの距離を「スキルの射程 × この値」に保とうとする
 };
 
+/// スキルドッジの敵 AI の設定（data/ai.jsonc）。全体の設定と、賢さ 1〜5 ごとの設定
 struct AiConfig {
     float enemyCooldownScale = 0.5f;   // 敵のスキルのクールダウン倍率
     float firstCastDelay = 1.5f;       // 開始から最初にスキルを撃つまでの時間
@@ -40,6 +41,7 @@ struct AiConfig {
     const AiLevel& level(int aiLevel) const;
 };
 
+/// ai.jsonc の読み込み結果（設定か、読めなかった理由）
 struct AiConfigLoadResult {
     AiConfig config;
     std::string error;  // 空なら成功

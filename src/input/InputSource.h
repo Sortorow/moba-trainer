@@ -11,6 +11,7 @@
 
 namespace moba {
 
+/// 入力を取り出す時に渡す情報（カメラ・時刻・UI がマウスやキーを使っているか）
 struct InputPollContext {
     const Camera2D& camera;
     float simTime = 0.0f;       // ゲーム内の経過時間（入力スクリプトの時刻と比べる）
@@ -18,6 +19,7 @@ struct InputPollContext {
     bool uiWantsText = false;   // UI で文字入力中
 };
 
+/// 入力の取得元（実際の操作 / 入力スクリプト）の共通の形
 class InputSource {
 public:
     virtual ~InputSource() = default;
@@ -27,7 +29,7 @@ public:
     virtual bool isScripted() const = 0;
 };
 
-// 実際のマウス・キーボード
+/// 実際のマウス・キーボード
 class LiveInput final : public InputSource {
 public:
     /// 今のマウスとキーボードの状態を読む。UI の上にカーソルがある時の右クリックと、文字入力中のキーは無視する
@@ -36,7 +38,7 @@ public:
     bool isScripted() const override { return false; }
 };
 
-// 入力スクリプト（自動での動作確認用）。書式は ScriptInput.cpp の先頭を参照
+/// 入力スクリプト（自動での動作確認用）。書式は ScriptInput.cpp の先頭を参照
 class ScriptInput final : public InputSource {
 public:
     /// 入力スクリプトのファイルを読み込む（命令は時刻の順に並べ替える）
@@ -50,7 +52,9 @@ public:
     bool isScripted() const override { return true; }
 
 private:
+    /// 入力スクリプトの命令の種類
     enum class Kind { Move, Cast, Cursor, Screenshot, ResetCooldowns, ToggleCamera, Exit };
+    /// 入力スクリプトの命令 1 つ（時刻・種類・キー・座標・文字）
     struct Command {
         float time = 0.0f;
         Kind kind = Kind::Move;

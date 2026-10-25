@@ -6,6 +6,7 @@ namespace moba {
 
 class World;
 
+/// ゲーム画面の描き方の設定
 struct RenderOptions {
     bool showHitboxes = true;  // 弾・範囲の当たり判定の円を表示する
 };

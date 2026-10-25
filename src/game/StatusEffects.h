@@ -10,6 +10,7 @@
 
 namespace moba {
 
+/// キャラにかかっている効果 1 つ（種類・残り時間・強さ・印の名前・付けたキャラ）
 struct StatusEffect {
     EffectType type = EffectType::Slow;
     float remaining = 0.0f;  // 残り時間
@@ -19,6 +20,7 @@ struct StatusEffect {
     EntityId source = kInvalidId;  // 付与したキャラ
 };
 
+/// キャラにかかっている状態異常と印の一覧。移動できるか・スキルを使えるか・移動速度の倍率を答える
 class StatusEffects {
 public:
     /// 効果を付ける。同じ種類（印は同じ tag）が既にあれば、残り時間と強さの大きい方に更新する
