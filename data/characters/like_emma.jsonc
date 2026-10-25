@@ -35,7 +35,9 @@
       "name": "カード",
       "handler": "emma_q",
       "targeting": "direction",
-      "castTime": 0.15,
+      "castTime": 0.2,                // 動画から測った溜めの時間（キーを押してからカードが出るまで）
+      // 溜めの間に R を使うと、溜めを続けたまま移動し、移動先からカードが出て鳩もそこに残る
+      "usableDuringCast": ["R"],
       "cooldown": 4,
       "range": 700,
       "countsForHitRate": true,
@@ -95,7 +97,7 @@
       "name": "マジックショー",
       "handler": "emma_r",
       "targeting": "prop",
-      "castTime": 0.1,
+      "castTime": 0,                  // 動画では溜めが無く、すぐに移動する
       "cooldown": 20,
       "range": 1000,
       "countsForHitRate": false,

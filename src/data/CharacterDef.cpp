@@ -50,6 +50,16 @@ std::optional<SkillDef> parseSkill(const json& j, const std::string& characterId
     skill.movementSkill = j.value("movementSkill", false);
     skill.usedByEnemy = j.value("usedByEnemy", false);
     skill.aiPriority = std::max(0.0f, j.value("aiPriority", 1.0f));
+    for (const json& item : j.value("usableDuringCast", json::array())) {
+        const std::string name = item.is_string() ? item.get<std::string>() : std::string{};
+        const auto it = std::find_if(kAllSkillSlots.begin(), kAllSkillSlots.end(),
+                                     [&](SkillSlot s) { return toString(s) == name; });
+        if (it == kAllSkillSlots.end()) {
+            error = std::format("\"usableDuringCast\" の \"{}\" は不明なキーです（Q/W/E/R/D/F で書いてください）", name);
+            return std::nullopt;
+        }
+        skill.usableDuringCast.push_back(*it);
+    }
     skill.params = j.value("params", json::object());
     if (!skill.params.is_object()) {
         error = "\"params\" は { ... } の形で書いてください";

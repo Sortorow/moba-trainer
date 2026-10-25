@@ -206,7 +206,7 @@ TEST_CASE("エマ Q: 鳩がどれだけ離れていても、鳩のカードが�
     f.player().pos = {2000, 0};  // 鳩から 2000 離れる
     f.resetCooldowns();
     f.cast(SkillSlot::Q, {2500, 0});
-    f.run(0.2f);
+    f.run(0.3f);
     CHECK(f.world().projectiles().size() == 2);  // エマのカードと鳩のカード
     REQUIRE(f.world().props().size() == 1);      // 古い鳩はカードになり、新しい鳩が 1 羽
     CHECK(f.world().props().front().pos.x == doctest::Approx(2000.0f));
@@ -265,6 +265,32 @@ TEST_CASE("エマ R（帽子）: 入れ替わった帽子は消えずにエマ�
     REQUIRE(hat != nullptr);
     CHECK(Vector2Distance(hat->pos, {0, 0}) < 1.0f);
     CHECK(hat->remaining > 5.0f);
+}
+
+TEST_CASE("エマ Q の溜めの間に R で帽子へ移動すると、移動先からカードが出て、鳩もそこに残る") {
+    Fixture f("like_emma");
+    f.cast(SkillSlot::W, {500, 0});
+    f.run(1.0f);
+    REQUIRE(f.findProp(PropKind::Hat) != nullptr);
+    f.resetCooldowns();
+
+    f.cast(SkillSlot::Q, {500, 600});
+    f.cast(SkillSlot::R, {500, 0});  // Q の溜めの間に、R で帽子へ
+    CHECK(f.player().cast.active);   // Q の溜めは続いている
+    CHECK((f.player().cast.request.slot == SkillSlot::Q));
+    CHECK(Vector2Distance(f.player().pos, {500, 0}) < 1.0f);  // R ですぐに移動した
+
+    f.run(0.3f);
+    const Prop* dove = f.findProp(PropKind::Dove);
+    REQUIRE(dove != nullptr);
+    CHECK(Vector2Distance(dove->pos, {500, 0}) < 1.0f);  // 鳩は移動先に残る
+    const Prop* hat = f.findProp(PropKind::Hat);
+    REQUIRE(hat != nullptr);
+    CHECK(Vector2Distance(hat->pos, {0, 0}) < 1.0f);  // 帽子はエマの元の位置へ
+    REQUIRE(f.world().projectiles().size() == 1);
+    const Projectile& card = f.world().projectiles().front();
+    CHECK(card.pos.x == doctest::Approx(500.0f).epsilon(0.01));  // 移動先から狙った地点 (500, 600) へ飛んでいる
+    CHECK(card.pos.y > 50.0f);
 }
 
 TEST_CASE("クールダウン「なし」: 使ってもクールダウンが 0 のまま") {

@@ -70,28 +70,41 @@ bool resolvePropTarget(World& world, const Unit& caster, const SkillDef& def, Ca
     return request.propKind != PropTargetKind::None;
 }
 
-void finishCast(World& world, Unit& caster) {
-    const CastRequest request = caster.cast.request;
-    caster.cast = CastState{};
-
-    const SkillDef* def = skillOf(world, caster, request.slot);
-    if (!def) return;  // 設定の再読み込みでスキルが無くなった
-    const skills::SkillHandler handler = skills::findHandler(def->handler);
+// スキルの処理を実行する（詠唱が終わった時、または詠唱中でもすぐ使えるスキルを使った時）
+void runSkill(World& world, Unit& caster, const SkillDef& def, const CastRequest& request) {
+    const skills::SkillHandler handler = skills::findHandler(def.handler);
     if (!handler) {
         log::error("skill", "{} の {} の handler \"{}\" は存在しません", caster.characterId, toString(request.slot),
-                   def->handler);
+                   def.handler);
         return;
     }
 
     const int castId = world.newCastId();
     world.beginCast(castId, caster.team, request.slot);
-    if (def->countsForHitRate && caster.team == Team::Player) world.stats().recordCast(castId, request.slot);
-    log::info("skill", "{} が [{}] {} を発動 castId={} 位置{} カーソル{}", caster.name, toString(request.slot), def->name,
+    if (def.countsForHitRate && caster.team == Team::Player) world.stats().recordCast(castId, request.slot);
+    log::info("skill", "{} が [{}] {} を発動 castId={} 位置{} カーソル{}", caster.name, toString(request.slot), def.name,
               castId, geo::str(caster.pos), geo::str(request.cursor));
 
-    skills::SkillContext ctx{world, caster, *def, request, castId};
+    skills::SkillContext ctx{world, caster, def, request, castId};
     handler(ctx);
     world.endCastIfIdle(castId);
+}
+
+// 今の詠唱を中断せずに、すぐ使えるスキルか（エマの Q の溜めの間の R など。詠唱時間 0 のスキルだけ）
+bool usableDuringCurrentCast(const World& world, const Unit& caster, const SkillDef& requested) {
+    if (!caster.cast.active || requested.castTime > 0.0f) return false;
+    const SkillDef* current = skillOf(world, caster, caster.cast.request.slot);
+    if (!current) return false;
+    const std::vector<SkillSlot>& allowed = current->usableDuringCast;
+    return std::find(allowed.begin(), allowed.end(), requested.slot) != allowed.end();
+}
+
+void finishCast(World& world, Unit& caster) {
+    const CastRequest request = caster.cast.request;
+    caster.cast = CastState{};
+
+    // 詠唱を始めた位置ではなく、今いる位置から発動する（詠唱中に R などで移動していれば、移動先から）
+    if (const SkillDef* def = skillOf(world, caster, request.slot)) runSkill(world, caster, *def, request);
 
     // 詠唱中に押されていたスキルを続けて発動する
     if (caster.bufferedCast) {
@@ -144,7 +157,8 @@ void requestCast(World& world, Unit& caster, const CastRequest& request) {
         log::debug("skill", "[{}] {} は行動不能のため使えません", toString(request.slot), def->name);
         return;
     }
-    if (caster.cast.active) {
+    const bool duringCast = usableDuringCurrentCast(world, caster, *def);
+    if (caster.cast.active && !duringCast) {
         caster.bufferedCast = request;
         log::debug("skill", "詠唱中のため [{}] {} を予約しました", toString(request.slot), def->name);
         return;
@@ -168,11 +182,24 @@ void requestCast(World& world, Unit& caster, const CastRequest& request) {
     if (needsTarget(def->targeting)) {
         const std::optional<Vector2> targetPos = targetPosition(world, resolved);
         if (targetPos && Vector2Distance(caster.pos, *targetPos) > def->range) {
+            if (duringCast) {
+                log::debug("skill", "[{}] {}: 詠唱中は、射程外の対象に近づいて使うことはできません", toString(request.slot),
+                           def->name);
+                return;
+            }
             caster.pendingCast = resolved;
             caster.moveTarget = *targetPos;
             log::debug("skill", "[{}] {}: 射程外のため、対象に近づいてから発動します", toString(request.slot), def->name);
             return;
         }
+    }
+    if (duringCast) {
+        // 今の詠唱は続けたまま、このスキルをすぐに発動する
+        log::debug("skill", "[{}] の詠唱を続けたまま、[{}] {} を使います", toString(caster.cast.request.slot),
+                   toString(request.slot), def->name);
+        caster.cooldowns[static_cast<std::size_t>(index(def->slot))] = def->cooldown * world.cooldownScaleFor(caster);
+        runSkill(world, caster, *def, resolved);
+        return;
     }
     caster.pendingCast.reset();
     beginCast(world, caster, *def, resolved);

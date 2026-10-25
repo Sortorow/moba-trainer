@@ -41,6 +41,8 @@ struct SkillDef {
     bool movementSkill = false;           // 移動系のスキルか（「移動系だけ使える」ルール WorldRules を有効にした時に使う）
     bool usedByEnemy = false;             // スキルドッジでこのキャラが敵として出た時に使うか
     float aiPriority = 1.0f;              // 敵 AI がスキルを選ぶ時の重み（大きいほど選ばれやすい）
+    // このスキルの詠唱中でも、詠唱を中断せずにすぐ使えるスキル（詠唱時間 0 のものだけ。エマの Q の溜めの間の R など）
+    std::vector<SkillSlot> usableDuringCast;
     nlohmann::json params = nlohmann::json::object();  // 処理ごとの個別パラメータ
 
     // params から値を読む。
