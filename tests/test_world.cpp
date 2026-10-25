@@ -3,6 +3,7 @@
 #include <doctest/doctest.h>
 
 #include <memory>
+#include <vector>
 
 #include "core/Paths.h"
 #include "data/GameData.h"
@@ -305,6 +306,33 @@ TEST_CASE("エマ Q の溜めの間に R で帽子へ移動すると、移動先
     const Projectile& card = f.world().projectiles().front();
     CHECK(card.pos.x == doctest::Approx(500.0f).epsilon(0.01));  // 移動先から狙った地点 (500, 600) へ飛んでいる
     CHECK(card.pos.y > 50.0f);
+}
+
+TEST_CASE("エマ Q の溜めの間に R で鳩と入れ替わると、鳩のカードは入れ替わる前の鳩の位置から出る") {
+    Fixture f("like_emma");
+    f.cast(SkillSlot::Q, {500, 0});
+    f.run(f.timeToReach(SkillSlot::Q, f.skill(SkillSlot::Q).range) + 0.1f);  // 1 回目のカードが消えるまで待つ
+    REQUIRE(f.findProp(PropKind::Dove) != nullptr);                          // (0, 0) に鳩
+    f.player().pos = {0, 600};
+    f.resetCooldowns();
+
+    f.cast(SkillSlot::Q, {500, 0});
+    f.cast(SkillSlot::R, {0, 0});  // Q の溜めの間に、R で鳩と入れ替わる
+    CHECK(f.player().cast.active);
+    CHECK(Vector2Distance(f.player().pos, {0, 0}) < 1.0f);
+
+    f.run(0.3f);
+    // R の鳩の通り道（貫通する弾）を除いた、Q のカード 2 枚
+    std::vector<const Projectile*> cards;
+    for (const Projectile& p : f.world().projectiles()) {
+        if (p.slot == SkillSlot::Q) cards.push_back(&p);
+    }
+    REQUIRE(cards.size() == 2);
+    for (const Projectile* card : cards) {
+        // 2 枚とも (0, 0) から (500, 0) へ飛んでいる（エマから 2 枚飛んでいるように見える）
+        CHECK(card->pos.x > 50.0f);
+        CHECK(card->pos.y == doctest::Approx(0.0f).epsilon(0.01));
+    }
 }
 
 TEST_CASE("クールダウン「なし」: 使ってもクールダウンが 0 のまま") {

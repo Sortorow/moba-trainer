@@ -32,6 +32,10 @@ struct CastRequest {
     EntityId targetUnit = kInvalidId;  // 対象指定スキルの対象（兎になった敵もここ）
     PropTargetKind propKind = PropTargetKind::None;
     EntityId propId = kInvalidId;  // 鳩・帽子を対象にする場合の設置物 ID
+
+    // エマの Q の溜めの間に、R で鳩と入れ替わった時の鳩の元の位置（鳩のカードは入れ替わる前の位置から出る）。
+    // 詠唱の情報の一部なので、詠唱が中断されれば一緒に消える
+    std::optional<Vector2> doveCardOrigin;
 };
 
 // 詠唱中の状態

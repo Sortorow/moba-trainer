@@ -60,16 +60,17 @@ void handleEmmaQ(SkillContext& ctx) {
     for (Prop& dove : world.props()) {
         if (!dove.alive || dove.owner != emma.id || dove.kind != PropKind::Dove) continue;
         dove.alive = false;
+        // 溜めの間に R で鳩と入れ替わっていれば、鳩のカードは入れ替わる前の鳩の位置（＝今のエマの位置）から出る
+        const Vector2 from = ctx.request.doveCardOrigin.value_or(dove.pos);
         // 鳩のカードの飛距離・弾速は、書かれていなければエマ本体のカード（range / speed）と同じにする
-        Projectile doveCard = makeProjectile(ctx, dove.pos, geo::normalizedOr(target - dove.pos, dir),
-                                             def.numOr("doveCardRange", def.range));
+        Projectile doveCard =
+            makeProjectile(ctx, from, geo::normalizedOr(target - from, dir), def.numOr("doveCardRange", def.range));
         doveCard.speed = def.numOr("doveCardSpeed", doveCard.speed);
         doveCard.color = def.color("doveCardColor", kDoveColor);
         doveCard.label = def.name + "（鳩のカード）";
         doveCard.onHit = makeOnHit(2);
         world.spawnProjectile(std::move(doveCard));
-        log::debug("skill", "鳩 #{} が {} からカードになって {} へ飛びます", dove.id, geo::str(dove.pos),
-                   geo::str(target));
+        log::debug("skill", "鳩 #{} が {} からカードになって {} へ飛びます", dove.id, geo::str(from), geo::str(target));
     }
 
     Prop newDove;
@@ -120,6 +121,8 @@ void handleEmmaR(SkillContext& ctx) {
             if (!dove || !dove->alive) return cancelAndRefund(ctx, "鳩が消えていた");
             const Vector2 dovePos = dove->pos;
             teleport(world, emma, dovePos, color);
+            // Q の溜めの間なら、この後に出る鳩のカードは入れ替わる前の鳩の位置から出す
+            if (emma.cast.active) emma.cast.request.doveCardOrigin = dovePos;
 
             const float distance = Vector2Distance(dovePos, oldPos);
             const float speed = def.num("doveSpeed", 3000.0f);
