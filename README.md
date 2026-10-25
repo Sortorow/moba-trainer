@@ -55,6 +55,7 @@ build.bat debug      # Debug ビルド   → build\debug\moba_trainer.exe
 
 | 資料 | 内容 |
 |---|---|
+| [docs/data-files.md](docs/data-files.md) | data フォルダの設定ファイル（用途・書ける項目・単位・参照しているソースコード） |
 | [docs/dpi-scaling.md](docs/dpi-scaling.md) | 画面の文字が小さく表示される問題と、Windows の拡大率への対応（背景・原因・修正方法・今後の注意） |
 
 VSCode では、Markdown ファイルを開いて `Ctrl + Shift + V` を押すと、画像や表が整った状態で読めます。
