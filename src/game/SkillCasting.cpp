@@ -58,6 +58,7 @@ bool resolvePropTarget(World& world, const Unit& caster, const SkillDef& def, Ca
     if (allows(toString(PropTargetKind::Rabbit))) {
         for (const Unit& unit : world.units()) {
             if (!unit.alive || unit.team == caster.team || !unit.status.has(EffectType::Polymorph)) continue;
+            if (!world.canSee(caster.team, unit)) continue;  // ブッシュに隠れている兎は選べない
             const float distance = std::max(0.0f, Vector2Distance(unit.pos, request.cursor) - unit.radius);
             if (distance <= pickRadius && distance < bestDistance) {
                 bestDistance = distance;
@@ -84,6 +85,9 @@ void runSkill(World& world, Unit& caster, const SkillDef& def, const CastRequest
     if (def.countsForHitRate && caster.team == Team::Player) world.stats().recordCast(castId, request.slot);
     log::info("skill", "{} が [{}] {} を発動 castId={} 位置{} カーソル{}", caster.name, toString(request.slot),
               def.name, castId, geo::str(caster.pos), geo::str(request.cursor));
+
+    // ブッシュの中で対象指定のスキルを使うと、しばらく外から見えるようになる
+    if (def.targeting == Targeting::Unit) world.revealFromBush(caster);
 
     skills::SkillContext ctx{world, caster, def, request, castId};
     handler(ctx);

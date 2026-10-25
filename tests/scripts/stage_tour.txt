@@ -1,0 +1,9 @@
+# ステージの確認: 壁の向こうを右クリックすると回り込み、ブッシュに入ると「隠れている」と表示される
+# build\release\moba_trainer.exe --character like_emma --stage alley --script tests\scripts\stage_tour.txt
+# build\release\moba_trainer.exe --character like_emma --stage forest --script tests\scripts\stage_tour.txt
+0.5  screenshot stage_start.png
+0.6  move -450 450                   # 左下へ（森ではブッシュ、路地裏では広場の左下）
+3.0  screenshot stage_moved.png
+3.1  move 900 0                      # 右へ（路地裏では建物の間を回り込む）
+6.5  screenshot stage_around.png
+6.6  exit

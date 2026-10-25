@@ -33,6 +33,9 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::s
             if (value != "sandbox" && value != "dodge") return fail(arg, value);
             options.mode = std::string(value);
             ++i;
+        } else if (arg == "--stage" && hasValue) {
+            options.stageId = std::string(value);
+            ++i;
         } else if (arg == "--enemies" && hasValue) {
             int n = 0;
             if (!parseNumber(value, n) || n < 1 || n > 5) return fail(arg, value);

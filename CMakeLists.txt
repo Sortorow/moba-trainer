@@ -77,10 +77,12 @@ add_library(moba_lib STATIC
   src/data/CharacterDef.cpp
   src/data/AiConfig.cpp
   src/data/SandboxConfig.cpp
+  src/data/StageDef.cpp
   src/data/GameData.cpp
   src/game/StatusEffects.cpp
   src/game/Entities.cpp
   src/game/CastStats.cpp
+  src/game/Terrain.cpp
   src/game/World.cpp
   src/game/SkillCasting.cpp
   src/game/PlayerController.cpp
@@ -138,6 +140,7 @@ add_executable(moba_tests
   tests/test_dodge.cpp
   tests/test_ui_scale.cpp
   tests/test_camera.cpp
-  tests/test_sandbox.cpp)
+  tests/test_sandbox.cpp
+  tests/test_stage.cpp)
 target_link_libraries(moba_tests PRIVATE moba_lib doctest::doctest)
 target_compile_definitions(moba_tests PRIVATE MOBA_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

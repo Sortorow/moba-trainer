@@ -35,7 +35,24 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
     config_.enemyCount = std::clamp(config_.enemyCount, 1, 5);
     config_.aiLevel = std::clamp(config_.aiLevel, 1, 5);
 
-    world_ = std::make_unique<World>(data_, kSandboxBounds);
+    // ステージ: 見つからなければ一覧の最初のステージ。ステージのファイルが 1 つも無ければ、障害物のない広場
+    const StageDef* stage = data_.stage(config_.stageId);
+    if (!stage) {
+        const std::vector<const StageDef*> stages = data_.stageList();
+        if (!stages.empty()) {
+            if (!config_.stageId.empty())
+                log::warn("match", "ステージ \"{}\" が見つからないため {} を使います", config_.stageId,
+                          stages.front()->id);
+            stage = stages.front();
+        }
+    }
+    if (stage) {
+        config_.stageId = stage->id;
+        world_ = std::make_unique<World>(data_, Terrain(*stage));
+    } else {
+        log::warn("match", "ステージの設定が無いため、障害物のない広場で始めます");
+        world_ = std::make_unique<World>(data_, kSandboxBounds);
+    }
     world_->setCooldownScale(Team::Player, config_.playerCooldownScale());
     world_->setCooldownScale(Team::Enemy, data_.ai().enemyCooldownScale);
 
@@ -46,7 +63,8 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
             break;
         case GameMode::SkillDodge: setupSkillDodge(*character); break;
     }
-    log::info("match", "{}を開始: キャラ={} クールダウン={}（倍率 {:.2f}）{}", displayName(config_.mode), character->id,
+    log::info("match", "{}を開始: キャラ={} ステージ={} クールダウン={}（倍率 {:.2f}）{}", displayName(config_.mode),
+              character->id, config_.stageId.empty() ? "（なし）" : config_.stageId,
               config_.cooldownMode == CooldownMode::None ? "なし" : "標準", config_.playerCooldownScale(),
               config_.mode == GameMode::SkillDodge
                   ? std::format(" 敵 {} 体 賢さ {} 制限時間 {:.0f} 秒 乱数の種 {}", config_.enemyCount, config_.aiLevel,
@@ -58,6 +76,7 @@ void Match::setupSkillDodge(const CharacterDef& character) {
     // 自キャラはすべてのスキルを使える（エマの R のように、他のスキルで置いた物や敵に付けた状態へワープして回避に使うスキルがあるため）。
     // 攻撃スキルが敵に当たっても、敵には HP が無いのでダメージは無い（状態異常はかかる）
     Unit player = makePlayerUnit(character);
+    player.pos = world_->placeable(player.pos, player.radius);
     player.maxHp = player.hp = kPlayerMaxHp;
     world_->addUnit(player);
 
@@ -85,7 +104,8 @@ void Match::setupSkillDodge(const CharacterDef& character) {
         enemy.radius = def.hitboxRadius;
         enemy.baseMoveSpeed = def.moveSpeed;
         enemy.color = def.color;
-        enemy.pos = world_->clampToBounds(Vector2{std::cos(angle), std::sin(angle)} * distance, enemy.radius);
+        // 建物や木の中に決まった時は、近くの立てる位置へ
+        enemy.pos = world_->placeable(Vector2{std::cos(angle), std::sin(angle)} * distance, enemy.radius);
         enemy.facing = geo::normalizedOr(Vector2{} - enemy.pos, Vector2{1.0f, 0.0f});
         enemies_.addEnemy(world_->addUnit(enemy));
     }
@@ -121,6 +141,7 @@ MatchResult Match::result() const {
     r.playedSeconds = elapsed_;
     if (!world_) return r;
     if (const CharacterDef* def = data_.character(config_.characterId)) r.characterName = def->displayName;
+    if (const StageDef* stage = data_.stage(config_.stageId)) r.stageName = stage->displayName;
     r.aiLevelName = enemies_.level().name;
     r.dodge = world_->dodge();
     r.hitsTaken = r.dodge.hit;

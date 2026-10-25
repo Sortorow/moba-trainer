@@ -10,7 +10,9 @@
 
 namespace moba {
 
-World::World(const GameData& data, Rectangle bounds) : data_(&data), bounds_(bounds) {}
+World::World(const GameData& data, Rectangle bounds) : data_(&data), terrain_(bounds) {}
+
+World::World(const GameData& data, Terrain terrain) : data_(&data), terrain_(std::move(terrain)) {}
 
 const Settings& World::settings() const { return data_->settings(); }
 
@@ -132,7 +134,7 @@ Unit* World::enemyAt(Vector2 point, Team myTeam, float tolerance) {
     Unit* best = nullptr;
     float bestDistance = std::numeric_limits<float>::max();
     for (Unit& unit : units_) {
-        if (!unit.alive || unit.team == myTeam) continue;
+        if (!unit.alive || unit.team == myTeam || !canSee(myTeam, unit)) continue;
         const float distance = Vector2Distance(point, unit.pos) - unit.radius;
         if (distance <= tolerance && distance < bestDistance) {
             best = &unit;
@@ -146,7 +148,7 @@ Unit* World::nearestEnemy(Vector2 from, Team myTeam, float maxDistance, std::str
     Unit* best = nullptr;
     float bestScore = std::numeric_limits<float>::max();
     for (Unit& unit : units_) {
-        if (!unit.alive || unit.team == myTeam) continue;
+        if (!unit.alive || unit.team == myTeam || !canSee(myTeam, unit)) continue;
         const float distance = Vector2Distance(from, unit.pos);
         if (distance > maxDistance) continue;
         // 印が付いている敵を優先する（距離に関係なく、印の付いていない敵より先に選ぶ）
@@ -168,6 +170,26 @@ std::vector<Unit*> World::enemiesInCircle(Vector2 center, float radius, Team myT
         }
     }
     return result;
+}
+
+// ---------------------------------------------------------------------------
+// ブッシュと見え方
+// ---------------------------------------------------------------------------
+bool World::canSee(Team observer, const Unit& target) const {
+    if (target.team == observer || target.revealTime > 0.0f) return true;
+    const int bush = terrain_.bushAt(target.pos);
+    if (bush < 0) return true;
+    // 同じブッシュの中に、observer の陣営のキャラがいれば見える
+    return std::any_of(units_.begin(), units_.end(), [&](const Unit& unit) {
+        return unit.alive && unit.team == observer && terrain_.bushAt(unit.pos) == bush;
+    });
+}
+
+void World::revealFromBush(Unit& unit) {
+    if (terrain_.bushAt(unit.pos) < 0) return;
+    unit.revealTime = settings().bushRevealTime;
+    log::debug("bush", "{} がブッシュの中で対象指定のスキルを使ったため、{:.1f} 秒間外から見えます", unit.name,
+               unit.revealTime);
 }
 
 // ---------------------------------------------------------------------------
@@ -234,8 +256,9 @@ void World::finishCastRecord(int castId) {
 }
 
 Vector2 World::clampToBounds(Vector2 point, float radius) const {
-    return Vector2{std::clamp(point.x, bounds_.x + radius, bounds_.x + bounds_.width - radius),
-                   std::clamp(point.y, bounds_.y + radius, bounds_.y + bounds_.height - radius)};
+    const Rectangle b = terrain_.bounds();
+    return Vector2{std::clamp(point.x, b.x + radius, b.x + b.width - radius),
+                   std::clamp(point.y, b.y + radius, b.y + b.height - radius)};
 }
 
 void World::setCooldownScale(Team team, float scale) {
@@ -260,24 +283,51 @@ void World::updateUnit(Unit& unit, float dt) {
     unit.status.update(dt);
     for (float& cooldown : unit.cooldowns) cooldown = std::max(0.0f, cooldown - dt);
     unit.hitFlash = std::max(0.0f, unit.hitFlash - dt);
+    unit.revealTime = std::max(0.0f, unit.revealTime - dt);
 
     casting::update(*this, unit, dt);
 
     // 詠唱中と、拘束などで動けない間は移動しない（目的地は覚えておき、動けるようになったら再開する）
-    if (unit.moveTarget && !unit.cast.active && unit.status.canMove()) {
-        const Vector2 toTarget = *unit.moveTarget - unit.pos;
-        const float distance = Vector2Length(toTarget);
-        const float step = unit.moveSpeed() * dt;
-        if (distance <= step) {
-            unit.pos = *unit.moveTarget;
+    if (unit.moveTarget && !unit.cast.active && unit.status.canMove()) moveAlongPath(unit, dt);
+    if (!unit.moveTarget) {
+        unit.path.clear();
+        unit.pathGoal.reset();
+    }
+    // ワープなどで障害物やステージの外にかかっていたら押し出す
+    unit.pos = terrain_.pushOut(unit.pos, unit.radius);
+}
+
+// 目的地（moveTarget）へ、壁を回り込む道のり（path）に沿って進む
+void World::moveAlongPath(Unit& unit, float dt) {
+    const Vector2 goal = *unit.moveTarget;
+    // 目的地が変わった・道のりが無い・ワープなどで次の点へまっすぐ行けなくなった時は、道のりを作り直す
+    const bool goalChanged = !unit.pathGoal || Vector2DistanceSqr(*unit.pathGoal, goal) > 0.25f;
+    if (goalChanged || unit.path.empty() || !terrain_.segmentClear(unit.pos, unit.path.front(), unit.radius * 0.9f)) {
+        unit.path = terrain_.findPath(unit.pos, goal, unit.radius);
+        unit.pathGoal = goal;
+        if (unit.path.empty()) {
+            log::debug("move", "{}: {} へはたどり着けないため、移動をやめます", unit.name, geo::str(goal));
             unit.moveTarget.reset();
-        } else {
-            const Vector2 dir = toTarget / distance;
-            unit.pos = unit.pos + dir * step;
-            unit.facing = dir;
+            return;
         }
     }
-    unit.pos = clampToBounds(unit.pos, unit.radius);
+
+    float step = unit.moveSpeed() * dt;
+    while (step > 0.0f && !unit.path.empty()) {
+        const Vector2 toNext = unit.path.front() - unit.pos;
+        const float distance = Vector2Length(toNext);
+        if (distance <= step) {
+            unit.pos = unit.path.front();
+            unit.path.erase(unit.path.begin());
+            step -= distance;
+        } else {
+            const Vector2 dir = toNext / distance;
+            unit.pos = unit.pos + dir * step;
+            unit.facing = dir;
+            step = 0.0f;
+        }
+    }
+    if (unit.path.empty()) unit.moveTarget.reset();  // 着いた
 }
 
 // ---------------------------------------------------------------------------

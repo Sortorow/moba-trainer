@@ -58,7 +58,9 @@ int App::run() {
     }
 
     initWindow();
-    if (options_.characterId || options_.scriptFile || options_.mode) startMatch(configFromCommandLine());
+    if (options_.characterId || options_.scriptFile || options_.mode || options_.stageId) {
+        startMatch(configFromCommandLine());
+    }
     while (!quit_ && !WindowShouldClose()) frame();
     shutdownWindow();
     return 0;
@@ -229,6 +231,7 @@ MatchConfig App::configFromCommandLine() const {
     config.cooldownScale = data_.settings().cooldownScale;
     if (options_.noCooldown) config.cooldownMode = CooldownMode::None;
     if (options_.mode == "dodge") config.mode = GameMode::SkillDodge;
+    if (options_.stageId) config.stageId = *options_.stageId;
     if (options_.enemyCount) config.enemyCount = *options_.enemyCount;
     if (options_.aiLevel) config.aiLevel = *options_.aiLevel;
     if (options_.timeSeconds) config.timeLimitSeconds = *options_.timeSeconds;

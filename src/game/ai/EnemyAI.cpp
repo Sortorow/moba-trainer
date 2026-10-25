@@ -60,7 +60,9 @@ void EnemyDirector::update(World& world, float dt) {
     const Unit* player = world.player();
     if (!player) return;
     const float now = world.time();
-    observer_.record(now, player->pos);
+    // 自キャラがブッシュに隠れている間は、位置を記録しない（最後に見えた位置を狙い、そこへ向かう）
+    const bool playerVisible = world.canSee(Team::Enemy, *player);
+    if (playerVisible) observer_.record(now, player->pos);
     observer_.update(now);
 
     const Vector2 seenPlayer = observer_.positionAt(now - level_.reactionTime);
@@ -73,7 +75,7 @@ void EnemyDirector::update(World& world, float dt) {
             planMovement(world, brain, *enemy, seenPlayer);
             brain.replanTimer = uniform(0.2f, 0.35f);
         }
-        tryCast(world, brain, *enemy, *player);
+        tryCast(world, brain, *enemy, *player, playerVisible);
     }
 }
 
@@ -133,10 +135,11 @@ AimWeights EnemyDirector::aimWeights(bool playerStuck) const {
     return w;
 }
 
-void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit& player) {
+void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit& player, bool playerVisible) {
     if (enemy.cast.active || !enemy.status.canCast()) return;
     const float now = world.time();
-    const bool playerStuck = !player.status.canMove();
+    // 見えていない相手が動けるかどうかは分からないので、動けない相手として狙うのは見えている時だけ
+    const bool playerStuck = playerVisible && !player.status.canMove();
     const bool punish = level_.punishCC && playerStuck;
     if (!punish && now < brain.nextCastTime) return;
 
@@ -191,7 +194,8 @@ void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit&
     if (!enemy.cast.active && enemy.cooldowns[static_cast<std::size_t>(index(bestSkill->slot))] <= 0.0f) return;
 
     brain.nextCastTime = now + uniform(level_.castIntervalMin, level_.castIntervalMax);
-    if (bestModel->shape == AimShape::Line) {
+    // 避けた方向の学習は、撃った時に見えていた場合だけ
+    if (bestModel->shape == AimShape::Line && playerVisible) {
         observer_.noteShot(now, player.pos, geo::normalizedOr(aimPoint - enemy.pos, enemy.facing));
     }
     log::debug("ai", "{} が [{}] {} を {} へ（命中見込み {:.0f}%{}）", enemy.name, toString(bestSkill->slot),

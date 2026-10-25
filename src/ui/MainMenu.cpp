@@ -108,11 +108,16 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode) {
     ImGui::EndDisabled();
 
     ImGui::SeparatorText("ステージ");
-    ImGui::RadioButton("障害物なし", true);
-    ImGui::BeginDisabled();
-    ImGui::RadioButton("路地裏（準備中）", false);
-    ImGui::RadioButton("森（準備中）", false);
-    ImGui::EndDisabled();
+    const std::vector<const StageDef*> stages = data.stageList();
+    if (data.stage(config_.stageId) == nullptr && !stages.empty()) config_.stageId = stages.front()->id;
+    for (const StageDef* stage : stages) {
+        if (ImGui::RadioButton(stage->displayName.c_str(), stage->id == config_.stageId)) config_.stageId = stage->id;
+        if (!stage->description.empty()) {
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", stage->description.c_str());
+        }
+    }
+    if (stages.empty()) ImGui::TextDisabled("data/stages にステージがありません（障害物のない広場で遊びます）");
 
     if (config_.mode == GameMode::Sandbox) {
         ImGui::SeparatorText("練習場の設定");

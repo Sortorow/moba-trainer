@@ -34,6 +34,7 @@ SettingsLoadResult loadSettings(const std::filesystem::path& file) {
         s.cameraViewHeight = std::clamp(j.value("cameraViewHeight", s.cameraViewHeight), 400.0f, 6000.0f);
         s.cameraEdgeScrollSpeed = std::max(0.0f, j.value("cameraEdgeScrollSpeed", s.cameraEdgeScrollSpeed));
         s.cameraEdgeMargin = std::clamp(j.value("cameraEdgeMargin", s.cameraEdgeMargin), 1.0f, 100.0f);
+        s.bushRevealTime = std::clamp(j.value("bushRevealTime", s.bushRevealTime), 0.0f, 30.0f);
         s.cooldownScale = std::max(0.0f, j.value("cooldownScale", s.cooldownScale));
         s.showHitboxes = j.value("showHitboxes", s.showHitboxes);
         s.uiScale = std::clamp(j.value("uiScale", s.uiScale), 0.5f, 3.0f);

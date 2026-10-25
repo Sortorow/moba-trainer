@@ -41,7 +41,8 @@ private:
     };
 
     void planMovement(World& world, Brain& brain, Unit& enemy, Vector2 seenPlayer);
-    void tryCast(World& world, Brain& brain, Unit& enemy, const Unit& player);
+    // playerVisible: 自キャラが見えているか（ブッシュに隠れている間は、最後に見えた位置を狙う）
+    void tryCast(World& world, Brain& brain, Unit& enemy, const Unit& player, bool playerVisible);
     Vector2 spreadDirection(World& world, const Brain& brain, Vector2 seenPlayer, Vector2 away) const;
     float engageRange(const World& world, const Unit& enemy) const;
     AimWeights aimWeights(bool playerStuck) const;

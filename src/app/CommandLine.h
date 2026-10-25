@@ -3,6 +3,7 @@
 //
 //   --character <id>     メニューを飛ばして、そのキャラで始める（例: like_emma）
 //   --mode <name>        sandbox（練習場、既定）/ dodge（スキルドッジ）
+//   --stage <id>         ステージ（data/stages の id。例: open / alley / forest。無ければ一覧の最初のステージ）
 //   --enemies <n>        スキルドッジの敵の数（1〜5）
 //   --ai <n>             スキルドッジの敵の賢さ（1〜5）
 //   --time <seconds>     スキルドッジの制限時間（秒。メニューでは 1〜5 分）
@@ -22,6 +23,7 @@ namespace moba {
 struct CommandLineOptions {
     std::optional<std::string> characterId;
     std::optional<std::string> mode;
+    std::optional<std::string> stageId;
     std::optional<int> enemyCount;
     std::optional<int> aiLevel;
     std::optional<float> timeSeconds;

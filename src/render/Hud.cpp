@@ -60,6 +60,7 @@ float drawHpBar(ImDrawList* dl, const Unit& unit, ImVec2 topCenter) {
 // キャラ名・HP・状態異常の残り時間
 void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) {
     for (const Unit& unit : world.units()) {
+        if (!world.canSee(Team::Player, unit)) continue;  // ブッシュに隠れている敵
         const bool enemy = unit.team == Team::Enemy && !unit.characterId.empty();
         const ImVec2 top = toScreen(unit.pos - Vector2{0.0f, unit.radius + 30.0f}, camera);
         drawCenteredText(dl, top, 16.0f, enemy ? IM_COL32(255, 160, 150, 240) : IM_COL32(255, 255, 255, 230),
@@ -69,6 +70,13 @@ void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) 
         if (unit.maxHp > 0) below.y = drawHpBar(dl, unit, below) + px(10.0f);
 
         std::string status;
+        // 自キャラがブッシュの中にいる時: 敵から見えているかどうか
+        if (unit.team == Team::Player && world.terrain().bushAt(unit.pos) >= 0) {
+            status = world.canSee(Team::Enemy, unit)
+                         ? (unit.revealTime > 0.0f ? std::format("ブッシュ: 見えている {:.1f}", unit.revealTime)
+                                                   : std::string("ブッシュ: 見えている"))
+                         : std::string("ブッシュ: 隠れている");
+        }
         for (const StatusEffect& effect : unit.status.list()) {
             if (!status.empty()) status += "  ";
             const std::string_view name =
@@ -96,6 +104,7 @@ void drawOffscreenIndicators(ImDrawList* dl, const World& world, const Camera2D&
         const bool isPlayer = unit.team == Team::Player;
         const bool isEnemyCharacter = unit.team == Team::Enemy && !unit.characterId.empty();
         if (!isPlayer && !isEnemyCharacter) continue;
+        if (!world.canSee(Team::Player, unit)) continue;  // ブッシュに隠れている敵の方向は示さない
         const Vector2 s = GetWorldToScreen2D(unit.pos, camera);
         const float r = unit.radius * camera.zoom;
         if (s.x + r >= 0.0f && s.x - r <= display.x && s.y + r >= 0.0f && s.y - r <= display.y) continue;

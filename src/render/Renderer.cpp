@@ -1,5 +1,6 @@
 #include "render/Renderer.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include "core/Geometry.h"
@@ -66,6 +67,65 @@ void drawGround(const World& world) {
         DrawLineEx({b.x, y}, {b.x + b.width, y}, major ? 2.0f : 1.0f, major ? kGridMajor : kGridMinor);
     }
     DrawRectangleLinesEx(b, 6.0f, Color{120, 140, 130, 255});
+}
+
+void fillShape(const Shape& shape, Color color) {
+    if (shape.kind == Shape::Kind::Rect) DrawRectangleRec(shape.rect, color);
+    else DrawCircleV(shape.center, shape.radius, color);
+}
+
+void outlineShape(const Shape& shape, float thickness, Color color) {
+    if (shape.kind == Shape::Kind::Rect) DrawRectangleLinesEx(shape.rect, thickness, color);
+    else DrawRing(shape.center, shape.radius - thickness, shape.radius, 0.0f, 360.0f, 48, color);
+}
+
+// 形を内側へ inset だけ縮めたもの（建物の屋根など）
+Shape inset(const Shape& shape, float amount) {
+    Shape s = shape;
+    if (s.kind == Shape::Kind::Rect) {
+        const float x = std::min(amount, s.rect.width * 0.4f);
+        const float y = std::min(amount, s.rect.height * 0.4f);
+        s.rect = Rectangle{s.rect.x + x, s.rect.y + y, s.rect.width - x * 2.0f, s.rect.height - y * 2.0f};
+    } else {
+        s.radius = std::max(1.0f, s.radius - amount);
+    }
+    return s;
+}
+
+// 障害物（どれも通れない。種類ごとに見た目だけを変える）
+void drawObstacle(const Obstacle& obstacle) {
+    const Shape& s = obstacle.shape;
+    switch (obstacle.kind) {
+        case ObstacleKind::Building:
+            fillShape(s, Color{52, 56, 66, 255});
+            fillShape(inset(s, 14.0f), Color{70, 75, 88, 255});  // 屋根
+            outlineShape(s, 5.0f, Color{28, 30, 36, 255});
+            break;
+        case ObstacleKind::Wall:
+            fillShape(s, Color{125, 122, 114, 255});
+            outlineShape(s, 3.0f, Color{82, 80, 75, 255});
+            break;
+        case ObstacleKind::Crate:
+            fillShape(s, Color{125, 88, 52, 255});
+            outlineShape(s, 4.0f, Color{88, 60, 34, 255});
+            if (s.kind == Shape::Kind::Rect) {
+                const Rectangle& r = s.rect;
+                DrawLineEx({r.x, r.y}, {r.x + r.width, r.y + r.height}, 4.0f, Color{88, 60, 34, 255});
+                DrawLineEx({r.x + r.width, r.y}, {r.x, r.y + r.height}, 4.0f, Color{88, 60, 34, 255});
+            }
+            break;
+        case ObstacleKind::Tree:
+            fillShape(s, Color{24, 70, 36, 255});
+            fillShape(inset(s, s.kind == Shape::Kind::Circle ? s.radius * 0.3f : 16.0f), Color{36, 96, 50, 255});
+            outlineShape(s, 4.0f, Color{16, 46, 24, 255});
+            break;
+    }
+}
+
+// ブッシュ（キャラの上に半透明で重ねて描く。中にいるキャラは草に隠れて見える）
+void drawBush(const Shape& bush) {
+    fillShape(bush, Color{78, 150, 62, 130});
+    outlineShape(bush, 4.0f, Color{110, 185, 80, 200});
 }
 
 void drawArea(const AreaEffect& area, bool showHitboxes) {
@@ -228,9 +288,14 @@ void drawVfx(const Vfx& vfx) {
 
 void drawWorld(const World& world, const RenderOptions& options) {
     drawGround(world);
+    for (const Obstacle& obstacle : world.terrain().obstacles()) drawObstacle(obstacle);
     for (const AreaEffect& area : world.areas()) drawArea(area, options.showHitboxes);
     for (const Prop& prop : world.props()) drawProp(prop);
-    for (const Unit& unit : world.units()) drawUnit(unit, world.time());
+    for (const Unit& unit : world.units()) {
+        // ブッシュに隠れていて自キャラの陣営から見えない敵は描かない（弾や範囲は見える）
+        if (world.canSee(Team::Player, unit)) drawUnit(unit, world.time());
+    }
+    for (const Shape& bush : world.terrain().bushes()) drawBush(bush);
     for (const Projectile& projectile : world.projectiles()) drawProjectile(projectile, options.showHitboxes);
     for (const Vfx& vfx : world.vfx()) drawVfx(vfx);
 }

@@ -100,7 +100,8 @@ void refundCooldown(World& world, Unit& unit, SkillSlot slot, float ratio) {
 
 void teleport(World& world, Unit& unit, Vector2 destination, Color color) {
     const Vector2 from = unit.pos;
-    unit.pos = world.clampToBounds(destination, unit.radius);
+    // 壁や建物の中には立てないので、近くの立てる位置へ（フラッシュで壁の中を指定した時など）
+    unit.pos = world.placeable(destination, unit.radius);
     unit.facing = geo::normalizedOr(unit.pos - from, unit.facing);
     world.addVfx(makeTeleportVfx(from, unit.pos, color));
     log::debug("skill", "{} が {} から {} へ移動", unit.name, geo::str(from), geo::str(unit.pos));

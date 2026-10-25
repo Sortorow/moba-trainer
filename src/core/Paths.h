@@ -11,6 +11,7 @@ struct AppPaths {
     std::filesystem::path root;           // data フォルダがある場所（プロジェクトのルート、または exe のフォルダ）
     std::filesystem::path dataDir;        // root/data
     std::filesystem::path charactersDir;  // root/data/characters
+    std::filesystem::path stagesDir;      // root/data/stages
     std::filesystem::path settingsFile;   // root/data/settings.jsonc
     std::filesystem::path aiFile;         // root/data/ai.jsonc
     std::filesystem::path sandboxFile;    // root/data/sandbox.jsonc

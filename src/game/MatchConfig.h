@@ -28,6 +28,7 @@ enum class CooldownMode {
 struct MatchConfig {
     GameMode mode = GameMode::Sandbox;
     std::string characterId;
+    std::string stageId;  // data/stages の id。空や見つからない時は、一覧の最初のステージ
     CooldownMode cooldownMode = CooldownMode::Standard;
     float cooldownScale = 0.25f;  // 標準モードの倍率（1 = 実戦どおり、0.25 = 4 分の 1）
 

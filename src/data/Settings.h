@@ -42,6 +42,7 @@ struct Settings {
     float cameraEdgeScrollSpeed = 2500.0f;       // 固定しない時に、画面の端でカメラが動く速さ（ゲーム内の距離 / 秒）
     // 固定しない時に、画面の端からこの幅まで近づくとカメラが動く（拡大率 100% の時のピクセル）
     float cameraEdgeMargin = 12.0f;
+    float bushRevealTime = 3.0f;  // ブッシュの中で対象指定のスキルを使った時に、外から見えるようになる時間（秒）
     float cooldownScale = 0.25f;  // クールダウン「標準」モードの倍率の初期値（メニューで変更できる）
     bool showHitboxes = true;     // 弾・範囲の当たり判定の円を表示する
     float uiScale = 1.0f;         // 文字・ボタンの大きさの倍率（Windows の拡大率に、さらに掛ける）

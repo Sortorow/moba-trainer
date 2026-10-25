@@ -9,6 +9,7 @@
 #include "core/GameTypes.h"
 #include "game/CastStats.h"
 #include "game/Entities.h"
+#include "game/Terrain.h"
 #include "game/Unit.h"
 #include "raylib.h"
 
@@ -25,7 +26,8 @@ struct WorldRules {
 
 class World {
 public:
-    World(const GameData& data, Rectangle bounds);
+    World(const GameData& data, Rectangle bounds);  // 障害物のないステージ
+    World(const GameData& data, Terrain terrain);
 
     // 固定の時間刻み（秒）で呼ぶ
     void update(float dt);
@@ -48,10 +50,17 @@ public:
     Unit* player();
     const Unit* player() const;
     const CharacterDef* characterOf(const Unit& unit) const;
-    // point の位置にいる敵（カーソルで対象を選ぶ時用。tolerance だけ判定を広げる）
+    // point の位置にいる敵（カーソルで対象を選ぶ時用。tolerance だけ判定を広げる）。myTeam から見えない敵は選ばない
     Unit* enemyAt(Vector2 point, Team myTeam, float tolerance);
-    // from から maxDistance 以内で最も近い敵。preferMark の印が付いた敵がいれば、そちらを優先する
+    // from から maxDistance 以内で最も近い敵。preferMark の印が付いた敵がいれば、そちらを優先する。見えない敵は選ばない
     Unit* nearestEnemy(Vector2 from, Team myTeam, float maxDistance, std::string_view preferMark = {});
+
+    // --- ブッシュと見え方 ---
+    // observer の陣営から target が見えるか。ブッシュの中のキャラは、同じブッシュに observer の陣営のキャラがいるか、
+    // 対象指定のスキルを使って見えている間（revealTime）だけ見える
+    bool canSee(Team observer, const Unit& target) const;
+    // ブッシュの中で対象指定のスキルを使った時に呼ぶ（しばらく外から見えるようにする）
+    void revealFromBush(Unit& unit);
     std::vector<Unit*> enemiesInCircle(Vector2 center, float radius, Team myTeam);
 
     // スキルが当たった時の共通処理（ヒット率・ドッジ率の集計、被弾演出、ログ）
@@ -66,6 +75,8 @@ public:
     void endCastIfIdle(int castId);  // 弾も範囲も出さなかった発動は、ここで記録を閉じる
 
     Vector2 clampToBounds(Vector2 point, float radius) const;
+    // point の近くで、半径 radius のキャラが立てる位置（障害物とステージの外から押し出す）
+    Vector2 placeable(Vector2 point, float radius) const { return terrain_.pushOut(point, radius); }
     // 設定ファイルの再読み込み後に、キャラの大きさ・移動速度・色を反映する
     void refreshUnitsFromData();
 
@@ -80,7 +91,8 @@ public:
     // --- 参照 ---
     const GameData& data() const { return *data_; }
     const Settings& settings() const;
-    Rectangle bounds() const { return bounds_; }
+    Rectangle bounds() const { return terrain_.bounds(); }
+    const Terrain& terrain() const { return terrain_; }
     float time() const { return time_; }
     CastStats& stats() { return stats_; }
     const CastStats& stats() const { return stats_; }
@@ -103,6 +115,7 @@ private:
     };
 
     void updateUnit(Unit& unit, float dt);
+    void moveAlongPath(Unit& unit, float dt);
     void updateProjectiles(float dt);
     void updateHomingProjectile(Projectile& projectile, float dt);
     void hitWithProjectile(Projectile& projectile, Unit& target);
@@ -118,7 +131,7 @@ private:
     void damagePlayer(Unit& player);
 
     const GameData* data_;
-    Rectangle bounds_;
+    Terrain terrain_;
     float time_ = 0.0f;
     float playerCooldownScale_ = 1.0f;
     float enemyCooldownScale_ = 1.0f;

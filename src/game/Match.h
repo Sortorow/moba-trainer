@@ -20,6 +20,7 @@ class GameData;
 struct MatchResult {
     MatchConfig config;
     std::string characterName;
+    std::string stageName;
     std::string aiLevelName;
     float playedSeconds = 0.0f;
     DodgeCount dodge;     // スキルドッジ: 敵のスキルを避けた割合

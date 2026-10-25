@@ -50,15 +50,8 @@ void GameData::loadAll() {
     }
 
     // --- キャラクター ---
-    std::vector<std::filesystem::path> files;
-    std::error_code ec;
-    for (const auto& entry : std::filesystem::directory_iterator(paths_.charactersDir, ec)) {
-        if (entry.is_regular_file(ec) && entry.path().extension() == ".jsonc") files.push_back(entry.path());
-    }
-    std::sort(files.begin(), files.end());
-
     std::map<std::string, CharacterDef, std::less<>> loaded;
-    for (const std::filesystem::path& file : files) {
+    for (const std::filesystem::path& file : jsoncFilesIn(paths_.charactersDir)) {
         CharacterLoadResult result = loadCharacterFile(file);
         if (!result.def) {
             log::error("data", "{}", result.error);
@@ -80,11 +73,59 @@ void GameData::loadAll() {
         loaded.emplace(id, std::move(*result.def));
     }
     characters_ = std::move(loaded);
+
+    // --- ステージ ---
+    std::map<std::string, StageDef, std::less<>> loadedStages;
+    for (const std::filesystem::path& file : jsoncFilesIn(paths_.stagesDir)) {
+        StageLoadResult result = loadStageFile(file);
+        if (!result.def) {
+            log::error("data", "{}", result.error);
+            errors_.push_back(result.error);
+            for (const auto& [id, previous] : stages_) {
+                if (previous.sourceFile == file) loadedStages.emplace(id, previous);
+            }
+            continue;
+        }
+        const std::string id = result.def->id;
+        if (loadedStages.contains(id)) {
+            const std::string message =
+                std::format("{}: id \"{}\" が他のファイルと重複しています", toUtf8(file.filename()), id);
+            log::error("data", "{}", message);
+            errors_.push_back(message);
+            continue;
+        }
+        loadedStages.emplace(id, std::move(*result.def));
+    }
+    stages_ = std::move(loadedStages);
+
     fileTimes_ = scanFileTimes();
     ++generation_;
 
-    log::info("data", "設定を読み込みました（{} 回目）: キャラ {} 体、エラー {} 件", generation_, characters_.size(),
-              errors_.size());
+    log::info("data", "設定を読み込みました（{} 回目）: キャラ {} 体、ステージ {} 個、エラー {} 件", generation_,
+              characters_.size(), stages_.size(), errors_.size());
+}
+
+std::vector<std::filesystem::path> GameData::jsoncFilesIn(const std::filesystem::path& dir) {
+    std::vector<std::filesystem::path> files;
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+        if (entry.is_regular_file(ec) && entry.path().extension() == ".jsonc") files.push_back(entry.path());
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
+const StageDef* GameData::stage(std::string_view id) const {
+    const auto it = stages_.find(id);
+    return it == stages_.end() ? nullptr : &it->second;
+}
+
+std::vector<const StageDef*> GameData::stageList() const {
+    std::vector<const StageDef*> list;
+    for (const auto& [id, def] : stages_) list.push_back(&def);  // stages_ は id 順
+    std::stable_sort(list.begin(), list.end(),
+                     [](const StageDef* a, const StageDef* b) { return a->menuOrder < b->menuOrder; });
+    return list;
 }
 
 bool GameData::reloadIfChanged() {
@@ -142,10 +183,11 @@ std::map<std::filesystem::path, std::filesystem::file_time_type> GameData::scanF
     times[paths_.settingsFile] = std::filesystem::last_write_time(paths_.settingsFile, ec);
     times[paths_.aiFile] = std::filesystem::last_write_time(paths_.aiFile, ec);
     times[paths_.sandboxFile] = std::filesystem::last_write_time(paths_.sandboxFile, ec);
-    for (const auto& entry : std::filesystem::directory_iterator(paths_.charactersDir, ec)) {
-        if (entry.is_regular_file(ec) && entry.path().extension() == ".jsonc") {
-            times[entry.path()] = std::filesystem::last_write_time(entry.path(), ec);
-        }
+    for (const std::filesystem::path& file : jsoncFilesIn(paths_.charactersDir)) {
+        times[file] = std::filesystem::last_write_time(file, ec);
+    }
+    for (const std::filesystem::path& file : jsoncFilesIn(paths_.stagesDir)) {
+        times[file] = std::filesystem::last_write_time(file, ec);
     }
     return times;
 }

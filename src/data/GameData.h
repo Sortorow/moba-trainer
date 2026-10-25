@@ -1,5 +1,5 @@
 #pragma once
-// 設定ファイル一式（settings.jsonc・ai.jsonc・sandbox.jsonc とキャラクター定義）の読み込みと、自動での再読み込み
+// 設定ファイル一式（settings.jsonc・ai.jsonc・sandbox.jsonc・キャラクター・ステージ）の読み込みと、自動での再読み込み
 
 #include <filesystem>
 #include <functional>
@@ -13,6 +13,7 @@
 #include "data/CharacterDef.h"
 #include "data/SandboxConfig.h"
 #include "data/Settings.h"
+#include "data/StageDef.h"
 
 namespace moba {
 
@@ -43,6 +44,9 @@ public:
     // スキルドッジで敵として出られるキャラ（"usedByEnemy" のスキルを 1 つ以上持つ）。並びは characterList() と同じ
     std::vector<const CharacterDef*> enemyCandidates() const;
 
+    const StageDef* stage(std::string_view id) const;
+    std::vector<const StageDef*> stageList() const;  // menuOrder の順（同じなら id の順）
+
     // 直近の読み込みで起きたエラー（画面に表示する）
     const std::vector<std::string>& errors() const { return errors_; }
     void addError(std::string message);
@@ -52,6 +56,7 @@ public:
 
 private:
     std::map<std::filesystem::path, std::filesystem::file_time_type> scanFileTimes() const;
+    static std::vector<std::filesystem::path> jsoncFilesIn(const std::filesystem::path& dir);  // 名前順
 
     AppPaths paths_;
     Settings settings_;
@@ -59,6 +64,7 @@ private:
     SandboxConfig sandbox_;
     int sandboxRevision_ = 0;
     std::map<std::string, CharacterDef, std::less<>> characters_;
+    std::map<std::string, StageDef, std::less<>> stages_;
     std::map<std::filesystem::path, std::filesystem::file_time_type> fileTimes_;
     std::vector<std::string> errors_;
     int generation_ = 0;

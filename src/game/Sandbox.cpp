@@ -21,7 +21,9 @@ Unit makePlayerUnit(const CharacterDef& character) {
 }
 
 void setupSandbox(World& world, DummyController& dummies, const CharacterDef& character, const SandboxPreset* preset) {
-    world.addUnit(makePlayerUnit(character));
+    Unit player = makePlayerUnit(character);
+    player.pos = world.placeable(player.pos, player.radius);
+    world.addUnit(player);
     placeDummies(world, dummies, preset);
 }
 
@@ -37,7 +39,8 @@ void placeDummies(World& world, DummyController& dummies, const SandboxPreset* p
         Unit dummy;
         dummy.team = Team::Enemy;
         dummy.name = def.name;
-        dummy.pos = world.clampToBounds(def.position, def.radius);
+        // ステージの建物や木と重なる位置なら、近くの立てる位置へずらす
+        dummy.pos = world.placeable(def.position, def.radius);
         dummy.facing = Vector2{-1.0f, 0.0f};
         dummy.radius = def.radius;
         dummy.baseMoveSpeed = def.moveSpeed;
@@ -49,7 +52,7 @@ void placeDummies(World& world, DummyController& dummies, const SandboxPreset* p
         brain.home = dummy.pos;
         if (def.patrolTo) {
             brain.behavior = DummyBehavior::Patrol;
-            brain.patrolTo = world.clampToBounds(*def.patrolTo, def.radius);
+            brain.patrolTo = world.placeable(*def.patrolTo, def.radius);
         } else {
             brain.behavior = DummyBehavior::Stationary;
             brain.patrolTo = dummy.pos;
