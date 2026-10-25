@@ -76,6 +76,10 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::s
             ++i;
         } else if (arg == "--no-debug-panel") {
             options.hideDebugPanel = true;
+        } else if (arg == "--screen" && hasValue) {
+            if (value != "records" && value != "stats-dodge" && value != "stats-shot") return fail(arg, value);
+            options.screen = std::string(value);
+            ++i;
         } else if (arg == "--results-dir" && hasValue) {
             options.resultsDir = std::filesystem::path(value);
             ++i;

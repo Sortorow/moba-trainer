@@ -13,6 +13,8 @@
 //   --window <W>x<H>     ウィンドウの大きさ（例: 1280x720。Windows の拡大率を掛けない実ピクセル）
 //   --no-debug-panel     デバッグパネルを最初から閉じておく
 //   --results-dir <dir>  リザルトの保存先（既定は results フォルダ）。入力スクリプトの時は、これを指定した時だけ保存する
+//   --screen <name>      メニューの画面を開いて始める（動作確認用。プレイは始めない）: records（記録）/
+//                        stats-dodge（統計のスキルドッジ）/ stats-shot（統計のスキルショット）
 
 #include <cstdint>
 #include <filesystem>
@@ -36,6 +38,7 @@ struct CommandLineOptions {
     std::optional<int> windowHeight;
     bool hideDebugPanel = false;
     std::optional<std::filesystem::path> resultsDir;
+    std::optional<std::string> screen;
 };
 
 /// コマンドライン引数を読む（使える引数は、このファイルの先頭の一覧）。

@@ -62,6 +62,9 @@ std::optional<std::string> resultFolderName(GameMode mode);
 /// 1 日分の結果に result を加える。上限 limit を超えたら、古いものから消す
 void appendWithDailyLimit(std::vector<SavedResult>& day, SavedResult result, std::size_t limit);
 
+/// from の日から to の日までの暦の日数（日付は YYYYMMDD。同じ日なら 0、to が前の日ならマイナス）
+int daysBetween(int from, int to);
+
 /// 残す期間を過ぎた日を選ぶ。today を含めて keepDays 日より前の日が対象
 /// @param dates 日付（YYYYMMDD）の一覧
 std::vector<int> selectExpiredDates(const std::vector<int>& dates, int today, int keepDays);

@@ -126,6 +126,10 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultSt
         if (drawRecordsWindow(results)) showRecords_ = false;
         return action;
     }
+    if (showStats_) {
+        if (stats_.draw(results, data)) showStats_ = false;
+        return action;
+    }
     const std::vector<const CharacterDef*> characters = data.characterList();
     if (data.character(config_.characterId) == nullptr && !characters.empty())
         config_.characterId = characters.front()->id;
@@ -206,6 +210,8 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultSt
     ImGui::EndDisabled();
     ImGui::SameLine();
     if (ImGui::Button("記録を見る", ui::px(140.0f, 36.0f))) showRecords_ = true;
+    ImGui::SameLine();
+    if (ImGui::Button("統計を見る", ui::px(140.0f, 36.0f))) showStats_ = true;
     ImGui::SameLine();
     if (ImGui::Button("終了", ui::px(100.0f, 36.0f))) action.kind = MenuAction::Kind::Quit;
 

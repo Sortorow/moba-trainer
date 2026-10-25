@@ -129,11 +129,12 @@ void appendWithDailyLimit(std::vector<SavedResult>& day, SavedResult result, std
     if (day.size() > limit) day.erase(day.begin(), day.begin() + static_cast<std::ptrdiff_t>(day.size() - limit));
 }
 
+int daysBetween(int from, int to) { return static_cast<int>((toDays(to) - toDays(from)).count()); }
+
 std::vector<int> selectExpiredDates(const std::vector<int>& dates, int today, int keepDays) {
     std::vector<int> expired;
-    const std::chrono::sys_days todayDays = toDays(today);
     for (const int date : dates) {
-        if ((todayDays - toDays(date)).count() >= keepDays) expired.push_back(date);
+        if (daysBetween(date, today) >= keepDays) expired.push_back(date);
     }
     return expired;
 }

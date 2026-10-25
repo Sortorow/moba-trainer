@@ -10,6 +10,7 @@
 #include "core/Platform.h"
 #include "game/skills/Skill.h"
 #include "imgui.h"
+#include "implot.h"
 #include "render/CameraControl.h"
 #include "render/Hud.h"
 #include "render/Renderer.h"
@@ -19,6 +20,7 @@
 #include "ui/PauseDialog.h"
 #include "ui/ResultScreen.h"
 #include "ui/SandboxPanel.h"
+#include "ui/StatsDashboard.h"
 #include "ui/UiScale.h"
 
 namespace moba {
@@ -61,7 +63,11 @@ int App::run() {
     }
 
     initWindow();
-    if (options_.characterId || options_.scriptFile || options_.mode || options_.stageId) {
+    if (options_.screen) {
+        // 動作確認用: プレイは始めずに、メニューの記録・統計の画面を開く
+        if (*options_.screen == "records") menu_.openRecords();
+        else menu_.openStats(*options_.screen == "stats-shot" ? GameMode::SkillShot : GameMode::SkillDodge);
+    } else if (options_.characterId || options_.scriptFile || options_.mode || options_.stageId) {
         startMatch(configFromCommandLine());
     }
     while (!quit_ && !WindowShouldClose()) frame();
@@ -89,6 +95,8 @@ void App::initWindow() {
     ClearWindowState(FLAG_WINDOW_HIDDEN);
 
     rlImGuiSetup(true);
+    ImPlot::CreateContext();  // 統計の画面のグラフ用
+    applyPlotStyle();
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;                               // ウィンドウ配置を imgui.ini に保存しない
     io.ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;  // Q/W/E/R が UI の操作に取られないように
@@ -127,6 +135,7 @@ void App::checkDpiChange() {
 
 void App::shutdownWindow() {
     if (cursorConfined_) platform::releaseCursor();
+    ImPlot::DestroyContext();
     rlImGuiShutdown();
     CloseWindow();
     log::info("app", "ウィンドウを閉じました");
