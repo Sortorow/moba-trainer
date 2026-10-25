@@ -14,16 +14,18 @@ namespace {
 // 触れているだけ（めり込んでいない）の時に「かかっている」と判定しないための余裕
 constexpr float kTouchTolerance = 0.5f;
 
+/// 長方形 r の中（辺の上を含む）で、点 p に最も近い点
 Vector2 closestPointInRect(Vector2 p, Rectangle r) {
     return Vector2{std::clamp(p.x, r.x, r.x + r.width), std::clamp(p.y, r.y, r.y + r.height)};
 }
 
+/// 点 p が形 s の中（縁の上を含む）にあるか
 bool pointInShape(Vector2 p, const Shape& s) {
     if (s.kind == Shape::Kind::Rect) return CheckCollisionPointRec(p, s.rect);
     return Vector2DistanceSqr(p, s.center) <= s.radius * s.radius;
 }
 
-// 中心 pos・半径 radius の円が、形 s にめり込んでいるか
+/// 中心 pos・半径 radius の円が、形 s にめり込んでいるか（触れているだけなら false）
 bool circleOverlapsShape(Vector2 pos, float radius, const Shape& s) {
     if (pointInShape(pos, s)) return true;
     const float reach = radius - kTouchTolerance;
@@ -33,7 +35,8 @@ bool circleOverlapsShape(Vector2 pos, float radius, const Shape& s) {
     return Vector2DistanceSqr(pos, s.center) < r * r;
 }
 
-// 円が形 s に触れるだけの位置まで押し出す
+/// 円が形 s に触れるだけの位置まで押し出す（最も近い外側へ）
+/// @return 押し出した後の円の中心
 Vector2 pushOutOfShape(Vector2 pos, float radius, const Shape& s) {
     if (s.kind == Shape::Kind::Circle) {
         const Vector2 dir = geo::normalizedOr(pos - s.center, Vector2{0.0f, -1.0f});
@@ -57,6 +60,7 @@ Vector2 pushOutOfShape(Vector2 pos, float radius, const Shape& s) {
     return closest + dir * radius;
 }
 
+/// 2 つの形が重なっているか（ブッシュを 1 つにまとめる判断に使う）
 bool shapesOverlap(const Shape& a, const Shape& b) {
     using Kind = Shape::Kind;
     if (a.kind == Kind::Rect && b.kind == Kind::Rect) return CheckCollisionRecs(a.rect, b.rect);

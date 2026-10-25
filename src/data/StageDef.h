@@ -23,7 +23,10 @@ struct Shape {
 // 障害物の種類（見た目だけが違う。どれも通れない）
 enum class ObstacleKind { Building, Wall, Tree, Crate };
 
+/// 障害物の種類の、設定ファイルでの表記（"building" など）
 std::string_view toString(ObstacleKind kind);
+/// 設定ファイルの表記（"building" / "wall" / "tree" / "crate"）を障害物の種類にする
+/// @return 読めたかどうか（知らない表記なら false で、out は変えない）
 bool obstacleKindFromString(std::string_view text, ObstacleKind& out);
 
 struct Obstacle {
@@ -47,6 +50,8 @@ struct StageLoadResult {
     std::string error;  // def が空の時の理由
 };
 
+/// ステージのファイル（data/stages/*.jsonc）を 1 つ読み込む
+/// @return 読み込んだステージ。読めない時は def が空で、error に理由（何番目の障害物か など）が入る
 StageLoadResult loadStageFile(const std::filesystem::path& file);
 
 }  // namespace moba

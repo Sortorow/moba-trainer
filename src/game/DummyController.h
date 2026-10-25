@@ -25,10 +25,14 @@ struct DummyBrain {
 
 class DummyController {
 public:
+    /// すべてのダミーの動きを消す（ダミーのキャラ自体は World に残るので、先に取り除いておく）
     void clear() { brains_.clear(); }
+    /// ダミー 1 体の動き方を足す
     void add(const DummyBrain& brain) { brains_.push_back(brain); }
+    /// ダミーを動かす（静止のダミーは元の位置へ戻り、往復のダミーは 2 点の間を行き来する）
     void update(World& world);
 
+    /// すべてのダミーの動き方（デバッグパネルで一時的に変えられる）
     std::vector<DummyBrain>& brains() { return brains_; }
 
 private:

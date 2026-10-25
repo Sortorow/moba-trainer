@@ -36,7 +36,7 @@ struct AiConfig {
     float playerReactionTime = 0.25f;  // AI が想定する、プレイヤーが弾を見て避け始めるまでの時間
     std::vector<AiLevel> levels;       // 賢さ 1〜5
 
-    // 賢さ（1 始まり）の設定。範囲外なら端の値を使う
+    /// 賢さ（1 始まり）の設定。範囲外なら端の値を使う。levels が空なら既定値の設定
     const AiLevel& level(int aiLevel) const;
 };
 
@@ -45,6 +45,8 @@ struct AiConfigLoadResult {
     std::string error;  // 空なら成功
 };
 
+/// data/ai.jsonc を読み込む。値は決められた範囲に収める
+/// @return 読み込んだ設定。読めない・"levels" が空の時は error に理由が入る
 AiConfigLoadResult loadAiConfig(const std::filesystem::path& file);
 
 }  // namespace moba

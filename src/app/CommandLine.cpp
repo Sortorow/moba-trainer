@@ -7,6 +7,8 @@
 namespace moba {
 namespace {
 
+/// 文字列全体を数として読む（途中に数字以外があれば失敗）
+/// @return 読めたかどうか
 template <class T>
 bool parseNumber(std::string_view text, T& out) {
     const auto [end, ec] = std::from_chars(text.data(), text.data() + text.size(), out);

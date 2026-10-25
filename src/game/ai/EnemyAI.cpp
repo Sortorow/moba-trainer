@@ -19,13 +19,14 @@ constexpr float kMinEngageRange = 350.0f;       // 自キャラに近づく距�
 constexpr float kFlankAngle = 70.0f * DEG2RAD;  // 他の敵とこの角度より近いと、離れようとする
 constexpr float kMaxFlankShift = 35.0f * DEG2RAD;
 
-// 角度の差を -π〜π に収める
+/// 角度の差を -π〜π に収める
 float wrapAngle(float angle) {
     while (angle > PI) angle -= 2.0f * PI;
     while (angle < -PI) angle += 2.0f * PI;
     return angle;
 }
 
+/// 角度（ラジアン。+X 方向が 0）の向きの、長さ 1 のベクトル
 Vector2 fromAngle(float angle) { return Vector2{std::cos(angle), std::sin(angle)}; }
 
 }  // namespace

@@ -12,7 +12,7 @@
 namespace moba {
 namespace {
 
-// 例: 「3 体（静止 2・往復 1）半径 65」
+/// プリセットの中身を 1 行にまとめた説明（例: 「3 体（静止 2・往復 1）半径 65」）
 std::string summary(const SandboxPreset& preset) {
     if (preset.dummies.empty()) return "ダミーなし";
     int patrol = 0;

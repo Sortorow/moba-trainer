@@ -25,6 +25,8 @@ namespace {
 
 class DodgeFixture {
 public:
+    /// data フォルダの設定を読み込み、障害物のない World に自キャラを置く
+    /// @param withPlayerHp 自キャラに HP（5）を持たせるか（スキルドッジと同じ状態にするか）
     explicit DodgeFixture(std::string_view playerCharacter, bool withPlayerHp = true)
         : data_(makeAppPaths(MOBA_SOURCE_DIR)) {
         data_.loadAll();
@@ -36,6 +38,8 @@ public:
         playerId_ = world_->addUnit(player);
     }
 
+    /// キャラの設定のとおりの敵キャラを置く（敵 AI は付けない）
+    /// @return 敵の通し番号
     EntityId addEnemy(std::string_view characterId, Vector2 pos) {
         const CharacterDef* def = data_.character(characterId);
         REQUIRE(def != nullptr);
@@ -49,6 +53,8 @@ public:
         return world_->addUnit(enemy);
     }
 
+    /// 敵の陣営のダミー（半径 65）を置く
+    /// @return ダミーの通し番号
     EntityId addDummy(Vector2 pos) {
         Unit dummy;
         dummy.team = Team::Enemy;
@@ -58,16 +64,23 @@ public:
         return world_->addUnit(dummy);
     }
 
+    /// テストで動かす World
     World& world() { return *world_; }
+    /// 読み込んだ設定ファイル
     const GameData& data() const { return data_; }
+    /// 自キャラ
     Unit& player() { return *world_->findUnit(playerId_); }
+    /// 通し番号のキャラ（いることが分かっている時に使う）
     Unit& unit(EntityId id) { return *world_->findUnit(id); }
 
+    /// キャラ caster に、カーソルを cursor に置いてスキルのキーを押させる
     void cast(EntityId caster, SkillSlot slot, Vector2 cursor) {
         casting::requestCast(*world_, unit(caster), CastRequest{slot, cursor});
     }
+    /// 自キャラに、カーソルを cursor に置いてスキルのキーを押させる
     void playerCast(SkillSlot slot, Vector2 cursor) { cast(playerId_, slot, cursor); }
 
+    /// World を seconds 秒進める（ゲームと同じ 1/120 秒刻み）
     void run(float seconds) {
         const int steps = static_cast<int>(seconds * 120.0f);
         for (int i = 0; i < steps; ++i) world_->update(1.0f / 120.0f);

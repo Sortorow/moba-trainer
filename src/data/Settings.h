@@ -19,6 +19,7 @@ enum class CameraMode {
     Free,    // 固定しない（自キャラが動いてもカメラは動かず、画面の端にカーソルを置くとその方向へ動く）
 };
 
+/// カメラの、設定ファイルでの表記（"locked" / "free"）
 constexpr std::string_view toString(CameraMode mode) {
     switch (mode) {
         case CameraMode::Locked: return "locked";
@@ -27,6 +28,7 @@ constexpr std::string_view toString(CameraMode mode) {
     return "?";
 }
 
+/// カメラの、画面に出す名前（「自キャラに固定」/「固定しない」）
 constexpr std::string_view displayName(CameraMode mode) {
     switch (mode) {
         case CameraMode::Locked: return "自キャラに固定";
@@ -57,6 +59,8 @@ struct SettingsLoadResult {
     std::vector<std::string> warnings;  // 読み込めたが、値がおかしかった項目
 };
 
+/// data/settings.jsonc を読み込む。値は決められた範囲に収め、知らない値は既定値にして warnings に書く
+/// @return 読み込んだ設定。ファイルが読めない時は error に理由が入る
 SettingsLoadResult loadSettings(const std::filesystem::path& file);
 
 }  // namespace moba

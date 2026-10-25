@@ -13,6 +13,7 @@
 namespace moba {
 namespace {
 
+/// スキルの命中集計の表（キーごとの発動・命中・命中率と、合計）
 void drawStatsTable(const World& world) {
     if (!ImGui::BeginTable("stats", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) return;
     ImGui::TableSetupColumn("キー");
@@ -39,6 +40,7 @@ void drawStatsTable(const World& world) {
     ImGui::EndTable();
 }
 
+/// ダミーごとの動き方（静止・往復）と移動速度を、一時的に変える操作（ファイルには保存しない）
 void drawDummyControls(Match& match) {
     World& world = match.world();
     for (DummyBrain& brain : match.dummies().brains()) {
@@ -59,6 +61,7 @@ void drawDummyControls(Match& match) {
     }
 }
 
+/// スキルドッジの敵 AI の設定（賢さ・反応・撃つ間隔・予測の重み）と、ドッジの集計を表示する
 void drawSkillDodgeInfo(const Match& match) {
     const AiLevel& level = match.enemies().level();
     const DodgeCount& dodge = match.world().dodge();

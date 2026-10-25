@@ -7,9 +7,9 @@
 
 namespace moba::skills {
 
-// E: ワープした後、近くの敵に追尾弾を撃つ
-// params: boltEnabled, boltSearchRange, boltSpeed, boltWidth, boltPreferMark（優先して狙う印）,
-//         boltDetonateMark（追尾弾で起爆する印。空なら起爆しない）, color
+/// E: ワープした後、近くの敵に追尾弾を撃つ
+/// params: boltEnabled, boltSearchRange, boltSpeed, boltWidth, boltPreferMark（優先して狙う印）,
+///         boltDetonateMark（追尾弾で起爆する印。空なら起爆しない）, color
 void handleEzrealE(SkillContext& ctx) {
     handleBlink(ctx);
     if (!ctx.def.flagOr("boltEnabled", true)) return;

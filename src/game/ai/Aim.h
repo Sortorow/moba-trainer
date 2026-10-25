@@ -33,7 +33,7 @@ struct AimModel {
     float delay = 0.0f;      // Circle: 詠唱を含めた、発動までの時間
 };
 
-// スキル定義から当たり方を作る（方向指定 → Line、地点指定 → Circle）。狙いの計算に使えないスキルなら nullopt
+/// スキル定義から当たり方を作る（方向指定 → Line、地点指定 → Circle）。狙いの計算に使えないスキルなら nullopt
 std::optional<AimModel> aimModelFor(const SkillDef& def);
 
 struct AimTarget {
@@ -57,11 +57,15 @@ struct AimResult {
     float timeToImpact = 0.0f;  // 着弾までの見込み時間
 };
 
-// 射程外なら nullopt
+/// 命中見込みが最も高くなる狙い先を選ぶ。着弾時に相手がいそうな位置の候補（留まる・移動を続ける・左右に避ける）に
+/// weights の重みを付け、候補の位置とその中間を狙い先として試す
+/// @param shooter 撃つ敵の位置
+/// @param playerReactionTime 相手が弾を見て避け始めるまでの時間（これより早く着弾する弾は避けられない想定）
+/// @return 最もよい狙い先と命中見込み。相手が射程外なら nullopt
 std::optional<AimResult> chooseAim(Vector2 shooter, const AimModel& model, const AimTarget& target,
                                    const AimWeights& weights, float playerReactionTime);
 
-// aimPoint を狙って撃った時、位置 p にいる半径 targetRadius の相手に当たるか
+/// aimPoint を狙って撃った時、位置 p にいる半径 targetRadius の相手に当たるか
 bool wouldHit(Vector2 shooter, const AimModel& model, Vector2 aimPoint, Vector2 p, float targetRadius);
 
 }  // namespace moba::ai

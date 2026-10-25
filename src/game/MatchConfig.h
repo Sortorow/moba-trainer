@@ -12,6 +12,7 @@ enum class GameMode {
     SkillDodge,  // スキルドッジ（敵のスキルを避ける）
 };
 
+/// モードの、画面とログに出す名前（「練習場」/「スキルドッジ」）
 constexpr std::string_view displayName(GameMode mode) {
     switch (mode) {
         case GameMode::Sandbox: return "練習場";
@@ -38,8 +39,9 @@ struct MatchConfig {
     float timeLimitSeconds = 120.0f;  // 制限時間
     std::uint32_t seed = 0;           // 乱数の種（0 なら開始時に決める。ログに残るので、同じ展開を再現できる）
 
-    // 自キャラのクールダウンに実際に掛ける倍率
+    /// 自キャラのクールダウンに実際に掛ける倍率（クールダウン「なし」なら 0）
     float playerCooldownScale() const { return cooldownMode == CooldownMode::None ? 0.0f : cooldownScale; }
+    /// 制限時間があるモードか（今はスキルドッジだけ）
     bool timed() const { return mode == GameMode::SkillDodge && timeLimitSeconds > 0.0f; }
 };
 

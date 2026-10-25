@@ -10,7 +10,7 @@ namespace {
 
 constexpr Rectangle kBounds{-2000.0f, -2000.0f, 4000.0f, 4000.0f};
 
-// 1600x900 の画面で、端の判定の幅が 12 ピクセル
+/// 1600x900 の画面で、端の判定の幅が 12 ピクセル
 CameraControlInput inputAt(Vector2 mouse) {
     CameraControlInput input;
     input.mouse = mouse;

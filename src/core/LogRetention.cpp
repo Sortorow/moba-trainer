@@ -8,6 +8,7 @@
 namespace moba::log {
 namespace {
 
+/// text の先頭 8 文字を数字として読む（日付 YYYYMMDD 用）。数字でなければ nullopt
 std::optional<int> parseEightDigits(std::string_view text) {
     if (text.size() < 8) return std::nullopt;
     int value = 0;

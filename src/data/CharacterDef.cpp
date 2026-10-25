@@ -13,7 +13,7 @@ namespace {
 
 using nlohmann::json;
 
-// 同じ警告を何度も出さないための記録
+/// 必須の params が書かれていないことを警告ログに出す。同じキャラ・スキル・項目の警告は 1 回だけ
 void warnMissingOnce(const SkillDef& skill, std::string_view key) {
     static std::set<std::string> warned;
     const std::string id = std::format("{}.{}.{}", skill.characterId, toString(skill.slot), key);
@@ -23,11 +23,15 @@ void warnMissingOnce(const SkillDef& skill, std::string_view key) {
     }
 }
 
+/// params の中から key の値を探す。無ければ nullptr
 const json* findParam(const json& params, std::string_view key) {
     const auto it = params.find(std::string(key));
     return it == params.end() ? nullptr : &*it;
 }
 
+/// スキル 1 つ（"Q": { ... } の中身）を読む
+/// @param error 読めなかった時の理由（handler が無い・targeting が不明 など）
+/// @return 読めたスキル。読めなければ nullopt
 std::optional<SkillDef> parseSkill(const json& j, const std::string& characterId, SkillSlot slot, std::string& error) {
     SkillDef skill;
     skill.characterId = characterId;

@@ -7,7 +7,7 @@
 
 namespace moba::skills {
 
-// params: speed, width, pierce, visual, color, onHit（当たった時の効果）, detonateMark（起爆する印の名前）
+/// params: speed, width, pierce, visual, color, onHit（当たった時の効果）, detonateMark（起爆する印の名前）
 void handleProjectile(SkillContext& ctx) {
     Projectile p = makeProjectile(ctx, ctx.caster.pos, aimDirection(ctx), ctx.def.range);
     const std::vector<EffectSpec> effects = ctx.def.effects("onHit");
@@ -19,7 +19,7 @@ void handleProjectile(SkillContext& ctx) {
     ctx.world.spawnProjectile(std::move(p));
 }
 
-// params: speed, width, visual, color, onHit, detonateMark
+/// params: speed, width, visual, color, onHit, detonateMark
 void handleHomingProjectile(SkillContext& ctx) {
     Unit* target = ctx.world.findUnit(ctx.request.targetUnit);
     if (!target || !target->alive) {
@@ -38,13 +38,13 @@ void handleHomingProjectile(SkillContext& ctx) {
     ctx.world.spawnProjectile(std::move(p));
 }
 
-// カーソルが射程内ならその位置へ、射程外なら射程の端へ瞬間移動する（params なし）
+/// カーソルが射程内ならその位置へ、射程外なら射程の端へ瞬間移動する（params なし）
 void handleBlink(SkillContext& ctx) {
     teleport(ctx.world, ctx.caster, aimPoint(ctx), ctx.def.color("color", Color{255, 240, 160, 255}));
 }
 
-// params: flightTime（着地までの時間）, radius, duration（残る時間）, visual, color,
-//         slowAmount / lingerTime（範囲内にいる間かかるスロウと、出た後に残る時間）, onHit（最初に入った時の効果）
+/// params: flightTime（着地までの時間）, radius, duration（残る時間）, visual, color,
+///         slowAmount / lingerTime（範囲内にいる間かかるスロウと、出た後に残る時間）, onHit（最初に入った時の効果）
 void handleGroundZone(SkillContext& ctx) {
     AreaEffect a = makeArea(ctx, aimPoint(ctx));
     a.delay = ctx.def.num("flightTime", 0.3f);
@@ -64,10 +64,10 @@ void handleGroundZone(SkillContext& ctx) {
     ctx.world.spawnArea(std::move(a));
 }
 
-// params: delay（爆発までの時間）, radius, color, onHit, cooldownRefundOnHit
+/// params: delay（爆発までの時間）, radius, color, onHit, cooldownRefundOnHit
 void handleGroundBlast(SkillContext& ctx) { ctx.world.spawnArea(makeGroundBlast(ctx, aimPoint(ctx))); }
 
-// params: radius（対象の周りの範囲）, color, onHit
+/// params: radius（対象の周りの範囲）, color, onHit
 void handleTargetedBlast(SkillContext& ctx) {
     Unit* target = ctx.world.findUnit(ctx.request.targetUnit);
     if (!target || !target->alive) {

@@ -16,6 +16,7 @@ namespace moba {
 // 設置物などを指定するスキル（エマの R）の対象の種類
 enum class PropTargetKind { None, Dove, Hat, Rabbit };
 
+/// 対象の種類の、設定ファイル（params の targetKinds）での表記（"dove" / "hat" / "rabbit"）
 constexpr std::string_view toString(PropTargetKind kind) {
     switch (kind) {
         case PropTargetKind::None: return "none";
@@ -77,6 +78,7 @@ struct Unit {
     float hitFlash = 0.0f;  // 被弾した時の光る演出の残り時間
     bool alive = true;
 
+    /// 今の移動速度（キャラの移動速度に、スロウなどの倍率を掛けたもの）
     float moveSpeed() const { return baseMoveSpeed * status.moveSpeedMultiplier(); }
 };
 

@@ -9,12 +9,14 @@
 namespace moba {
 namespace {
 
+/// 今のウィンドウの横幅の中央に、文字を書く
 void textCentered(const std::string& text) {
     const float width = ImGui::CalcTextSize(text.c_str()).x;
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - width) * 0.5f);
     ImGui::TextUnformatted(text.c_str());
 }
 
+/// プレイのクールダウンの設定の表示（「なし」や「標準（×0.25）」など）
 std::string cooldownLabel(const MatchConfig& config) {
     if (config.cooldownMode == CooldownMode::None) return "なし";
     return std::format("標準（×{:.2f}）", config.cooldownScale);

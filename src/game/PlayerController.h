@@ -9,6 +9,8 @@ class World;
 
 class PlayerController {
 public:
+    /// 入力を自キャラへの命令に変える。右クリックは移動（押しっぱなしならカーソルを追いかける）、
+    /// Q〜F はスキルの発動（カーソルの位置を狙う）。固定の時間刻みごとに呼ぶ
     void update(World& world, const InputFrame& input, float dt);
 
 private:

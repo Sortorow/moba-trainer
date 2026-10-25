@@ -19,8 +19,10 @@ inline constexpr int kSkillSlotCount = static_cast<int>(SkillSlot::Count);
 inline constexpr std::array<SkillSlot, kSkillSlotCount> kAllSkillSlots = {SkillSlot::Q, SkillSlot::W, SkillSlot::E,
                                                                           SkillSlot::R, SkillSlot::D, SkillSlot::F};
 
+/// スキルのキーを、配列の添字（Q = 0 〜 F = 5）にする
 constexpr int index(SkillSlot slot) { return static_cast<int>(slot); }
 
+/// スキルのキーの表示名（"Q" 〜 "F"）。ログや画面の表示、設定ファイルのキー名に使う
 constexpr std::string_view toString(SkillSlot slot) {
     constexpr std::array<std::string_view, kSkillSlotCount> names = {"Q", "W", "E", "R", "D", "F"};
     return names[static_cast<std::size_t>(index(slot))];

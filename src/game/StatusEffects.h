@@ -21,21 +21,34 @@ struct StatusEffect {
 
 class StatusEffects {
 public:
-    // 効果を付ける。同じ種類（印は同じ tag）が既にあれば、残り時間と強さの大きい方に更新する
+    /// 効果を付ける。同じ種類（印は同じ tag）が既にあれば、残り時間と強さの大きい方に更新する
+    /// @param source 効果を付けたキャラ
     void apply(const EffectSpec& spec, EntityId source);
+    /// 残り時間を減らし、時間切れの効果を消す
     void update(float dt);
+    /// すべての効果を消す
     void clear() { effects_.clear(); }
 
+    /// その種類の効果がかかっているか
     bool has(EffectType type) const;
-    float remaining(EffectType type) const;  // 同じ種類が複数あれば最も長い残り時間
+    /// その種類の効果の残り時間（同じ種類が複数あれば最も長いもの）。かかっていなければ 0
+    float remaining(EffectType type) const;
+    /// その名前の印が付いているか
     bool hasMark(std::string_view tag) const;
-    bool consumeMark(std::string_view tag);  // 印を消費する。消費できたら true
+    /// 印を消費する（起爆した時など）
+    /// @return 消費できたら true（その印が無ければ false）
+    bool consumeMark(std::string_view tag);
 
-    bool canMove() const;  // 拘束・スタン・打ち上げ中は移動できない
-    bool canCast() const;  // スタン・打ち上げ・変身中はスキルを使えない
+    /// 移動できるか（拘束・スタン・打ち上げ中は移動できない）
+    bool canMove() const;
+    /// スキルを使えるか（スタン・打ち上げ・変身中は使えない）
+    bool canCast() const;
+    /// 打ち上げられているか（描く時に浮かせる）
     bool isAirborne() const { return has(EffectType::Knockup); }
-    float moveSpeedMultiplier() const;  // スロウは重ねがけせず、最も強いものだけが効く（LoL と同じ）
+    /// 移動速度に掛ける倍率（1 = そのまま）。スロウは重ねがけせず、最も強いものだけが効く（LoL と同じ）
+    float moveSpeedMultiplier() const;
 
+    /// かかっているすべての効果（画面の表示用）
     const std::vector<StatusEffect>& list() const { return effects_; }
 
 private:

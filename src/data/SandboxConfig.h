@@ -33,13 +33,13 @@ struct SandboxConfig {
     std::string selectedPreset;  // 今選んでいるプリセットの名前
     std::vector<SandboxPreset> presets;
 
-    // 名前でプリセットを探す。見つからなければ nullptr
+    /// 名前でプリセットを探す。見つからなければ nullptr
     const SandboxPreset* preset(std::string_view name) const;
-    // 今選んでいるプリセット。見つからなければ最初のプリセット。1 つも無ければ nullptr
+    /// 今選んでいるプリセット。見つからなければ最初のプリセット。1 つも無ければ nullptr
     const SandboxPreset* current() const;
 };
 
-// 中身（プリセットの選択と、すべてのプリセットの値）が同じか
+/// 中身（プリセットの選択と、すべてのプリセットの値）が同じか（再読み込みでダミーを置き直すかの判断に使う）
 bool sameSandboxConfig(const SandboxConfig& a, const SandboxConfig& b);
 
 struct SandboxConfigLoadResult {
@@ -48,9 +48,12 @@ struct SandboxConfigLoadResult {
     std::vector<std::string> warnings;  // 読み込めたが、値がおかしかった項目
 };
 
+/// data/sandbox.jsonc を読み込む。値は決められた範囲に収める
+/// @return 読み込んだ設定。読めない・"presets" が空の時は error に理由が入る
 SandboxConfigLoadResult loadSandboxConfig(const std::filesystem::path& file);
 
-// sandbox.jsonc の "preset" の値だけを書き換える（コメントや他の行はそのまま残す）。戻り値はエラー（空なら成功）
+/// sandbox.jsonc の "preset" の値だけを書き換える（コメントや他の行はそのまま残す）
+/// @return エラーの説明（空なら成功）
 std::string saveSelectedSandboxPreset(const std::filesystem::path& file, std::string_view presetName);
 
 }  // namespace moba

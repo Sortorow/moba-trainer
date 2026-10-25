@@ -35,7 +35,8 @@ struct CommandLineOptions {
     bool hideDebugPanel = false;
 };
 
-// 解釈できない引数があれば nullopt を返し、error に理由を入れる
+/// コマンドライン引数を読む（使える引数は、このファイルの先頭の一覧）。
+/// 解釈できない引数があれば nullopt を返し、error に理由を入れる
 std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::string& error);
 
 }  // namespace moba

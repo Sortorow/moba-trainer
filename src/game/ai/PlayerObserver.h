@@ -11,15 +11,21 @@ namespace moba::ai {
 
 class PlayerObserver {
 public:
+    /// 記録をすべて消す（新しいプレイの始め）
     void clear();
-    void record(float time, Vector2 pos);  // 毎刻み、自キャラの実際の位置を記録する
-    Vector2 positionAt(float time) const;  // ある時刻の位置（記録の間は補間する）
-    Vector2 velocityAt(float time) const;  // ある時刻の速度（0.1 秒前との差から）
+    /// 自キャラの位置を記録する（自キャラが見えている間、毎刻み呼ぶ。2 秒より古い記録は捨てる）
+    void record(float time, Vector2 pos);
+    /// ある時刻の位置（記録の間は補間する。記録より前・後なら最初・最後の位置）
+    Vector2 positionAt(float time) const;
+    /// ある時刻の速度（0.1 秒前の位置との差から）
+    Vector2 velocityAt(float time) const;
 
-    // 敵が直線の弾を撃った時に呼ぶ。少し後に、自キャラが弾の左右どちらへ動いたかを数える
+    /// 敵が直線の弾を撃った時に呼ぶ。少し後に、自キャラが弾の左右どちらへ動いたかを数える
     void noteShot(float time, Vector2 playerPos, Vector2 shotDir);
+    /// 撃ってから一定時間たった弾について、自キャラが左右どちらへ避けたかを数える（毎刻み呼ぶ）
     void update(float time);
-    float rightBias() const;  // 弾の進行方向に対して右へ避ける割合（0〜1）
+    /// 弾の進行方向に対して右へ避ける割合（0〜1。最初は 0.5）
+    float rightBias() const;
 
 private:
     struct Sample {

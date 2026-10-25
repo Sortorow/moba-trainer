@@ -11,7 +11,9 @@ namespace {
 
 using nlohmann::json;
 
-// { "rect": [左, 上, 幅, 高さ] } か { "circle": [x, y, 半径] } を読む
+/// { "rect": [左, 上, 幅, 高さ] } か { "circle": [x, y, 半径] } を読む
+/// @param error 読めなかった時の理由
+/// @return 読めた形。どちらも書かれていない・数が合わない時は nullopt
 std::optional<Shape> parseShape(const json& j, std::string& error) {
     if (const auto it = j.find("rect"); it != j.end()) {
         if (!it->is_array() || it->size() != 4) {

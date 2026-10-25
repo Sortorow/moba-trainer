@@ -20,28 +20,32 @@ namespace {
 // data フォルダを一時フォルダへ写して使う（プリセットを選ぶと sandbox.jsonc に書き込むため、本物を書き換えないように）
 class TempDataCopy {
 public:
+    /// data フォルダを、一時フォルダの中の新しいフォルダへ丸ごと写す
     TempDataCopy() {
         root_ = std::filesystem::temp_directory_path() / std::format("moba_tests_sandbox_{}", std::random_device{}());
         std::filesystem::create_directories(root_);
         std::filesystem::copy(std::filesystem::path(MOBA_SOURCE_DIR) / "data", root_ / "data",
                               std::filesystem::copy_options::recursive);
     }
+    /// 写した一時フォルダを消す
     ~TempDataCopy() {
         std::error_code ec;
         std::filesystem::remove_all(root_, ec);
     }
+    /// 写した data フォルダの各ファイルの場所
     AppPaths paths() const { return makeAppPaths(root_); }
 
 private:
     std::filesystem::path root_;
 };
 
+/// ファイルの中身をそのまま（文字コードや改行を変えずに）読む
 std::string readText(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
     return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
 }
 
-// 練習場のダミー（自キャラ以外）
+/// 練習場のダミー（自キャラ以外）
 std::vector<const Unit*> dummyUnits(const Match& match) {
     std::vector<const Unit*> list;
     for (const Unit& unit : match.world().units()) {

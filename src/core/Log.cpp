@@ -29,6 +29,7 @@ struct State {
     bool initialized = false;
 };
 
+/// ログ全体の状態（プログラムに 1 つだけ。初めて使う時に作る）
 State& state() {
     static State s;
     return s;
@@ -39,6 +40,7 @@ struct Timestamp {
     int millis = 0;
 };
 
+/// 今の時刻（ローカル時刻とミリ秒）
 Timestamp now() {
     const auto tp = std::chrono::system_clock::now();
     const std::time_t t = std::chrono::system_clock::to_time_t(tp);
@@ -49,15 +51,17 @@ Timestamp now() {
     return ts;
 }
 
+/// 日付を YYYYMMDD の整数にする（2026 年 10 月 24 日なら 20261024）
 int dateNumber(const std::tm& tm) { return (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday; }
 
+/// ログの 1 行の文字列を作る（例: 2026-10-24 17:30:01.123 [INFO ] [skill] メッセージ）
 std::string formatLine(const Timestamp& ts, Level level, std::string_view category, std::string_view message) {
     const std::tm& t = ts.local;
     return std::format("{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{:03} [{:<5}] [{}] {}\n", t.tm_year + 1900, t.tm_mon + 1,
                        t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, ts.millis, levelName(level), category, message);
 }
 
-// ファイルの作成日時（ローカル時刻の YYYYMMDD）。取得できなければ nullopt
+/// ファイルの作成日時（ローカル時刻の YYYYMMDD）。取得できなければ nullopt
 std::optional<int> fileCreationDate(const std::filesystem::path& path) {
     WIN32_FILE_ATTRIBUTE_DATA attr{};
     if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &attr)) return std::nullopt;
@@ -68,7 +72,7 @@ std::optional<int> fileCreationDate(const std::filesystem::path& path) {
     return local.wYear * 10000 + local.wMonth * 100 + local.wDay;
 }
 
-// ファイルへ書き込む（ロックを取った状態で呼ぶ）
+/// ファイルへ書き込む（ロックを取った状態で呼ぶ）
 void writeRaw(State& s, const std::string& line) {
     if (!s.file) return;
     std::fwrite(line.data(), 1, line.size(), s.file);
@@ -76,7 +80,9 @@ void writeRaw(State& s, const std::string& line) {
     s.fileBytes += line.size();
 }
 
-// 保持日数を超えた古いログを削除し、結果の説明を返す（ロックを取った状態で呼ぶ）
+/// 保持日数を超えた古いログを削除し、結果の説明を返す（ロックを取った状態で呼ぶ）
+/// @param newFileDate これから作るログファイルの日付（YYYYMMDD）
+/// @return 削除の結果（新しいログファイルの先頭に書く）
 std::vector<std::string> applyRetention(State& s, int newFileDate) {
     std::vector<LogFileEntry> entries;
     std::error_code ec;
@@ -104,7 +110,8 @@ std::vector<std::string> applyRetention(State& s, int newFileDate) {
     return notes;
 }
 
-// 新しいログファイルを開く（ロックを取った状態で呼ぶ）
+/// 新しいログファイルを開く（ロックを取った状態で呼ぶ）。今のファイルは閉じ、古いログは削除する
+/// @param reason 開いた理由（「起動」「サイズ上限に到達」など。ファイルの 1 行目に書く）
 void openNewFile(State& s, std::string_view reason) {
     if (s.file) {
         std::fclose(s.file);

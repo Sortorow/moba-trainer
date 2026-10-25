@@ -9,6 +9,7 @@ using namespace moba::log;
 
 namespace {
 
+/// 日付の一覧から、テスト用のログファイルの一覧を作る（名前は日付と通し番号から決める）
 std::vector<LogFileEntry> makeFiles(const std::vector<int>& dates) {
     std::vector<LogFileEntry> files;
     for (std::size_t i = 0; i < dates.size(); ++i) {
@@ -17,6 +18,7 @@ std::vector<LogFileEntry> makeFiles(const std::vector<int>& dates) {
     return files;
 }
 
+/// パスの一覧に path が含まれるか
 bool contains(const std::vector<std::filesystem::path>& paths, const std::filesystem::path& path) {
     return std::find(paths.begin(), paths.end(), path) != paths.end();
 }

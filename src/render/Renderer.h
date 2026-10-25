@@ -10,6 +10,8 @@ struct RenderOptions {
     bool showHitboxes = true;  // 弾・範囲の当たり判定の円を表示する
 };
 
+/// ゲーム画面を描く（床 → 障害物 → 範囲 → 設置物 → キャラ → ブッシュ → 弾 → 演出の順）。
+/// ブッシュに隠れていて自キャラの陣営から見えない敵は描かない
 void drawWorld(const World& world, const RenderOptions& options);
 
 }  // namespace moba

@@ -21,23 +21,32 @@ struct InputPollContext {
 class InputSource {
 public:
     virtual ~InputSource() = default;
+    /// 1 フレーム分の入力を取り出す（毎フレーム 1 回呼ぶ）
     virtual InputFrame poll(const InputPollContext& ctx) = 0;
+    /// 入力スクリプトか（スクリプトなら、時間を一定の刻みで進め、実際のマウスを使わない）
     virtual bool isScripted() const = 0;
 };
 
 // 実際のマウス・キーボード
 class LiveInput final : public InputSource {
 public:
+    /// 今のマウスとキーボードの状態を読む。UI の上にカーソルがある時の右クリックと、文字入力中のキーは無視する
     InputFrame poll(const InputPollContext& ctx) override;
+    /// 実際の操作なので false
     bool isScripted() const override { return false; }
 };
 
 // 入力スクリプト（自動での動作確認用）。書式は ScriptInput.cpp の先頭を参照
 class ScriptInput final : public InputSource {
 public:
+    /// 入力スクリプトのファイルを読み込む（命令は時刻の順に並べ替える）
+    /// @param error 読めなかった時の理由（何行目が読めないか）
+    /// @return 読み込んだスクリプト。読めなければ nullptr
     static std::unique_ptr<ScriptInput> load(const std::filesystem::path& file, std::string& error);
 
+    /// ctx.simTime までに時刻が来た命令を実行して、1 フレーム分の入力にする
     InputFrame poll(const InputPollContext& ctx) override;
+    /// 入力スクリプトなので true
     bool isScripted() const override { return true; }
 
 private:

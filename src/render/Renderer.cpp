@@ -14,6 +14,7 @@ constexpr Color kGridMinor{255, 255, 255, 10};
 constexpr Color kGridMajor{255, 255, 255, 28};
 constexpr Color kHitboxColor{255, 255, 255, 150};
 
+/// 色 a から色 b へ、t（0〜1）の割合で混ぜた色
 Color lerpColor(Color a, Color b, float t) {
     auto mix = [t](unsigned char x, unsigned char y) {
         return static_cast<unsigned char>(static_cast<float>(x) + (static_cast<float>(y) - static_cast<float>(x)) * t);
@@ -21,13 +22,13 @@ Color lerpColor(Color a, Color b, float t) {
     return Color{mix(a.r, b.r), mix(a.g, b.g), mix(a.b, b.b), mix(a.a, b.a)};
 }
 
-// 頂点の並び順に関係なく三角形を描く（raylib は反時計回りの三角形しか描かないため、両方の順で描く）
+/// 頂点の並び順に関係なく三角形を描く（raylib は反時計回りの三角形しか描かないため、両方の順で描く）
 void drawTriangleBothSides(Vector2 a, Vector2 b, Vector2 c, Color color) {
     DrawTriangle(a, b, c, color);
     DrawTriangle(a, c, b, color);
 }
 
-// 小さな鳥（鳩）の形。dir の方向を向く
+/// 小さな鳥（鳩）の形。dir の方向を向く
 void drawBird(Vector2 pos, Vector2 dir, float size, Color color) {
     const Vector2 side = geo::perpendicular(dir);
     drawTriangleBothSides(pos + dir * size, pos + side * size * 0.9f - dir * size * 0.5f,
@@ -35,12 +36,14 @@ void drawBird(Vector2 pos, Vector2 dir, float size, Color color) {
     DrawCircleV(pos + dir * size * 0.3f, size * 0.35f, color);
 }
 
+/// 帽子（エマの W・R）の形を描く
 void drawHat(Vector2 pos, float size) {
     DrawCircleV(pos, size * 1.25f, Color{20, 20, 28, 255});
     DrawCircleV(pos, size * 0.8f, Color{45, 45, 60, 255});
     DrawRing(pos, size * 1.25f, size * 1.45f, 0.0f, 360.0f, 32, Color{90, 230, 230, 255});
 }
 
+/// 範囲の中に散らばる鉄菱（星形）を描く
 void drawCaltropStars(Vector2 center, float radius, Color color) {
     DrawPoly(center, 4, 10.0f, 45.0f, color);
     for (int i = 0; i < 7; ++i) {
@@ -50,11 +53,12 @@ void drawCaltropStars(Vector2 center, float radius, Color color) {
     }
 }
 
-// 残り時間を円弧で表示する
+/// 残り時間を円弧で表示する
 void drawLifetimeArc(Vector2 pos, float radius, float ratio, Color color) {
     DrawRing(pos, radius, radius + 4.0f, -90.0f, -90.0f + 360.0f * ratio, 32, color);
 }
 
+/// ステージの床（マス目の線。細い線は 100、太い線は 500 ごと）と、ステージの外枠を描く
 void drawGround(const World& world) {
     const Rectangle b = world.bounds();
     DrawRectangleRec(b, kGroundColor);
@@ -69,17 +73,19 @@ void drawGround(const World& world) {
     DrawRectangleLinesEx(b, 6.0f, Color{120, 140, 130, 255});
 }
 
+/// 形（長方形・円）を塗りつぶして描く
 void fillShape(const Shape& shape, Color color) {
     if (shape.kind == Shape::Kind::Rect) DrawRectangleRec(shape.rect, color);
     else DrawCircleV(shape.center, shape.radius, color);
 }
 
+/// 形（長方形・円）の縁を、太さ thickness の線で描く
 void outlineShape(const Shape& shape, float thickness, Color color) {
     if (shape.kind == Shape::Kind::Rect) DrawRectangleLinesEx(shape.rect, thickness, color);
     else DrawRing(shape.center, shape.radius - thickness, shape.radius, 0.0f, 360.0f, 48, color);
 }
 
-// 形を内側へ inset だけ縮めたもの（建物の屋根など）
+/// 形を内側へ inset だけ縮めたもの（建物の屋根など）
 Shape inset(const Shape& shape, float amount) {
     Shape s = shape;
     if (s.kind == Shape::Kind::Rect) {
@@ -92,7 +98,7 @@ Shape inset(const Shape& shape, float amount) {
     return s;
 }
 
-// 障害物（どれも通れない。種類ごとに見た目だけを変える）
+/// 障害物（どれも通れない。種類ごとに見た目だけを変える）
 void drawObstacle(const Obstacle& obstacle) {
     const Shape& s = obstacle.shape;
     switch (obstacle.kind) {
@@ -122,12 +128,14 @@ void drawObstacle(const Obstacle& obstacle) {
     }
 }
 
-// ブッシュ（キャラの上に半透明で重ねて描く。中にいるキャラは草に隠れて見える）
+/// ブッシュ（キャラの上に半透明で重ねて描く。中にいるキャラは草に隠れて見える）
 void drawBush(const Shape& bush) {
     fillShape(bush, Color{78, 150, 62, 130});
     outlineShape(bush, 4.0f, Color{110, 185, 80, 200});
 }
 
+/// 地面の範囲効果を描く（発動前は予告の円と、飛んでいく帽子・鉄菱。発動後は残る範囲）
+/// @param showHitboxes 当たり判定の円も描くか
 void drawArea(const AreaEffect& area, bool showHitboxes) {
     if (!area.activated) {
         // 発動前: 範囲の輪と、範囲ごとの予告の表示
@@ -159,6 +167,7 @@ void drawArea(const AreaEffect& area, bool showHitboxes) {
     }
 }
 
+/// 設置物（鳩・帽子）と、残り時間の円弧を描く。飛んで移動している最中は描かない
 void drawProp(const Prop& prop) {
     if (prop.hiddenTime > 0.0f) return;
     const float ratio = prop.lifetime > 0.0f ? prop.remaining / prop.lifetime : 0.0f;
@@ -172,6 +181,7 @@ void drawProp(const Prop& prop) {
     }
 }
 
+/// 兎（エマの E・R で変身させた敵）の形を描く
 void drawRabbit(Vector2 pos, float radius) {
     DrawRing(pos, radius * 0.7f, radius * 0.82f, 0.0f, 360.0f, 32, Color{230, 60, 60, 220});
     DrawEllipse(static_cast<int>(pos.x - radius * 0.22f), static_cast<int>(pos.y - radius * 0.62f), radius * 0.12f,
@@ -181,6 +191,8 @@ void drawRabbit(Vector2 pos, float radius) {
     DrawCircleV(pos, radius * 0.45f, RAYWHITE);
 }
 
+/// キャラを描く（影・体・陣営ごとの外周の輪・向き・被弾の光・状態異常の輪・印）
+/// @param time 経過時間（印の輪を回す演出に使う）
 void drawUnit(const Unit& unit, float time) {
     const bool isPlayer = unit.team == Team::Player;
     const float lift = unit.status.isAirborne() ? 45.0f : 0.0f;  // 打ち上げ中は浮かせて描く
@@ -220,6 +232,8 @@ void drawUnit(const Unit& unit, float time) {
     }
 }
 
+/// 弾を、見た目の種類（visual）ごとの形で描く。見た目のずれ（drawOffset）を足した位置に描く
+/// @param showHitboxes 当たり判定の円も描くか（円は本当の位置に描く）
 void drawProjectile(const Projectile& p, bool showHitboxes) {
     const float angle = geo::angleDegrees(p.dir);
     // 見た目だけずらす分を足した位置に描く（当たり判定の円は本当の位置 p.pos に描く）
@@ -258,6 +272,7 @@ void drawProjectile(const Projectile& p, bool showHitboxes) {
     if (showHitboxes) DrawCircleLinesV(p.pos, p.radius, kHitboxColor);
 }
 
+/// 演出（光る円・広がる輪・ワープ・クリックした地点）を、残り時間に合わせて薄くしながら描く。文字の演出は Hud.cpp で描く
 void drawVfx(const Vfx& vfx) {
     const float alpha = vfx.duration > 0.0f ? Clamp(vfx.remaining / vfx.duration, 0.0f, 1.0f) : 0.0f;
     switch (vfx.kind) {

@@ -23,7 +23,7 @@
 namespace moba {
 namespace {
 
-// raylib 自身のログも、ゲームのログファイルに書き込む
+/// raylib 自身のログも、ゲームのログファイルに書き込む
 void raylibLogCallback(int logLevel, const char* text, va_list args) {
     char buffer[1024];
     std::vsnprintf(buffer, sizeof(buffer), text, args);

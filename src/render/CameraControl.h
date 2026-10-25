@@ -20,10 +20,13 @@ struct CameraControlInput {
     bool centerHeld = false;  // Space を押している間
 };
 
-// 画面の端によってカメラが動く方向（長さ 1。端に無ければ 0）。角では斜めに動く
+/// 画面の端によってカメラが動く方向（長さ 1。端に無ければ 0）。角では斜めに動く
 Vector2 edgeScrollDirection(const CameraControlInput& input);
 
-// 次のフレームのカメラの注視点（画面の中央に映すワールド座標）。注視点はステージの範囲 bounds の中に収める
+/// 次のフレームのカメラの注視点（画面の中央に映すワールド座標）。注視点はステージの範囲 bounds の中に収める
+/// @param current 今の注視点
+/// @param scrollSpeed 画面の端でカメラが動く速さ（ゲーム内の距離 / 秒）
+/// @return 自キャラに固定・Space を押している時は自キャラの位置。固定しない時は、端に応じて動かした位置
 Vector2 nextCameraTarget(CameraMode mode, Vector2 current, Vector2 playerPos, const CameraControlInput& input,
                          float scrollSpeed, Rectangle bounds, float dt);
 

@@ -17,14 +17,16 @@ namespace {
 // 対象指定スキルで、カーソルと敵の当たり判定の間にこの距離までの隙間があっても対象にする
 constexpr float kUnitPickTolerance = 60.0f;
 
+/// キャラのそのキーのスキル。キャラの設定が無い・そのキーにスキルが無ければ nullptr
 const SkillDef* skillOf(const World& world, const Unit& caster, SkillSlot slot) {
     const CharacterDef* def = world.characterOf(caster);
     return def ? def->skill(slot) : nullptr;
 }
 
+/// 対象（敵・設置物）を選ぶ必要がある取り方か（対象指定・設置物指定）
 bool needsTarget(Targeting targeting) { return targeting == Targeting::Unit || targeting == Targeting::Prop; }
 
-// 対象（敵・設置物）の現在位置。対象が消えていれば nullopt
+/// 対象（敵・設置物）の現在位置。対象が消えていれば nullopt
 std::optional<Vector2> targetPosition(World& world, const CastRequest& request) {
     if (request.propKind == PropTargetKind::Dove || request.propKind == PropTargetKind::Hat) {
         const Prop* prop = world.findProp(request.propId);
@@ -36,7 +38,10 @@ std::optional<Vector2> targetPosition(World& world, const CastRequest& request) 
     return std::nullopt;
 }
 
-// 設置物などを指定するスキル（エマの R）の対象を、カーソルに最も近いものから選ぶ
+/// 設置物などを指定するスキル（エマの R）の対象を、カーソルに最も近いものから選ぶ。
+/// 選べるのは、params の targetKinds に書いた種類（鳩・帽子・兎）で、カーソルから pickRadius 以内のもの
+/// @param request 選んだ対象を書き込む（propKind・propId・targetUnit）
+/// @return 対象を選べたか
 bool resolvePropTarget(World& world, const Unit& caster, const SkillDef& def, CastRequest& request) {
     const float pickRadius = def.numOr("pickRadius", 150.0f);
     const std::vector<std::string> kinds = def.texts("targetKinds");
@@ -71,7 +76,8 @@ bool resolvePropTarget(World& world, const Unit& caster, const SkillDef& def, Ca
     return request.propKind != PropTargetKind::None;
 }
 
-// スキルの処理を実行する（詠唱が終わった時、または詠唱中でもすぐ使えるスキルを使った時）
+/// スキルの処理（handler）を実行する（詠唱が終わった時、または詠唱中でもすぐ使えるスキルを使った時）。
+/// 発動の番号を振って記録を始め、ヒット率の集計・ブッシュから見えるようにする処理も行う
 void runSkill(World& world, Unit& caster, const SkillDef& def, const CastRequest& request) {
     const skills::SkillHandler handler = skills::findHandler(def.handler);
     if (!handler) {
@@ -94,7 +100,7 @@ void runSkill(World& world, Unit& caster, const SkillDef& def, const CastRequest
     world.endCastIfIdle(castId);
 }
 
-// 今の詠唱を中断せずに、すぐ使えるスキルか（エマの Q の溜めの間の R など。詠唱時間 0 のスキルだけ）
+/// 今の詠唱を中断せずに、すぐ使えるスキルか（エマの Q の溜めの間の R など。詠唱時間 0 のスキルだけ）
 bool usableDuringCurrentCast(const World& world, const Unit& caster, const SkillDef& requested) {
     if (!caster.cast.active || requested.castTime > 0.0f) return false;
     const SkillDef* current = skillOf(world, caster, caster.cast.request.slot);
@@ -103,6 +109,7 @@ bool usableDuringCurrentCast(const World& world, const Unit& caster, const Skill
     return std::find(allowed.begin(), allowed.end(), requested.slot) != allowed.end();
 }
 
+/// 詠唱を終えてスキルを発動する。詠唱中に予約されていたスキルがあれば、続けて発動を依頼する
 void finishCast(World& world, Unit& caster) {
     const CastRequest request = caster.cast.request;
     caster.cast = CastState{};
@@ -118,6 +125,7 @@ void finishCast(World& world, Unit& caster) {
     }
 }
 
+/// 詠唱を始める（クールダウンを入れ、対象の方を向く）。詠唱時間が 0 なら、すぐに発動する
 void beginCast(World& world, Unit& caster, const SkillDef& def, const CastRequest& request) {
     caster.cooldowns[static_cast<std::size_t>(index(def.slot))] = def.cooldown * world.cooldownScaleFor(caster);
     caster.cast = CastState{true, request, def.castTime, def.castTime};

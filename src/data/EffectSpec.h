@@ -25,11 +25,16 @@ struct EffectSpec {
     std::string tag;        // 印の名前
 };
 
-std::string_view toString(EffectType type);     // 設定ファイルでの表記（"slow" など）
-std::string_view displayName(EffectType type);  // 画面表示用（"スロウ" など）
+/// 効果の種類の、設定ファイルでの表記（"slow" など）
+std::string_view toString(EffectType type);
+/// 効果の種類の、画面に出す名前（"スロウ" など）
+std::string_view displayName(EffectType type);
+/// 設定ファイルの表記（"slow" / "snare" / "stun" / "knockup" / "polymorph" / "mark"）を効果の種類にする
+/// @return 読めたかどうか（知らない表記なら false で、out は変えない）
 bool effectTypeFromString(std::string_view text, EffectType& out);
 
-// JSON の配列から効果の一覧を作る。おかしな要素は警告ログを出して飛ばす
+/// JSON の配列から効果の一覧を作る。おかしな要素は警告ログを出して飛ばす
+/// @param context 警告ログに出す場所の説明（どのキャラのどのスキルか）
 std::vector<EffectSpec> parseEffects(const nlohmann::json& value, std::string_view context);
 
 }  // namespace moba

@@ -13,6 +13,7 @@ namespace moba {
 struct HitCount {
     int casts = 0;
     int hits = 0;
+    /// 命中率（0〜1）。1 回も発動していなければ 0
     float rate() const { return casts > 0 ? static_cast<float>(hits) / static_cast<float>(casts) : 0.0f; }
 };
 
@@ -22,16 +23,22 @@ struct DodgeCount {
     int total = 0;   // 結果が確定した発動の数
     int dodged = 0;  // 1 つも当たらなかった発動
     int hit = 0;     // 当たった発動
+    /// ドッジ率（0〜1）。確定した発動が無ければ 0
     float rate() const { return total > 0 ? static_cast<float>(dodged) / static_cast<float>(total) : 0.0f; }
 };
 
 class CastStats {
 public:
-    void recordCast(int castId, SkillSlot slot);  // 集計対象のスキルを発動した
-    void recordHit(int castId);                   // その発動が当たった（集計対象外の castId は無視する）
+    /// 集計対象のスキル（countsForHitRate が true）を発動したことを記録する
+    void recordCast(int castId, SkillSlot slot);
+    /// その発動が当たったことを記録する。同じ発動の 2 回目以降の命中と、集計対象外の castId は無視する
+    void recordHit(int castId);
+    /// 集計を 0 に戻す（デバッグパネルの「集計をリセット」）
     void reset();
 
+    /// キーごとの発動数と命中数
     const HitCount& slot(SkillSlot s) const { return slots_[static_cast<std::size_t>(index(s))]; }
+    /// すべてのキーを合わせた発動数と命中数
     HitCount total() const;
 
 private:

@@ -18,6 +18,7 @@
 namespace moba::platform {
 namespace {
 
+/// UTF-8 の文字列を、Windows の API に渡す UTF-16 の文字列にする
 std::wstring widen(std::string_view utf8) {
     if (utf8.empty()) return {};
     const int size = static_cast<int>(utf8.size());
@@ -27,6 +28,8 @@ std::wstring widen(std::string_view utf8) {
     return result;
 }
 
+/// 未処理の例外（アクセス違反など）でクラッシュする時に Windows から呼ばれる。例外の種類と場所をログに残す
+/// @return EXCEPTION_CONTINUE_SEARCH（ログを書いた後は、通常どおりクラッシュさせる）
 LONG WINAPI onUnhandledException(EXCEPTION_POINTERS* info) {
     const EXCEPTION_RECORD* record = info ? info->ExceptionRecord : nullptr;
     const unsigned long code = record ? record->ExceptionCode : 0;
@@ -39,6 +42,7 @@ LONG WINAPI onUnhandledException(EXCEPTION_POINTERS* info) {
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+/// std::terminate が呼ばれた時（捕まえられなかった C++ の例外など）に呼ばれる。理由をログに残して終了する
 void onTerminate() {
     std::string what = "不明";
     if (std::exception_ptr current = std::current_exception()) {

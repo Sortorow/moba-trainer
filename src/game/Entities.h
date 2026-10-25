@@ -19,6 +19,8 @@ struct Unit;
 // 弾
 // ---------------------------------------------------------------------------
 enum class ProjectileVisual { Orb, Ring, Crescent, Card, Beam, Bolt, Dove };
+/// 設定ファイルの "visual"（"orb" / "ring" / "crescent" / "card" / "beam" / "bolt" / "dove"）を弾の見た目にする。
+/// 知らない表記なら Orb（球）
 ProjectileVisual projectileVisualFromString(std::string_view text);
 
 struct Projectile {
@@ -50,6 +52,7 @@ struct Projectile {
     std::function<void(World&, Projectile&)> onExpire;  // 射程の端まで飛んだ時
     bool alive = true;
 
+    /// この相手に既に当たったか（貫通する弾が、同じ相手に 2 回当たらないように）
     bool hasHit(EntityId unit) const { return std::find(hitUnits.begin(), hitUnits.end(), unit) != hitUnits.end(); }
 };
 
@@ -63,6 +66,8 @@ enum class AreaVisual {
     ThrownHat,  // 帽子が飛んでいく
     Caltrops,   // 鉄菱が飛んでいき、着地後は範囲に残る
 };
+/// 設定ファイルの "visual"（"explosion" / "telegraph" / "thrownHat" / "caltrops"）を範囲の見た目にする。
+/// 知らない表記なら Explosion
 AreaVisual areaVisualFromString(std::string_view text);
 
 struct AreaEffect {
@@ -90,6 +95,7 @@ struct AreaEffect {
     std::function<void(World&, AreaEffect&, Unit&)> whileInside;  // 範囲に残る効果で、中にいる間ずっと
     bool alive = true;
 
+    /// この相手に既に当たったか（範囲に残る効果では、一度でも入ったことがあるか）
     bool hasHit(EntityId unit) const { return std::find(hitUnits.begin(), hitUnits.end(), unit) != hitUnits.end(); }
 };
 
@@ -97,6 +103,7 @@ struct AreaEffect {
 // 設置物（エマの鳩・帽子）
 // ---------------------------------------------------------------------------
 enum class PropKind { Dove, Hat };
+/// 設置物の、ログに出す名前（「鳩」/「帽子」）
 std::string_view displayName(PropKind kind);
 
 struct Prop {
@@ -126,10 +133,15 @@ struct Vfx {
     std::string text;
 };
 
+/// 範囲が発動した時の、円が光って消える演出
 Vfx makeBurstVfx(Vector2 pos, float radius, Color color, float duration = 0.35f);
+/// 輪が広がりながら消える演出（命中・ダウンなど）
 Vfx makeRingVfx(Vector2 pos, float radius, Color color, float duration = 0.4f);
+/// ワープの演出（移動前と移動後の輪と、その間の線）
 Vfx makeTeleportVfx(Vector2 from, Vector2 to, Color color);
+/// 右クリックした地点に出る、縮んで消える輪
 Vfx makeClickMarkerVfx(Vector2 pos);
+/// 文字の演出（「起爆!」「ダウン!」など。少しずつ上へ浮かんで消える。描くのは Hud.cpp）
 Vfx makeTextVfx(Vector2 pos, std::string text, Color color);
 
 }  // namespace moba

@@ -16,6 +16,7 @@ using namespace moba;
 
 namespace {
 
+/// 長方形の形を作る（左上の x, y と幅・高さ）
 Shape rect(float x, float y, float w, float h) {
     Shape s;
     s.kind = Shape::Kind::Rect;
@@ -23,6 +24,7 @@ Shape rect(float x, float y, float w, float h) {
     return s;
 }
 
+/// 円の形を作る（中心と半径）
 Shape circle(float x, float y, float r) {
     Shape s;
     s.kind = Shape::Kind::Circle;
@@ -31,6 +33,9 @@ Shape circle(float x, float y, float r) {
     return s;
 }
 
+/// 2000 × 2000 のテスト用ステージを作る
+/// @param walls 壁（通れない場所）
+/// @param bushes ブッシュ
 StageDef makeStage(std::vector<Shape> walls, std::vector<Shape> bushes = {}) {
     StageDef stage;
     stage.id = "test";
@@ -43,11 +48,15 @@ StageDef makeStage(std::vector<Shape> walls, std::vector<Shape> bushes = {}) {
 // 地形のあるステージで、キャラを置いて動かす
 class StageFixture {
 public:
+    /// data フォルダの設定を読み込み、stage の地形で World を作る
     explicit StageFixture(const StageDef& stage) : data_(makeAppPaths(MOBA_SOURCE_DIR)) {
         data_.loadAll();
         world_ = std::make_unique<World>(data_, Terrain(stage));
     }
 
+    /// 半径 50・移動速度 400 のキャラを置く
+    /// @param characterId キャラの設定の ID（スキルを使わせる時だけ指定する）
+    /// @return キャラの通し番号
     EntityId addUnit(Team team, Vector2 pos, std::string_view characterId = {}) {
         Unit unit;
         unit.team = team;
@@ -59,10 +68,12 @@ public:
         return world_->addUnit(unit);
     }
 
+    /// テストで動かす World
     World& world() { return *world_; }
+    /// 通し番号のキャラ（いることが分かっている時に使う）
     Unit& unit(EntityId id) { return *world_->findUnit(id); }
 
-    // 動かしながら、キャラが障害物にめり込まなかったかを確かめる
+    /// 動かしながら、キャラが障害物にめり込まなかったかを確かめる
     bool runWithoutOverlap(float seconds) {
         bool ok = true;
         const int steps = static_cast<int>(seconds * 120.0f);

@@ -16,13 +16,17 @@ namespace {
 
 using nlohmann::json;
 
+/// j[key] の [x, y] を座標として読む。書かれていない・2 つの数でなければ nullopt
 std::optional<Vector2> pointFromJson(const json& j, std::string_view key) {
     const auto it = j.find(std::string(key));
     if (it == j.end() || !it->is_array() || it->size() != 2) return std::nullopt;
     return Vector2{(*it)[0].get<float>(), (*it)[1].get<float>()};
 }
 
-// プリセットに書いた radius / moveSpeed / color を、ダミーごとの値の既定値にする
+/// ダミー 1 体の設定を読む。プリセットに書いた radius / moveSpeed / color を、ダミーごとの値の既定値にする
+/// @param defaults プリセットの値（ダミーに書かれていない項目に使う）
+/// @param index プリセットの中で何体目か（0 始まり。名前を省略した時の「ダミー1」などに使う）
+/// @param warnings 読めたがおかしかった項目の説明を足す
 DummyDef parseDummy(const json& j, const DummyDef& defaults, std::size_t index, const std::string& presetName,
                     std::vector<std::string>& warnings) {
     DummyDef dummy = defaults;
@@ -40,8 +44,10 @@ DummyDef parseDummy(const json& j, const DummyDef& defaults, std::size_t index, 
     return dummy;
 }
 
+/// 2 つの座標がまったく同じか
 bool samePoint(Vector2 a, Vector2 b) { return a.x == b.x && a.y == b.y; }
 
+/// 2 体のダミーの設定（名前・位置・往復先・大きさ・速さ・色）がすべて同じか
 bool sameDummy(const DummyDef& a, const DummyDef& b) {
     const bool samePatrol =
         a.patrolTo.has_value() == b.patrolTo.has_value() && (!a.patrolTo || samePoint(*a.patrolTo, *b.patrolTo));
@@ -50,6 +56,7 @@ bool sameDummy(const DummyDef& a, const DummyDef& b) {
            a.color.a == b.color.a;
 }
 
+/// 2 つのプリセット（名前・説明・すべてのダミー）が同じか
 bool samePreset(const SandboxPreset& a, const SandboxPreset& b) {
     return a.name == b.name && a.description == b.description &&
            std::equal(a.dummies.begin(), a.dummies.end(), b.dummies.begin(), b.dummies.end(), sameDummy);

@@ -18,6 +18,7 @@ namespace {
 
 class Fixture {
 public:
+    /// data フォルダの設定を読み込み、障害物のない World に、指定したキャラの自キャラを (0, 0) に置く
     explicit Fixture(std::string_view characterId) : data_(makeAppPaths(MOBA_SOURCE_DIR)) {
         data_.loadAll();
         world_ = std::make_unique<World>(data_, kSandboxBounds);
@@ -32,6 +33,8 @@ public:
         playerId_ = world_->addUnit(player);
     }
 
+    /// 敵の陣営のダミー（半径 65・移動速度 300）を置く
+    /// @return ダミーの通し番号
     EntityId addDummy(Vector2 pos) {
         Unit dummy;
         dummy.team = Team::Enemy;
@@ -42,22 +45,29 @@ public:
         return world_->addUnit(dummy);
     }
 
+    /// テストで動かす World
     World& world() { return *world_; }
+    /// 自キャラ
     Unit& player() { return *world_->findUnit(playerId_); }
+    /// 通し番号のキャラ（いることが分かっている時に使う）
     Unit& unit(EntityId id) { return *world_->findUnit(id); }
 
+    /// 自キャラに、カーソルを cursor に置いてスキルのキーを押させる
     void cast(SkillSlot slot, Vector2 cursor) { casting::requestCast(*world_, player(), CastRequest{slot, cursor}); }
+    /// 自キャラのクールダウンをすべて 0 にする
     void resetCooldowns() { player().cooldowns = {}; }
+    /// 自キャラのそのキーのクールダウンの残り（秒）
     float cooldown(SkillSlot slot) { return player().cooldowns[static_cast<std::size_t>(index(slot))]; }
 
-    // 設定ファイルのスキル定義（数値を調整してもテストが壊れないよう、期待値はここから計算する）
+    /// 設定ファイルのスキル定義（数値を調整してもテストが壊れないよう、期待値はここから計算する）
     const SkillDef& skill(SkillSlot slot) { return *data_.character(player().characterId)->skill(slot); }
-    // スキルを使ってから、弾が distance だけ進むまでの時間
+    /// スキルを使ってから、弾が distance だけ進むまでの時間
     float timeToReach(SkillSlot slot, float distance) {
         const SkillDef& def = skill(slot);
         return def.castTime + distance / def.numOr("speed", 1.0f);
     }
 
+    /// その種類の設置物（消えていないもの）を 1 つ探す。無ければ nullptr
     const Prop* findProp(PropKind kind) {
         for (const Prop& prop : world_->props()) {
             if (prop.alive && prop.kind == kind) return &prop;
@@ -65,6 +75,7 @@ public:
         return nullptr;
     }
 
+    /// World を seconds 秒進める（ゲームと同じ 1/120 秒刻み）
     void run(float seconds) {
         const int steps = static_cast<int>(seconds * 120.0f);
         for (int i = 0; i < steps; ++i) world_->update(1.0f / 120.0f);

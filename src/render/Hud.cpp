@@ -20,11 +20,13 @@ namespace {
 
 using ui::px;
 
+/// raylib の色を Dear ImGui の色にする
+/// @param alpha 不透明度に掛ける倍率（0〜1）
 ImU32 toImColor(Color c, float alpha = 1.0f) {
     return IM_COL32(c.r, c.g, c.b, static_cast<int>(static_cast<float>(c.a) * alpha));
 }
 
-// 中央揃えで文字を描く（影付き）。size は倍率を掛ける前の大きさ
+/// 中央揃えで文字を描く（影付き）。size は倍率を掛ける前の大きさ
 void drawCenteredText(ImDrawList* dl, ImVec2 center, float size, ImU32 color, const std::string& text) {
     ImFont* font = ImGui::GetFont();
     const float scaled = px(size);
@@ -35,12 +37,13 @@ void drawCenteredText(ImDrawList* dl, ImVec2 center, float size, ImU32 color, co
     dl->AddText(font, scaled, pos, color, text.c_str());
 }
 
+/// ワールド座標を、画面上の位置（ピクセル）にする
 ImVec2 toScreen(Vector2 world, const Camera2D& camera) {
     const Vector2 s = GetWorldToScreen2D(world, camera);
     return ImVec2{s.x, s.y};
 }
 
-// HP ゲージ（maxHp 個の区切り）。戻り値はゲージの下端の y 座標
+/// HP ゲージ（maxHp 個の区切り）。戻り値はゲージの下端の y 座標
 float drawHpBar(ImDrawList* dl, const Unit& unit, ImVec2 topCenter) {
     const float segment = px(16.0f);
     const float height = px(7.0f);
@@ -57,7 +60,7 @@ float drawHpBar(ImDrawList* dl, const Unit& unit, ImVec2 topCenter) {
     return topCenter.y + height;
 }
 
-// キャラ名・HP・状態異常の残り時間
+/// キャラ名・HP・状態異常の残り時間
 void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) {
     for (const Unit& unit : world.units()) {
         if (!world.canSee(Team::Player, unit)) continue;  // ブッシュに隠れている敵
@@ -94,8 +97,8 @@ void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) 
     }
 }
 
-// 画面の外にいる敵の方向を、画面の端に矢印で示す。
-// カメラを固定しない時は自キャラも画面の外に出ることがあるので、自キャラも別の色で示す
+/// 画面の外にいる敵の方向を、画面の端に矢印で示す。
+/// カメラを固定しない時は自キャラも画面の外に出ることがあるので、自キャラも別の色で示す
 void drawOffscreenIndicators(ImDrawList* dl, const World& world, const Camera2D& camera) {
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     const Vector2 center{display.x * 0.5f, display.y * 0.5f};
@@ -125,7 +128,7 @@ void drawOffscreenIndicators(ImDrawList* dl, const World& world, const Camera2D&
     }
 }
 
-// 画面下中央のスキルバー（クールダウン表示付き）と、詠唱バー
+/// 画面下中央のスキルバー（クールダウン表示付き）と、詠唱バー
 void drawSkillBar(ImDrawList* dl, const World& world) {
     const Unit* player = world.player();
     if (!player) return;
@@ -197,7 +200,7 @@ void drawSkillBar(ImDrawList* dl, const World& world) {
     }
 }
 
-// スキルドッジ: 画面上部に残り時間・ドッジ率・被弾・ダウン
+/// スキルドッジ: 画面上部に残り時間・ドッジ率・被弾・ダウン
 void drawDodgePanel(ImDrawList* dl, const Match& match) {
     const World& world = match.world();
     const DodgeCount& dodge = world.dodge();
@@ -219,6 +222,7 @@ void drawDodgePanel(ImDrawList* dl, const Match& match) {
                      std::format("ドッジ率 {}　　被弾 {}　　ダウン {}", rate, dodge.hit, player ? player->deaths : 0));
 }
 
+/// 画面左上の操作説明（今のカメラも出す）
 void drawHelp(ImDrawList* dl, CameraMode cameraMode) {
     const std::string help = std::format(
         "右クリック: 移動    Q/W/E/R/D/F: スキル    Y: カメラ（今: {}）    Space: 自キャラを映す    "

@@ -24,9 +24,10 @@ constexpr ScalePreset kCooldownPresets[] = {
     {0.25f, "4 分の 1（×0.25）"},
 };
 
+/// 2 つの倍率がほぼ同じか（小数の誤差を無視して比べる）
 bool nearlyEqual(float a, float b) { return std::fabs(a - b) < 0.001f; }
 
-// 標準モードの倍率を選ぶ。設定ファイルの値がプリセットに無ければ、それも選択肢に加える
+/// 標準モードの倍率を選ぶ。設定ファイルの値がプリセットに無ければ、それも選択肢に加える
 void drawCooldownScaleCombo(float& scale, float settingsScale) {
     std::string current = std::format("×{:.2f}", scale);
     for (const ScalePreset& preset : kCooldownPresets) {
@@ -46,6 +47,7 @@ void drawCooldownScaleCombo(float& scale, float settingsScale) {
     ImGui::EndCombo();
 }
 
+/// スキルドッジの設定（敵の数・敵の賢さ・制限時間）と、登場する敵の一覧を表示する
 void drawSkillDodgeOptions(MatchConfig& config, const GameData& data) {
     ImGui::SeparatorText("スキルドッジの設定");
     ImGui::SliderInt("敵の数", &config.enemyCount, 1, 5, "%d 体");

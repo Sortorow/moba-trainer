@@ -13,6 +13,8 @@ namespace {
 
 constexpr Color kDoveColor{245, 245, 255, 255};
 
+/// スキルが不発だった時（R の対象が消えていた時など）に、クールダウンを 0 に戻してログを出す
+/// @param reason ログに出す不発の理由
 void cancelAndRefund(SkillContext& ctx, std::string_view reason) {
     ctx.caster.cooldowns[static_cast<std::size_t>(index(ctx.def.slot))] = 0.0f;
     log::info("skill", "[{}] {} は不発（{}）。クールダウンを戻します", toString(ctx.def.slot), ctx.def.name, reason);
@@ -20,12 +22,12 @@ void cancelAndRefund(SkillContext& ctx, std::string_view reason) {
 
 }  // namespace
 
-// Q: カードを投げ、自分の位置に鳩を残す。
-//    鳩がいれば（どれだけ離れていても）、その鳩もカードになって狙った地点へ飛ぶ。
-//    エマ本体のカードが当たると、Q のクールダウンが短くなる。両方のカードが同じ敵に当たると追加効果。
-// params: speed, width, visual, color, cooldownRefundOnHit（エマのカード）,
-//         doveLifetime, doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）, doubleHitEffects,
-//         doveCardDrawOffsetForward, doveCardDrawOffsetSide（溜めの間に R で鳩と入れ替わった時の、鳩のカードの見た目のずれ）
+/// Q: カードを投げ、自分の位置に鳩を残す。
+///    鳩がいれば（どれだけ離れていても）、その鳩もカードになって狙った地点へ飛ぶ。
+///    エマ本体のカードが当たると、Q のクールダウンが短くなる。両方のカードが同じ敵に当たると追加効果。
+/// params: speed, width, visual, color, cooldownRefundOnHit（エマのカード）,
+///         doveLifetime, doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）, doubleHitEffects,
+///         doveCardDrawOffsetForward, doveCardDrawOffsetSide（溜めの間に R で鳩と入れ替わった時の、鳩のカードの見た目のずれ）
 void handleEmmaQ(SkillContext& ctx) {
     World& world = ctx.world;
     Unit& emma = ctx.caster;
@@ -87,9 +89,9 @@ void handleEmmaQ(SkillContext& ctx) {
     world.spawnProp(newDove);
 }
 
-// W: 指定した地点が少し遅れて爆発し（ブランドの W のように予告円が出る）、その場に帽子が残る（R の対象）。
-//    敵に当たると、W のクールダウンが短くなる。
-// params: delay（爆発までの時間）, radius, hatLifetime, color, onHit, cooldownRefundOnHit
+/// W: 指定した地点が少し遅れて爆発し（ブランドの W のように予告円が出る）、その場に帽子が残る（R の対象）。
+///    敵に当たると、W のクールダウンが短くなる。
+/// params: delay（爆発までの時間）, radius, hatLifetime, color, onHit, cooldownRefundOnHit
 void handleEmmaW(SkillContext& ctx) {
     AreaEffect a = makeGroundBlast(ctx, aimPoint(ctx));
     const float hatLifetime = ctx.def.num("hatLifetime", 6.0f);
@@ -108,12 +110,12 @@ void handleEmmaW(SkillContext& ctx) {
     ctx.world.spawnArea(std::move(a));
 }
 
-// R: 鳩・帽子・兎（変身させた敵）のいずれかを指定して、その位置へ瞬間移動し、対象ごとの追加効果を出す
-//   鳩: エマと鳩の位置が入れ替わる。鳩はエマの元の位置へ飛び、通り道の敵に効果（拘束）。鳩は残り時間を戻して残る
-//   帽子: エマと帽子の位置が入れ替わる。帽子はエマの元の位置で爆発し、範囲の敵に効果（打ち上げ）。帽子は残り時間を戻して残る
-//   兎: 兎の位置へ移動し、兎の周りの敵に効果（変身）
-// params: pickRadius, targetKinds, dovePathWidth, doveSpeed, doveOnHit, hatFlightTime, hatRadius, hatOnHit,
-//         rabbitRadius, rabbitOnHit, color
+/// R: 鳩・帽子・兎（変身させた敵）のいずれかを指定して、その位置へ瞬間移動し、対象ごとの追加効果を出す
+///   鳩: エマと鳩の位置が入れ替わる。鳩はエマの元の位置へ飛び、通り道の敵に効果（拘束）。鳩は残り時間を戻して残る
+///   帽子: エマと帽子の位置が入れ替わる。帽子はエマの元の位置で爆発し、範囲の敵に効果（打ち上げ）。帽子は残り時間を戻して残る
+///   兎: 兎の位置へ移動し、兎の周りの敵に効果（変身）
+/// params: pickRadius, targetKinds, dovePathWidth, doveSpeed, doveOnHit, hatFlightTime, hatRadius, hatOnHit,
+///         rabbitRadius, rabbitOnHit, color
 void handleEmmaR(SkillContext& ctx) {
     World& world = ctx.world;
     Unit& emma = ctx.caster;

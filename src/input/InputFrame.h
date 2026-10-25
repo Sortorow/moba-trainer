@@ -28,8 +28,8 @@ struct InputFrame {
     bool resetCooldownsRequested = false;
     bool exitRequested = false;
 
-    // 「押した瞬間」の入力だけを、後から来た入力 newer の分も含めてまとめる
-    // （ゲームの更新が走らなかったフレームの入力を取りこぼさないため）
+    /// 「押した瞬間」の入力だけを、後から来た入力 newer の分も含めてまとめる
+    /// （ゲームの更新が走らなかったフレームの入力を取りこぼさないため）。カーソルと押している状態は newer にする
     void mergeNewer(const InputFrame& newer) {
         cursorWorld = newer.cursorWorld;
         rightDown = newer.rightDown;
@@ -38,7 +38,7 @@ struct InputFrame {
             skillPressed[i] = skillPressed[i] || newer.skillPressed[i];
     }
 
-    // 「押した瞬間」の入力を消す（1 回の更新で使い終わった後）
+    /// 「押した瞬間」の入力を消す（1 回の更新で使い終わった後）
     void clearPressed() {
         rightPressed = false;
         skillPressed = {};

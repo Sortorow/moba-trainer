@@ -9,6 +9,8 @@
 #include "core/Paths.h"
 #include "core/Platform.h"
 
+/// プログラムの入口。data フォルダを探し、ログとクラッシュ時の記録を準備し、コマンドライン引数を読んでから App を動かす
+/// @return 終了コード（0 = 正常。data フォルダが無い・引数が読めない時は 1）
 int main(int argc, char** argv) {
     using namespace moba;
 

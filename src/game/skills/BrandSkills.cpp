@@ -35,11 +35,13 @@ struct BounceState {
     std::map<EntityId, float> lastHitTime;
 };
 
-// 次の跳ね返り先を選ぶ。優先順位（数字が小さいほど優先。同じ順位なら近い方）:
-//   1. まだ一度も当たっていない敵
-//   2. 直近 recentWindow 秒以内に当たっていない敵
-//   3. 自分
-//   4. 当たった回数が上限に達していない敵（他に跳ね返り先が無い時の最後の手段）
+/// 次の跳ね返り先を選ぶ（current から bounceRange 以内）。優先順位（数字が小さいほど優先。同じ順位なら近い方）:
+///   1. まだ一度も当たっていない敵
+///   2. 直近 recentWindow 秒以内に当たっていない敵
+///   3. 自分
+///   4. 当たった回数が上限に達していない敵（他に跳ね返り先が無い時の最後の手段）
+/// @param current 今、火炎弾が当たった相手
+/// @return 跳ね返り先の通し番号。どこにも跳ね返れなければ kInvalidId
 EntityId chooseNextTarget(World& world, const BounceParams& params, const BounceState& state, const Unit& current) {
     const Unit* best = nullptr;
     int bestRank = std::numeric_limits<int>::max();
@@ -73,6 +75,9 @@ EntityId chooseNextTarget(World& world, const BounceParams& params, const Bounce
     return best ? best->id : kInvalidId;
 }
 
+/// from から対象 targetId へ向かう火炎弾（追尾弾）を出す。当たったら、残りの跳ね返り回数があれば次の対象へまた出す
+/// @param params 1 回の発動で共有する設定
+/// @param state 1 回の発動で共有する途中経過（残りの跳ね返り回数・当たった回数）
 void spawnBounce(World& world, std::shared_ptr<const BounceParams> params, std::shared_ptr<BounceState> state,
                  Vector2 from, EntityId targetId) {
     Projectile p;
@@ -108,8 +113,8 @@ void spawnBounce(World& world, std::shared_ptr<const BounceParams> params, std::
 
 }  // namespace
 
-// R: 対象の敵へ火炎弾を放つ。火炎弾は敵と自分の間を跳ね返る
-// params: speed, width, color, bounces（跳ね返る回数）, maxHitsPerTarget, bounceRange, recentWindow, onHit
+/// R: 対象の敵へ火炎弾を放つ。火炎弾は敵と自分の間を跳ね返る
+/// params: speed, width, color, bounces（跳ね返る回数）, maxHitsPerTarget, bounceRange, recentWindow, onHit
 void handleBrandR(SkillContext& ctx) {
     Unit* target = ctx.world.findUnit(ctx.request.targetUnit);
     if (!target || !target->alive) {
