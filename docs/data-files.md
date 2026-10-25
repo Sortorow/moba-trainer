@@ -159,7 +159,7 @@ data/
 | `usedByEnemy` | `false` | スキルドッジで、このキャラが敵として出た時に使うか。1 つでも `true` があるキャラが、敵として登場する | `src/game/ai/EnemyAI.cpp`（使うスキルの選択）<br>`src/data/GameData.cpp`（敵として出られるキャラの一覧 → `src/game/Match.cpp` が敵を選ぶ、`src/ui/MainMenu.cpp` が一覧を表示） |
 | `aiPriority` | `1.0` | 敵 AI がスキルを選ぶ時の重み（大きいほど選ばれやすい） | `src/game/ai/EnemyAI.cpp` |
 | `usableDuringCast` | なし | このスキルの詠唱中でも、詠唱を中断せずにすぐ使えるスキルのキー（例: `["R"]`）。詠唱時間 0 のスキルだけ | `src/game/SkillCasting.cpp` |
-| `params` | `{}` | handler ごとの個別の数値（[6 章](#6-handler-ごとの-params-一覧)） | `src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`（各 handler の処理）<br>`src/game/SkillCasting.cpp`（`pickRadius`・`targetKinds`）<br>`src/game/ai/Aim.cpp`（`speed`・`width`・`radius`・`delay`・`flightTime`） |
+| `params` | `{}` | handler ごとの個別の数値（[6 章](#6-handler-ごとの-params-一覧)） | `src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`（各 handler の処理）<br>`src/game/SkillCasting.cpp`（`pickRadius`・`targetKinds`）<br>`src/game/ai/Aim.cpp`（`speed`・`width`・`radius`・`delay`・`flightTime`）<br>`src/game/skills/EmmaSkills.cpp` → `src/render/Renderer.cpp`（`doveCardDrawOffsetForward`・`doveCardDrawOffsetSide`） |
 
 ### targeting の値
 
@@ -409,7 +409,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `Renderer.cpp` / `Renderer.h` | 当たり判定の円の表示（`showHitboxes`）、キャラの大きさと色 | settings、characters |
+| `Renderer.cpp` / `Renderer.h` | 当たり判定の円の表示（`showHitboxes`）、キャラの大きさと色。弾の見た目のずれ（エマの `doveCardDrawOffsetForward` / `doveCardDrawOffsetSide`。値は `EmmaSkills.cpp` が弾に設定する） | settings、characters |
 | `Hud.cpp` / `Hud.h` | スキルバー（スキル名・クールダウン・使えないスキルを暗く表示）、詠唱バー、キャラ名の表示 | characters |
 
 ### src/ui/

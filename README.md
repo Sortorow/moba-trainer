@@ -21,6 +21,9 @@ build.bat debug      # Debug ビルド   → build\debug\moba_trainer.exe
 必要なもの: Visual Studio Build Tools（C++ によるデスクトップ開発）。
 ライブラリ（raylib / Dear ImGui / ImPlot / nlohmann/json / doctest）は初回ビルド時に自動で取得します。
 
+C++ のコードの書式は [.clang-format](.clang-format) で決めています。VSCode では `Shift + Alt + F` で整形できます。
+コマンドで整形する場合は、clang-format（`pip install clang-format` で入る）を使います。
+
 ## 操作
 
 | 操作 | 内容 |
