@@ -96,74 +96,105 @@
   ],
 
   // ===== スキルショットの的 =====
-  // 的は 1 体で、スキルを撃たない。自キャラとの距離を保ちながら動き回り、賢さに応じて自キャラのスキルを避ける
+  // 的は 1 体で、スキルを撃たない。いくつかの動き方のパターンを組み合わせて動き回り、賢さに応じて自キャラのスキルを避ける
   "skillShot": {
-    // 的の当たり判定の半径と移動速度（どのキャラで遊んでも同じ条件になるよう、キャラ設定とは別に決める）
-    "targetRadius": 65,
-    "targetMoveSpeed": 350,
+    // 的の大きさの選択肢（メニューで選ぶ）。練習場のダミーのプリセット（小さい的 / 標準 / 大きい的）と同じ段階
+    "sizes": [
+      { "name": "小さい", "radius": 40 },
+      { "name": "標準", "radius": 65 },
+      { "name": "大きい", "radius": 100 }
+    ],
 
-    // 自キャラとの距離をこの範囲 [最小, 最大] に保つ（移動先を決め直すたびに、この範囲の中から選ぶ）
-    "distance": [550, 850],
+    // 的の移動速度の選択肢（メニューで選ぶ）
+    "moveSpeeds": [340, 375, 385, 400],
 
-    // 自キャラから上下（画面の縦方向）に離れる距離の上限。画面は横より縦が狭く、
-    // 上下に離れすぎると、画面上部の残り時間や下部のスキルの表示に的が隠れるため
-    "maxVerticalOffset": 400,
+    // 自キャラとの距離。maxDistance（1100 = 11m）より離れず、minDistance より近づかない
+    "minDistance": 300,
+    "maxDistance": 1100,
 
     // 避ける時に、弾の幅・範囲の端から、さらにこの距離だけ離れる
     "dodgeMargin": 25,
 
-    // 賢さ 1〜5 の設定（上から順に 1, 2, 3, 4, 5）
-    //   reactionTime  自キャラの弾・範囲が出てから、気づいて避け始めるまでの遅れ（秒）
-    //   dodgeChance   気づいた弾・範囲を避けようとする確率（0〜1）。0 なら避けずに動き回るだけ
-    //   readCast      true なら、自キャラの詠唱（構え）を見た時点で、弾・範囲が出る前に避け始める
-    //   moveInterval  移動先を決め直す間隔 [最小, 最大]（秒）。短いほど、動きを読みにくい
-    //   stopChance    移動先を決め直す時に、その場で止まる確率（0〜1）
-    //   sideRandom    直線の弾を避ける時に、近い側ではなく遠い側へ避ける確率（0〜1）。避ける向きを読まれにくくする
+    // 賢さ 1〜5 の設定（上から順に 1, 2, 3, 4, 5）。「避け方」と「動き方のパターンの混ぜ方」の 2 つの軸がある
+    //
+    // ■ 避け方
+    //   reactionTime  自キャラの弾・範囲・詠唱に気づいて動き始めるまでの遅れ（秒）。
+    //                 人が見てから反応できる速さの限界と言われる 0.15 秒より小さい値を書いても、0.15 秒として扱う
+    //   dodgeChance   気づいた弾・範囲を避けようとする確率（0〜1）。0 なら避けない
+    //   readCast      true なら、自キャラの詠唱（構え）を見て、弾・範囲が出る前に避け始める
+    //   sideRandom    直線の弾を避ける時に、近い側ではなく遠い側へ避ける確率（0〜1）
+    //
+    // ■ 動き方のパターン（1 つのパターンが終わるたびに、patterns の重みで次のパターンを選ぶ）
+    //   patterns      strafe   = 往復。自キャラから見て左右に、同じ幅で切り返す
+    //                 approach = 接近。自キャラへまっすぐ近づき、撃たれそうになったら（射程に入った・自キャラが
+    //                            止まった・構えた）、反応の遅れの後に急に左右へ切り返す
+    //                 wander   = ランダムな位置へ動く
+    //                 stop     = 立ち止まる
+    //   strafeSwings  1 回の往復で切り返す回数 [最小, 最大]。同じ値なら毎回同じ回数（リズムを読まれやすい）
+    //   strafeWidth   往復の幅 [最小, 最大]（100 = 1m）。1 回の往復の間は同じ幅で動き、往復ごとにこの範囲から選ぶ
+    //   rhythmBreak   往復のリズムを崩す確率（0〜1）。2 回切り返した後から、切り返すたびに判定し、
+    //                 崩す時は「いつもより大きく（2.5 倍）動く」か「少し（4 分の 1）だけ動いてすぐ切り返す」
+    //   stopTime      立ち止まる時間 [最小, 最大]（秒）
     "levels": [
       {
         "name": "やさしい",
         "reactionTime": 0.50,
         "dodgeChance": 0.0,
         "readCast": false,
-        "moveInterval": [1.5, 3.0],
-        "stopChance": 0.3,
-        "sideRandom": 0.0
+        "sideRandom": 0.0,
+        "patterns": { "strafe": 0.7, "approach": 0.0, "wander": 0.0, "stop": 0.3 },
+        "strafeSwings": [4, 4],
+        "strafeWidth": [200, 200],
+        "rhythmBreak": 0.0,
+        "stopTime": [1.0, 1.5]
       },
       {
         "name": "ややかんたん",
         "reactionTime": 0.40,
-        "dodgeChance": 0.35,
+        "dodgeChance": 0.3,
         "readCast": false,
-        "moveInterval": [1.2, 2.4],
-        "stopChance": 0.25,
-        "sideRandom": 0.1
+        "sideRandom": 0.1,
+        "patterns": { "strafe": 0.6, "approach": 0.0, "wander": 0.2, "stop": 0.2 },
+        "strafeSwings": [3, 5],
+        "strafeWidth": [180, 250],
+        "rhythmBreak": 0.05,
+        "stopTime": [0.8, 1.3]
       },
       {
         "name": "ふつう",
         "reactionTime": 0.30,
-        "dodgeChance": 0.6,
+        "dodgeChance": 0.55,
         "readCast": false,
-        "moveInterval": [0.9, 1.8],
-        "stopChance": 0.2,
-        "sideRandom": 0.25
+        "sideRandom": 0.25,
+        "patterns": { "strafe": 0.45, "approach": 0.2, "wander": 0.2, "stop": 0.15 },
+        "strafeSwings": [2, 5],
+        "strafeWidth": [150, 300],
+        "rhythmBreak": 0.15,
+        "stopTime": [0.5, 1.1]
       },
       {
         "name": "むずかしい",
-        "reactionTime": 0.20,
-        "dodgeChance": 0.8,
+        "reactionTime": 0.22,
+        "dodgeChance": 0.75,
         "readCast": true,
-        "moveInterval": [0.6, 1.4],
-        "stopChance": 0.15,
-        "sideRandom": 0.35
+        "sideRandom": 0.35,
+        "patterns": { "strafe": 0.4, "approach": 0.3, "wander": 0.15, "stop": 0.15 },
+        "strafeSwings": [1, 5],
+        "strafeWidth": [120, 350],
+        "rhythmBreak": 0.3,
+        "stopTime": [0.3, 0.9]
       },
       {
         "name": "とてもむずかしい",
-        "reactionTime": 0.12,
-        "dodgeChance": 0.95,
+        "reactionTime": 0.18,
+        "dodgeChance": 0.9,
         "readCast": true,
-        "moveInterval": [0.4, 1.0],
-        "stopChance": 0.1,
-        "sideRandom": 0.5
+        "sideRandom": 0.5,
+        "patterns": { "strafe": 0.4, "approach": 0.35, "wander": 0.1, "stop": 0.15 },
+        "strafeSwings": [1, 6],
+        "strafeWidth": [100, 400],
+        "rhythmBreak": 0.45,
+        "stopTime": [0.2, 0.8]
       }
     ]
   }

@@ -43,7 +43,9 @@ struct MatchConfig {
     int aiLevel = 3;     // 敵の賢さ（1〜5）
 
     // スキルショットの設定
-    int targetLevel = 3;  // 的の賢さ（1〜5）
+    int targetLevel = 3;             // 的の賢さ（1〜5）
+    float targetRadius = 65.0f;      // 的の大きさ（当たり判定の半径。ai.jsonc の skillShot.sizes から選ぶ）
+    float targetMoveSpeed = 340.0f;  // 的の移動速度（ai.jsonc の skillShot.moveSpeeds から選ぶ）
 
     // 制限時間があるモード（スキルドッジ・スキルショット）の設定
     float timeLimitSeconds = 120.0f;  // 制限時間

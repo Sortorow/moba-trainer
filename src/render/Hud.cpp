@@ -243,11 +243,12 @@ void drawShotPanel(ImDrawList* dl, const Match& match) {
 }
 
 /// 画面左上の操作説明（今のカメラも出す）
-void drawHelp(ImDrawList* dl, CameraMode cameraMode) {
+/// @param escPauses Esc でポーズするモードか（スキルドッジ・スキルショット）。false なら Esc でメニューに戻る
+void drawHelp(ImDrawList* dl, CameraMode cameraMode, bool escPauses) {
     const std::string help = std::format(
         "右クリック: 移動    Q/W/E/R/D/F: スキル    Y: カメラ（今: {}）    Space: 自キャラを映す    "
-        "F1: デバッグ表示    F5: 設定の再読み込み    Esc: メニュー",
-        displayName(cameraMode));
+        "F1: デバッグ表示    F5: 設定の再読み込み    Esc: {}",
+        displayName(cameraMode), escPauses ? "ポーズ" : "メニュー");
     const float size = px(15.0f);
     const ImVec2 pos = px(12.0f, 10.0f);
     const float shadow = std::max(1.0f, px(1.0f));
@@ -265,7 +266,7 @@ void drawHud(const Match& match, const Camera2D& camera, CameraMode cameraMode) 
     drawSkillBar(dl, world);
     if (match.config().mode == GameMode::SkillDodge) drawDodgePanel(dl, match);
     if (match.config().mode == GameMode::SkillShot) drawShotPanel(dl, match);
-    drawHelp(dl, cameraMode);
+    drawHelp(dl, cameraMode, match.config().timed());
 }
 
 }  // namespace moba

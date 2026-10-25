@@ -53,7 +53,7 @@ public:
 
 private:
     /// 入力スクリプトの命令の種類
-    enum class Kind { Move, Cast, Cursor, Screenshot, ResetCooldowns, ToggleCamera, Exit };
+    enum class Kind { Move, Cast, Cursor, Screenshot, ResetCooldowns, ToggleCamera, Escape, Exit };
     /// 入力スクリプトの命令 1 つ（時刻・種類・キー・座標・文字）
     struct Command {
         float time = 0.0f;

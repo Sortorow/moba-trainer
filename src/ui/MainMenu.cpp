@@ -78,6 +78,30 @@ void drawSkillShotOptions(MatchConfig& config, const GameData& data) {
     const std::string levelLabel = std::format("%d（{}）", shot.level(config.targetLevel).name);
     ImGui::SliderInt("的の賢さ", &config.targetLevel, 1, std::max(1, static_cast<int>(shot.levels.size())),
                      levelLabel.c_str());
+
+    // 的の大きさ・移動速度は、ai.jsonc の選択肢から選ぶ（選択肢に無い値なら、標準の大きさ・最初の移動速度にする）
+    if (shot.sizeName(config.targetRadius).empty() && !shot.sizes.empty()) {
+        config.targetRadius = shot.sizes[shot.sizes.size() / 2].radius;
+    }
+    ImGui::TextUnformatted("的の大きさ");
+    for (const TargetSize& size : shot.sizes) {
+        ImGui::SameLine();
+        const std::string label = std::format("{}（{:.0f}）", size.name, size.radius);
+        if (ImGui::RadioButton(label.c_str(), std::fabs(size.radius - config.targetRadius) < 0.5f)) {
+            config.targetRadius = size.radius;
+        }
+    }
+    const bool speedListed = std::any_of(shot.moveSpeeds.begin(), shot.moveSpeeds.end(),
+                                         [&](float speed) { return std::fabs(speed - config.targetMoveSpeed) < 0.5f; });
+    if (!speedListed && !shot.moveSpeeds.empty()) config.targetMoveSpeed = shot.moveSpeeds.front();
+    ImGui::TextUnformatted("的の移動速度");
+    for (const float speed : shot.moveSpeeds) {
+        ImGui::SameLine();
+        const std::string label = std::format("{:.0f}", speed);
+        if (ImGui::RadioButton(label.c_str(), std::fabs(speed - config.targetMoveSpeed) < 0.5f)) {
+            config.targetMoveSpeed = speed;
+        }
+    }
     drawTimeLimitSlider(config);
     ImGui::TextDisabled("賢いほど、よく避け、動きを読まれにくくします");
     ImGui::TextDisabled("ヒット率に数えるのは、方向指定・地点指定の攻撃スキルだけです");

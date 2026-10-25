@@ -36,6 +36,8 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
     config_.enemyCount = std::clamp(config_.enemyCount, 1, 5);
     config_.aiLevel = std::clamp(config_.aiLevel, 1, 5);
     config_.targetLevel = std::clamp(config_.targetLevel, 1, 5);
+    config_.targetRadius = std::clamp(config_.targetRadius, 10.0f, 300.0f);
+    config_.targetMoveSpeed = std::clamp(config_.targetMoveSpeed, 0.0f, 1500.0f);
 
     // ステージ: 見つからなければ一覧の最初のステージ。ステージのファイルが 1 つも無ければ、障害物のない広場
     const StageDef* stage = data_.stage(config_.stageId);
@@ -71,7 +73,8 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
         modeSettings = std::format(" 敵 {} 体 賢さ {} 制限時間 {:.0f} 秒 乱数の種 {}", config_.enemyCount,
                                    config_.aiLevel, config_.timeLimitSeconds, config_.seed);
     } else if (config_.mode == GameMode::SkillShot) {
-        modeSettings = std::format(" 的の賢さ {} 制限時間 {:.0f} 秒 乱数の種 {}", config_.targetLevel,
+        modeSettings = std::format(" 的の賢さ {} 大きさ {:.0f} 移動速度 {:.0f} 制限時間 {:.0f} 秒 乱数の種 {}",
+                                   config_.targetLevel, config_.targetRadius, config_.targetMoveSpeed,
                                    config_.timeLimitSeconds, config_.seed);
     }
     log::info("match", "{}を開始: キャラ={} ステージ={} クールダウン={}（倍率 {:.2f}）{}", displayName(config_.mode),
@@ -125,15 +128,15 @@ void Match::setupSkillShot(const CharacterDef& character) {
     player.pos = world_->placeable(player.pos, player.radius);
     world_->addUnit(player);
 
-    // 的は、自キャラから「保つ距離」の真ん中の、ランダムな方向に置く。大きさ・移動速度は ai.jsonc で決める
+    // 的は、自キャラから離れた、ランダムな方向に置く。大きさ・移動速度はメニューで選んだもの
     const SkillShotConfig& shot = data_.ai().skillShot;
     target_.setup(shot, config_.targetLevel, config_.seed);
 
     Unit target;
     target.team = Team::Enemy;
     target.name = "的";
-    target.radius = shot.targetRadius;
-    target.baseMoveSpeed = shot.targetMoveSpeed;
+    target.radius = config_.targetRadius;
+    target.baseMoveSpeed = config_.targetMoveSpeed;
     target.color = kTargetColor;
     target.pos = world_->placeable(target_.startPosition(player.pos), target.radius);
     target.facing = geo::normalizedOr(player.pos - target.pos, Vector2{1.0f, 0.0f});
@@ -178,6 +181,7 @@ MatchResult Match::result() const {
     if (const CharacterDef* def = data_.character(config_.characterId)) r.characterName = def->displayName;
     if (const StageDef* stage = data_.stage(config_.stageId)) r.stageName = stage->displayName;
     r.aiLevelName = config_.mode == GameMode::SkillShot ? target_.level().name : enemies_.level().name;
+    r.targetSizeName = data_.ai().skillShot.sizeName(config_.targetRadius);
     r.dodge = world_->dodge();
     r.hitsTaken = r.dodge.hit;
     if (const Unit* player = world_->player()) r.deaths = player->deaths;

@@ -16,6 +16,7 @@
 #include "rlImGui.h"
 #include "ui/DebugPanel.h"
 #include "ui/Fonts.h"
+#include "ui/PauseDialog.h"
 #include "ui/ResultScreen.h"
 #include "ui/SandboxPanel.h"
 #include "ui/UiScale.h"
@@ -181,7 +182,11 @@ void App::handleGlobalKeys(const InputFrame& input) {
     if (input.toggleDebugPressed) debugPanelVisible_ = !debugPanelVisible_;
     if (input.reloadPressed) reloadData(true);
     if (input.toggleFullscreenPressed) ToggleBorderlessWindowed();
-    if (input.escapePressed && screen_ != Screen::Menu) backToMenu();
+    if (input.escapePressed) {
+        if (screen_ == Screen::Playing) pauseOrLeave();
+        else if (screen_ == Screen::Paused) resume();
+        else if (screen_ == Screen::Result) backToMenu();
+    }
     if (input.toggleCameraPressed && screen_ == Screen::Playing) toggleCameraMode();
     if (input.resetCooldownsRequested && match_) {
         if (Unit* player = match_->world().player()) player->cooldowns = {};
@@ -263,6 +268,22 @@ void App::backToMenu() {
     match_.reset();
     result_.reset();
     screen_ = Screen::Menu;
+}
+
+void App::pauseOrLeave() {
+    if (!match_ || !match_->config().timed()) {
+        backToMenu();
+        return;
+    }
+    screen_ = Screen::Paused;
+    log::info("app", "Esc: ポーズしました（経過 {:.1f} 秒）", match_->elapsed());
+}
+
+void App::resume() {
+    pendingInput_ = InputFrame{};
+    accumulator_ = 0.0f;
+    screen_ = Screen::Playing;
+    log::info("app", "ポーズを解いて、プレイに戻ります");
 }
 
 void App::updateMatch(float frameDt, const InputFrame& input) {
@@ -351,6 +372,21 @@ void App::draw() {
                 MatchConfig next = match_->config();
                 next.characterId = *result.switchCharacter;
                 next.seed = 0;
+                startMatch(next);
+            }
+            break;
+        }
+        case Screen::Paused: {
+            drawHud(*match_, camera_, cameraMode_);
+            const PauseAction action = drawPauseDialog();
+            if (action == PauseAction::Resume) {
+                resume();
+            } else if (action == PauseAction::Menu) {
+                backToMenu();
+            } else if (action == PauseAction::Restart) {
+                MatchConfig next = match_->config();
+                next.seed = 0;  // やり直す時は、新しい乱数の種で
+                log::info("app", "リスタートします");
                 startMatch(next);
             }
             break;

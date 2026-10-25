@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <limits>
 #include <unordered_set>
 
@@ -16,7 +17,8 @@ namespace {
 
 constexpr float kWanderAngle = 75.0f * DEG2RAD;  // 移動先を、自キャラから見た今の方向からこの角度以内で選ぶ
 constexpr float kMinWanderStep = 120.0f;         // これより近い移動先は選ばない（動いて見えないため）
-constexpr float kInheritTime = 0.3f;  // 詠唱が終わってから、この時間内に出た弾・範囲に、詠唱を見た時の判断を引き継ぐ
+constexpr float kInheritTime = 0.3f;     // 詠唱が終わってから、この時間内に出た弾・範囲に、詠唱を見た時の判断を引き継ぐ
+constexpr float kPatternTimeout = 6.0f;  // これより長く続いたパターンは打ち切る（壁に引っかかった時など）
 
 /// 角度（ラジアン。+X 方向が 0）の向きの、長さ 1 のベクトル
 Vector2 fromAngle(float angle) { return Vector2{std::cos(angle), std::sin(angle)}; }
@@ -28,7 +30,9 @@ void SkillShotTarget::setup(const SkillShotConfig& config, int aiLevel, std::uin
     level_ = config.level(aiLevel);
     rng_.seed(seed);
     unitId_ = kInvalidId;
-    moveTimer_ = 0.0f;
+    pattern_ = PatternState{};
+    patternActive_ = false;
+    playerStillTime_ = 0.0f;
     dodging_ = false;
     dodgeKey_ = 0;
     dodgeCount_ = 0;
@@ -36,17 +40,18 @@ void SkillShotTarget::setup(const SkillShotConfig& config, int aiLevel, std::uin
     playerWasCasting_ = false;
     castSerial_ = 0;
     inherited_.reset();
-    log::info("ai", "的の AI: 賢さ {}（{}）反応 {:.2f}s 避ける確率 {:.0f}% 詠唱を見る {} 移動の間隔 {:.1f}〜{:.1f}s",
-              aiLevel, level_.name, level_.reactionTime, level_.dodgeChance * 100.0f, level_.readCast ? "あり" : "なし",
-              level_.moveIntervalMin, level_.moveIntervalMax);
+    log::info(
+        "ai",
+        "的の AI: 賢さ {}（{}）反応 {:.2f}s 避ける確率 {:.0f}% 詠唱を見る {} パターン 往復 {:.2f} / 接近 {:.2f} / "
+        "ランダム {:.2f} / 停止 {:.2f} リズムを崩す {:.0f}%",
+        aiLevel, level_.name, level_.reactionTime, level_.dodgeChance * 100.0f, level_.readCast ? "あり" : "なし",
+        level_.weightStrafe, level_.weightApproach, level_.weightWander, level_.weightStop,
+        level_.rhythmBreak * 100.0f);
 }
 
 Vector2 SkillShotTarget::startPosition(Vector2 playerPos) {
-    const float distance = (config_.distanceMin + config_.distanceMax) * 0.5f;
-    // 上下に離れすぎない角度の範囲（左右どちらか）から選ぶ
-    const float maxAngle = std::asin(std::min(1.0f, config_.maxVerticalOffset / distance));
-    const float side = uniform(0.0f, 1.0f) < 0.5f ? 0.0f : PI;
-    return playerPos + fromAngle(side + uniform(-maxAngle, maxAngle)) * distance;
+    const float distance = (config_.minDistance + config_.maxDistance) * 0.5f;
+    return playerPos + fromAngle(uniform(-PI, PI)) * distance;
 }
 
 float SkillShotTarget::uniform(float min, float max) {
@@ -208,12 +213,14 @@ std::optional<Vector2> SkillShotTarget::chooseDodge(const World& world, const Un
             candidates.push_back(threat.center + Vector2Rotate(out, degrees * DEG2RAD) * clear);
     }
 
-    // 障害物で止まらず、着くまでに他の弾・範囲にも当たらない候補を、上の順に選ぶ
+    // 障害物で止まらず、自キャラから離れすぎず、着くまでに他の弾・範囲にも当たらない候補を、上の順に選ぶ
+    const Unit* player = world.player();
     std::vector<Vector2> safe;
     std::optional<Vector2> reachable;  // 安全な候補が無い時の、せめて障害物で止まらない候補
     for (const Vector2 candidate : candidates) {
         const Vector2 destination = world.clampToBounds(candidate, self.radius);
         if (!world.terrain().segmentClear(self.pos, destination, self.radius)) continue;
+        if (player && Vector2Distance(destination, player->pos) > config_.maxDistance) continue;
         if (!reachable) reachable = destination;
         const bool hit = std::any_of(threats.begin(), threats.end(), [&](const Threat& other) {
             return endangers(other, self.pos, destination, self.moveSpeed(), self.radius, 0.0f);
@@ -226,35 +233,219 @@ std::optional<Vector2> SkillShotTarget::chooseDodge(const World& world, const Un
     return safe.front();
 }
 
-void SkillShotTarget::wander(const World& world, Unit& self, const Unit& player) {
-    moveTimer_ = uniform(level_.moveIntervalMin, level_.moveIntervalMax);
-    if (uniform(0.0f, 1.0f) < level_.stopChance) {
-        self.moveTarget.reset();
+// ---------------------------------------------------------------------------
+// 動き方のパターン
+// ---------------------------------------------------------------------------
+std::string_view displayName(TargetPattern pattern) {
+    switch (pattern) {
+        case TargetPattern::Strafe: return "往復";
+        case TargetPattern::Approach: return "接近";
+        case TargetPattern::Wander: return "ランダム";
+        case TargetPattern::Stop: return "停止";
+    }
+    return "?";
+}
+
+std::string SkillShotTarget::patternLabel() const {
+    if (!patternActive_) return "-";
+    const std::string name(displayName(pattern_.kind));
+    switch (pattern_.kind) {
+        case TargetPattern::Strafe:
+            return std::format("{}（残り {} 回・幅 {:.0f}）", name, pattern_.swingsLeft, pattern_.width);
+        case TargetPattern::Approach:
+            return std::format("{}（{:.0f} まで{}）", name, pattern_.stopDistance,
+                               pattern_.juking ? "・切り返し中" : (pattern_.jukeDelay >= 0.0f ? "・切り返す直前" : ""));
+        case TargetPattern::Wander: return name;
+        case TargetPattern::Stop: return std::format("{}（残り {:.1f} 秒）", name, pattern_.stopTime);
+    }
+    return name;
+}
+
+float SkillShotTarget::playerSkillRange(const World& world, const Unit& player) const {
+    float range = 0.0f;
+    if (const CharacterDef* def = world.characterOf(player)) {
+        for (const auto& skill : def->skills) {
+            if (skill && skill->countsForHitRate && aimModelFor(*skill)) range = std::max(range, skill->range);
+        }
+    }
+    return range > 0.0f ? std::min(range, config_.maxDistance) : config_.maxDistance;
+}
+
+Vector2 SkillShotTarget::keepInRange(const World& world, const Unit& self, Vector2 playerPos,
+                                     Vector2 destination) const {
+    const Vector2 offset = destination - playerPos;
+    const float distance = Vector2Length(offset);
+    const Vector2 dir = geo::normalizedOr(offset, geo::normalizedOr(self.pos - playerPos, Vector2{1.0f, 0.0f}));
+    if (distance > config_.maxDistance) destination = playerPos + dir * config_.maxDistance;
+    if (distance < config_.minDistance) destination = playerPos + dir * config_.minDistance;
+    return world.placeable(world.clampToBounds(destination, self.radius), self.radius);
+}
+
+Vector2 SkillShotTarget::sideStep(const World& world, const Unit& self, const Unit& player, float& side,
+                                  float distance) const {
+    // 自キャラから見て右 = 自キャラの方を向いた時の右手側（画面は y が下向きなので、向きを 90 度回したもの）
+    const Vector2 toPlayer = geo::normalizedOr(player.pos - self.pos, Vector2{1.0f, 0.0f});
+    const Vector2 right = geo::perpendicular(toPlayer);
+    for (int attempt = 0; attempt < 2; ++attempt) {
+        const Vector2 destination = keepInRange(world, self, player.pos, self.pos + right * (side * distance));
+        // 壁際などで、ほとんど動けない時は反対側へ
+        if (Vector2Distance(destination, self.pos) >= distance * 0.5f || attempt == 1) return destination;
+        side = -side;
+    }
+    return self.pos;
+}
+
+void SkillShotTarget::startPattern(const World& world, Unit& self, const Unit& player) {
+    pattern_ = PatternState{};
+    patternActive_ = true;
+    const float distance = Vector2Distance(self.pos, player.pos);
+
+    // 離れすぎていれば接近する。それ以外は重みで選ぶ
+    TargetPattern kind = TargetPattern::Approach;
+    if (distance <= config_.maxDistance) {
+        const float weights[] = {level_.weightStrafe, level_.weightApproach, level_.weightWander, level_.weightStop};
+        const float total = weights[0] + weights[1] + weights[2] + weights[3];
+        kind = TargetPattern::Wander;
+        if (total > 0.0f) {
+            float pick = uniform(0.0f, total);
+            for (int i = 0; i < 4; ++i) {
+                if (pick < weights[i] || i == 3) {
+                    kind = static_cast<TargetPattern>(i);
+                    break;
+                }
+                pick -= weights[i];
+            }
+        }
+    }
+
+    // 接近: 近づける余地が無ければ（もう十分に近ければ）、往復にする
+    if (kind == TargetPattern::Approach) {
+        pattern_.stopDistance = uniform(config_.minDistance + 50.0f, std::max(config_.minDistance + 100.0f, 650.0f));
+        if (distance < pattern_.stopDistance + 150.0f) kind = TargetPattern::Strafe;
+    }
+    pattern_.kind = kind;
+
+    switch (kind) {
+        case TargetPattern::Strafe:
+            pattern_.swingsLeft = static_cast<int>(std::min(
+                std::floor(uniform(level_.strafeSwingsMin, level_.strafeSwingsMax + 1.0f)), level_.strafeSwingsMax));
+            pattern_.width = uniform(level_.strafeWidthMin, level_.strafeWidthMax);
+            pattern_.side = uniform(0.0f, 1.0f) < 0.5f ? -1.0f : 1.0f;
+            self.moveTarget.reset();
+            break;
+        case TargetPattern::Approach:
+            pattern_.prevDistance = distance;
+            pattern_.playerWasMoving = playerStillTime_ <= 0.0f;
+            break;
+        case TargetPattern::Wander: wander(world, self, player); break;
+        case TargetPattern::Stop:
+            pattern_.stopTime = uniform(level_.stopTimeMin, level_.stopTimeMax);
+            self.moveTarget.reset();
+            break;
+    }
+    log::debug("ai", "的の動き: {}", patternLabel());
+}
+
+void SkillShotTarget::nextSwing(const World& world, Unit& self, const Unit& player) {
+    float width = pattern_.width;
+    // リズムを崩す: いつもより大きく動く / 少しだけ動いてすぐ切り返す
+    if (pattern_.swingIndex >= 2 && uniform(0.0f, 1.0f) < level_.rhythmBreak) {
+        const bool longSwing = uniform(0.0f, 1.0f) < 0.5f;
+        width *= longSwing ? 2.5f : 0.25f;
+        log::debug("ai", "的がリズムを崩します: {}", longSwing ? "大きく動く" : "少しだけ動いてすぐ切り返す");
+    }
+    self.moveTarget = sideStep(world, self, player, pattern_.side, width);
+    pattern_.side = -pattern_.side;
+    ++pattern_.swingIndex;
+    --pattern_.swingsLeft;
+}
+
+void SkillShotTarget::updateApproach(const World& world, Unit& self, const Unit& player, float dt) {
+    if (pattern_.juking) {
+        if (!self.moveTarget) startPattern(world, self, player);
         return;
     }
-    // 自キャラから見た今の方向の近くで、距離を保てる位置を選ぶ（上下に離れすぎる位置・障害物・ブッシュの中は選ばない）
+    const float distance = Vector2Distance(self.pos, player.pos);
+    const float range = playerSkillRange(world, player);
+    if (playerStillTime_ <= 0.0f) pattern_.playerWasMoving = true;
+
+    // 撃たれそう: 近づききった・射程に入った・（射程の中で）自キャラが止まった・構えた
+    if (pattern_.jukeDelay < 0.0f) {
+        const bool reached = distance <= pattern_.stopDistance + 10.0f;
+        const bool enteredRange = pattern_.prevDistance > range && distance <= range;
+        const bool suspicious =
+            distance <= range && ((pattern_.playerWasMoving && playerStillTime_ >= 0.1f) || player.cast.active);
+        if (reached || enteredRange || suspicious) {
+            pattern_.jukeDelay = level_.reactionTime;  // 気づいてから動くまでの遅れ
+            log::debug("ai", "的が切り返しを決めました（{}）",
+                       reached ? "近づききった" : (enteredRange ? "射程に入った" : "自キャラが止まった・構えた"));
+        }
+    }
+    pattern_.prevDistance = distance;
+
+    if (pattern_.jukeDelay >= 0.0f) {
+        pattern_.jukeDelay -= dt;
+        if (pattern_.jukeDelay <= 0.0f) {
+            float side = uniform(0.0f, 1.0f) < 0.5f ? -1.0f : 1.0f;
+            self.moveTarget = sideStep(world, self, player, side, uniform(250.0f, 400.0f));
+            pattern_.juking = true;
+            return;
+        }
+    }
+    // 自キャラへまっすぐ近づく（自キャラが動くので、毎刻み向け直す）
+    const Vector2 fromPlayer = geo::normalizedOr(self.pos - player.pos, Vector2{1.0f, 0.0f});
+    self.moveTarget = keepInRange(world, self, player.pos, player.pos + fromPlayer * pattern_.stopDistance);
+}
+
+void SkillShotTarget::wander(const World& world, Unit& self, const Unit& player) {
+    // 自キャラから見た今の方向の近くで、距離の範囲に収まる位置を選ぶ（障害物・ブッシュの中は選ばない）
     const Vector2 away = geo::normalizedOr(self.pos - player.pos, fromAngle(uniform(-PI, PI)));
     const float baseAngle = std::atan2(away.y, away.x);
     for (int attempt = 0; attempt < 20; ++attempt) {
         const float angle = baseAngle + uniform(-kWanderAngle, kWanderAngle);
-        const float distance = uniform(config_.distanceMin, config_.distanceMax);
+        const float distance = uniform(config_.minDistance + 150.0f, config_.maxDistance - 150.0f);
         const Vector2 destination = world.clampToBounds(player.pos + fromAngle(angle) * distance, self.radius);
-        if (std::fabs(destination.y - player.pos.y) > config_.maxVerticalOffset) continue;
         if (world.terrain().blocked(destination, self.radius) || world.terrain().bushAt(destination) >= 0) continue;
         if (Vector2Distance(destination, self.pos) < kMinWanderStep) continue;
         self.moveTarget = destination;
         return;
     }
-    // 見つからなければ（壁際など）、自キャラの左右の、立てる位置へ
-    const float sideX = self.pos.x >= player.pos.x ? 1.0f : -1.0f;
-    self.moveTarget = world.placeable(player.pos + Vector2{sideX * config_.distanceMax, 0.0f}, self.radius);
+    // 見つからなければ（壁際など）、自キャラから離れる向きの、立てる位置へ
+    self.moveTarget = keepInRange(world, self, player.pos, player.pos + away * config_.maxDistance * 0.7f);
 }
 
+void SkillShotTarget::updatePattern(const World& world, Unit& self, const Unit& player, float dt) {
+    pattern_.elapsed += dt;
+    // 壁に引っかかるなどして長く終わらないパターンは打ち切る
+    if (pattern_.elapsed > kPatternTimeout) {
+        startPattern(world, self, player);
+        return;
+    }
+    switch (pattern_.kind) {
+        case TargetPattern::Strafe:
+            if (self.moveTarget) return;  // 切り返しの途中
+            if (pattern_.swingsLeft <= 0) startPattern(world, self, player);
+            else nextSwing(world, self, player);
+            return;
+        case TargetPattern::Approach: updateApproach(world, self, player, dt); return;
+        case TargetPattern::Wander:
+            if (!self.moveTarget) startPattern(world, self, player);
+            return;
+        case TargetPattern::Stop:
+            pattern_.stopTime -= dt;
+            if (pattern_.stopTime <= 0.0f) startPattern(world, self, player);
+            return;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 毎刻みの処理
+// ---------------------------------------------------------------------------
 void SkillShotTarget::update(World& world, float dt) {
     Unit* self = world.findUnit(unitId_);
     const Unit* player = world.player();
     if (!self || !self->alive || !player) return;
-    moveTimer_ -= dt;
+    playerStillTime_ = (!player->moveTarget && !player->cast.active) ? playerStillTime_ + dt : 0.0f;
     // 動けない間も、弾・範囲に気づくかどうかは決めておく（動けるようになった時に、すぐ避けられるように）
     const std::vector<Threat> threats = collectThreats(world, *self);
     if (!self->status.canMove()) return;
@@ -290,15 +481,17 @@ void SkillShotTarget::update(World& world, float dt) {
         return;
     }
     if (dodging_) {
-        // 避けている途中は、避ける先に着くまで動き回らない。着いたら少し間を置いて、動き回るのに戻る
+        // 避けている途中は、避ける先に着くまでパターンを止める。着いたら、新しいパターンを始める
         if (self->moveTarget) return;
         dodging_ = false;
-        moveTimer_ = uniform(0.15f, 0.4f);
+        startPattern(world, *self, *player);
         return;
     }
-    // 自キャラに近づかれすぎたら、すぐに移動先を決め直す
-    if (Vector2Distance(self->pos, player->pos) < config_.distanceMin * 0.6f) moveTimer_ = std::min(moveTimer_, 0.0f);
-    if (moveTimer_ <= 0.0f) wander(world, *self, *player);
+    if (!patternActive_) {
+        startPattern(world, *self, *player);
+        return;
+    }
+    updatePattern(world, *self, *player, dt);
 }
 
 }  // namespace moba::ai

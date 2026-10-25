@@ -24,7 +24,8 @@ struct MatchResult {
     MatchConfig config;
     std::string characterName;
     std::string stageName;
-    std::string aiLevelName;  // スキルドッジ: 敵の賢さの名前。スキルショット: 的の賢さの名前
+    std::string aiLevelName;     // スキルドッジ: 敵の賢さの名前。スキルショット: 的の賢さの名前
+    std::string targetSizeName;  // スキルショット: 的の大きさの名前（選択肢に無い大きさなら空）
     float playedSeconds = 0.0f;
     DodgeCount dodge;   // スキルドッジ: 敵のスキルを避けた割合
     int hitsTaken = 0;  // スキルドッジ: 被弾した回数

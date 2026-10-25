@@ -1,6 +1,7 @@
 #include "data/AiConfig.h"
 
 #include <algorithm>
+#include <cmath>
 #include <format>
 
 #include "core/JsonFile.h"
@@ -22,6 +23,13 @@ const SkillShotLevel& SkillShotConfig::level(int aiLevel) const {
     return levels[static_cast<std::size_t>(i)];
 }
 
+std::string SkillShotConfig::sizeName(float radius) const {
+    for (const TargetSize& size : sizes) {
+        if (std::fabs(size.radius - radius) < 0.5f) return size.name;
+    }
+    return {};
+}
+
 namespace {
 
 /// [最小, 最大] の 2 つの数の配列を読む（無い・形が違う時は何もしない）。最大は最小より小さくしない
@@ -35,22 +43,38 @@ void readRange(const nlohmann::json& item, const char* key, float lowest, float&
 /// "skillShot" の部分を読む
 /// @return 読めなかった理由（空なら成功）
 std::string loadSkillShot(const nlohmann::json& j, SkillShotConfig& c) {
-    c.targetRadius = std::clamp(j.value("targetRadius", c.targetRadius), 10.0f, 300.0f);
-    c.targetMoveSpeed = std::clamp(j.value("targetMoveSpeed", c.targetMoveSpeed), 0.0f, 1500.0f);
-    readRange(j, "distance", 100.0f, c.distanceMin, c.distanceMax);
-    c.maxVerticalOffset = std::max(50.0f, j.value("maxVerticalOffset", c.maxVerticalOffset));
+    for (const nlohmann::json& item : j.at("sizes")) {
+        TargetSize size;
+        size.name = item.value("name", std::format("{}", c.sizes.size() + 1));
+        size.radius = std::clamp(item.value("radius", size.radius), 10.0f, 300.0f);
+        c.sizes.push_back(std::move(size));
+    }
+    for (const nlohmann::json& item : j.at("moveSpeeds"))
+        c.moveSpeeds.push_back(std::clamp(item.get<float>(), 0.0f, 1500.0f));
+    c.minDistance = std::max(0.0f, j.value("minDistance", c.minDistance));
+    c.maxDistance = std::max(c.minDistance + 100.0f, j.value("maxDistance", c.maxDistance));
     c.dodgeMargin = std::max(0.0f, j.value("dodgeMargin", c.dodgeMargin));
     for (const nlohmann::json& item : j.at("levels")) {
         SkillShotLevel level;
         level.name = item.value("name", std::format("{}", c.levels.size() + 1));
-        level.reactionTime = std::max(0.0f, item.value("reactionTime", level.reactionTime));
+        level.reactionTime = std::max(kMinTargetReactionTime, item.value("reactionTime", level.reactionTime));
         level.dodgeChance = std::clamp(item.value("dodgeChance", level.dodgeChance), 0.0f, 1.0f);
         level.readCast = item.value("readCast", level.readCast);
-        readRange(item, "moveInterval", 0.1f, level.moveIntervalMin, level.moveIntervalMax);
-        level.stopChance = std::clamp(item.value("stopChance", level.stopChance), 0.0f, 1.0f);
         level.sideRandom = std::clamp(item.value("sideRandom", level.sideRandom), 0.0f, 1.0f);
+        if (const auto it = item.find("patterns"); it != item.end() && it->is_object()) {
+            level.weightStrafe = std::max(0.0f, it->value("strafe", 0.0f));
+            level.weightApproach = std::max(0.0f, it->value("approach", 0.0f));
+            level.weightWander = std::max(0.0f, it->value("wander", 0.0f));
+            level.weightStop = std::max(0.0f, it->value("stop", 0.0f));
+        }
+        readRange(item, "strafeSwings", 1.0f, level.strafeSwingsMin, level.strafeSwingsMax);
+        readRange(item, "strafeWidth", 30.0f, level.strafeWidthMin, level.strafeWidthMax);
+        level.rhythmBreak = std::clamp(item.value("rhythmBreak", level.rhythmBreak), 0.0f, 1.0f);
+        readRange(item, "stopTime", 0.1f, level.stopTimeMin, level.stopTimeMax);
         c.levels.push_back(std::move(level));
     }
+    if (c.sizes.empty()) return "\"skillShot\" の \"sizes\" が空です";
+    if (c.moveSpeeds.empty()) return "\"skillShot\" の \"moveSpeeds\" が空です";
     return c.levels.empty() ? std::string("\"skillShot\" の \"levels\" が空です") : std::string{};
 }
 

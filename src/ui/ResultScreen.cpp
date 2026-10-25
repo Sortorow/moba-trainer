@@ -71,8 +71,13 @@ ResultAction drawResultScreen(const MatchResult& result) {
     ImGui::Text("%s ／ %s ／ %s", std::string(displayName(config.mode)).c_str(), result.characterName.c_str(),
                 result.stageName.empty() ? "-" : result.stageName.c_str());
     if (config.mode == GameMode::SkillShot) {
-        ImGui::TextDisabled("的の賢さ %s ／ 制限時間 %.0f 秒 ／ クールダウン %s", result.aiLevelName.c_str(),
-                            config.timeLimitSeconds, cooldownLabel(config).c_str());
+        const std::string size = result.targetSizeName.empty()
+                                     ? std::format("{:.0f}", config.targetRadius)
+                                     : std::format("{}（{:.0f}）", result.targetSizeName, config.targetRadius);
+        ImGui::TextDisabled("的の賢さ %s ／ 大きさ %s ／ 移動速度 %.0f", result.aiLevelName.c_str(), size.c_str(),
+                            config.targetMoveSpeed);
+        ImGui::TextDisabled("制限時間 %.0f 秒 ／ クールダウン %s", config.timeLimitSeconds,
+                            cooldownLabel(config).c_str());
     } else {
         ImGui::TextDisabled("敵 %d 体 ／ 賢さ %s ／ 制限時間 %.0f 秒 ／ クールダウン %s", config.enemyCount,
                             result.aiLevelName.c_str(), config.timeLimitSeconds, cooldownLabel(config).c_str());

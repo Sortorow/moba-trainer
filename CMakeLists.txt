@@ -110,6 +110,7 @@ add_library(moba_lib STATIC
   src/ui/SandboxPanel.cpp
   src/ui/DebugPanel.cpp
   src/ui/ResultScreen.cpp
+  src/ui/PauseDialog.cpp
   src/app/CommandLine.cpp
   src/app/App.cpp)
 target_include_directories(moba_lib PUBLIC src)

@@ -26,8 +26,8 @@ public:
     int run();
 
 private:
-    /// 今の画面（メニュー・プレイ中・リザルト）
-    enum class Screen { Menu, Playing, Result };
+    /// 今の画面（メニュー・プレイ中・ポーズ中・リザルト）
+    enum class Screen { Menu, Playing, Paused, Result };
 
     // ゲームの時間は 1/120 秒刻みで進める（描画のフレームレートに左右されないように）
     static constexpr float kFixedDt = 1.0f / 120.0f;
@@ -57,6 +57,11 @@ private:
     void startMatch(const MatchConfig& config);
     /// プレイを終えてメニューに戻る
     void backToMenu();
+    /// プレイ中に Esc を押した時の処理。制限時間のあるモード（スキルドッジ・スキルショット）はポーズし、
+    /// 練習場はメニューに戻る
+    void pauseOrLeave();
+    /// ポーズを解いてプレイに戻る（ポーズ中の入力は捨てる。進行状況・キャラ・弾の状態はそのまま）
+    void resume();
     /// たまった時間の分だけ、固定の時間刻みでゲームを進める。終わったらリザルト画面へ
     /// @param frameDt 前のフレームからの経過時間（秒）
     void updateMatch(float frameDt, const InputFrame& input);

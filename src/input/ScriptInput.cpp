@@ -7,6 +7,7 @@
 //   2.0  screenshot shot.png 画面を保存する
 //   2.5  resetcd             自キャラのクールダウンを解除する
 //   2.8  togglecamera        Y キーを押す（カメラの「自キャラに固定」と「固定しない」を切り替える）
+//   2.9  escape              Esc キーを押す（スキルドッジ・スキルショットではポーズ / ポーズを解く）
 //   3.0  exit                終了する
 
 #include <algorithm>
@@ -57,6 +58,8 @@ std::unique_ptr<ScriptInput> ScriptInput::load(const std::filesystem::path& file
             command.kind = Kind::ResetCooldowns;
         } else if (kind == "togglecamera") {
             command.kind = Kind::ToggleCamera;
+        } else if (kind == "escape") {
+            command.kind = Kind::Escape;
         } else if (kind == "exit") {
             command.kind = Kind::Exit;
         } else {
@@ -92,6 +95,7 @@ InputFrame ScriptInput::poll(const InputPollContext& ctx) {
             case Kind::Screenshot: frame.screenshotRequest = command.text; break;
             case Kind::ResetCooldowns: frame.resetCooldownsRequested = true; break;
             case Kind::ToggleCamera: frame.toggleCameraPressed = true; break;
+            case Kind::Escape: frame.escapePressed = true; break;
             case Kind::Exit: frame.exitRequested = true; break;
         }
     }
