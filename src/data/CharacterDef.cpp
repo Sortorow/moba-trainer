@@ -167,6 +167,7 @@ CharacterLoadResult loadCharacterFile(const std::filesystem::path& file) {
         def.id = root.at("id").get<std::string>();
         def.displayName = root.value("displayName", def.id);
         def.origin = root.value("origin", std::string{});
+        def.menuOrder = root.value("menuOrder", def.menuOrder);
         def.moveSpeed = std::max(0.0f, root.value("moveSpeed", def.moveSpeed));
         def.hitboxRadius = std::max(1.0f, root.value("hitboxRadius", def.hitboxRadius));
         def.color = colorFromJson(root.value("color", json::array()), def.color);

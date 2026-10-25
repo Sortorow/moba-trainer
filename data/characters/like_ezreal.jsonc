@@ -34,6 +34,7 @@
   "id": "like_ezreal",
   "displayName": "like ezreal",
   "origin": "LoL",
+  "menuOrder": 2,                 // メニューに並べる順（小さいほど上。新しいキャラは、今の最後の番号の次を付ける）
   "moveSpeed": 345,
   "hitboxRadius": 65,
   "color": [70, 170, 255],

@@ -16,6 +16,7 @@
   "id": "like_brand",
   "displayName": "like brand",
   "origin": "LoL",
+  "menuOrder": 3,                 // メニューに並べる順（小さいほど上。新しいキャラは、今の最後の番号の次を付ける）
   "moveSpeed": 365,
   "hitboxRadius": 65,
   "color": [255, 140, 60],

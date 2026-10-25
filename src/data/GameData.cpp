@@ -101,17 +101,19 @@ const CharacterDef* GameData::character(std::string_view id) const {
 
 std::vector<const CharacterDef*> GameData::characterList() const {
     std::vector<const CharacterDef*> list;
-    for (const auto& [id, def] : characters_) list.push_back(&def);
+    for (const auto& [id, def] : characters_) list.push_back(&def);  // characters_ は id 順
+    std::stable_sort(list.begin(), list.end(),
+                     [](const CharacterDef* a, const CharacterDef* b) { return a->menuOrder < b->menuOrder; });
     return list;
 }
 
 std::vector<const CharacterDef*> GameData::enemyCandidates() const {
     std::vector<const CharacterDef*> list;
-    for (const auto& [id, def] : characters_) {
-        const bool usable = std::any_of(def.skills.begin(), def.skills.end(), [](const std::optional<SkillDef>& skill) {
-            return skill && skill->usedByEnemy;
-        });
-        if (usable) list.push_back(&def);
+    for (const CharacterDef* def : characterList()) {
+        const bool usable =
+            std::any_of(def->skills.begin(), def->skills.end(),
+                        [](const std::optional<SkillDef>& skill) { return skill && skill->usedByEnemy; });
+        if (usable) list.push_back(def);
     }
     return list;
 }

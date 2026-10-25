@@ -17,6 +17,16 @@ TEST_CASE("data フォルダの設定ファイルがすべて読み込める") {
     REQUIRE(data.character("like_emma") != nullptr);
 }
 
+TEST_CASE("キャラの一覧は menuOrder の順（エマ → エズリアル → ブランド）") {
+    GameData data(makeAppPaths(MOBA_SOURCE_DIR));
+    data.loadAll();
+    const std::vector<const CharacterDef*> list = data.characterList();
+    REQUIRE(list.size() >= 3);
+    CHECK(list[0]->id == "like_emma");
+    CHECK(list[1]->id == "like_ezreal");
+    CHECK(list[2]->id == "like_brand");
+}
+
 TEST_CASE("すべてのスキルの handler が実在する") {
     GameData data(makeAppPaths(MOBA_SOURCE_DIR));
     data.loadAll();

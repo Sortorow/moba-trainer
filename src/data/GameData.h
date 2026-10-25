@@ -38,8 +38,9 @@ public:
     int sandboxRevision() const { return sandboxRevision_; }
 
     const CharacterDef* character(std::string_view id) const;
-    std::vector<const CharacterDef*> characterList() const;  // id 順
-    // スキルドッジで敵として出られるキャラ（"usedByEnemy" のスキルを 1 つ以上持つ）
+    // キャラの一覧。各キャラのファイルの menuOrder の順（同じなら id の順）。最初のキャラがメニューの初期値になる
+    std::vector<const CharacterDef*> characterList() const;
+    // スキルドッジで敵として出られるキャラ（"usedByEnemy" のスキルを 1 つ以上持つ）。並びは characterList() と同じ
     std::vector<const CharacterDef*> enemyCandidates() const;
 
     // 直近の読み込みで起きたエラー（画面に表示する）

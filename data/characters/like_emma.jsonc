@@ -29,6 +29,7 @@
   "id": "like_emma",
   "displayName": "like emma",
   "origin": "ER",
+  "menuOrder": 1,                 // メニューに並べる順（小さいほど上。新しいキャラは、今の最後の番号の次を付ける）
   "moveSpeed": 375,
   "hitboxRadius": 50,
   "color": [150, 225, 240],

@@ -61,6 +61,7 @@ struct CharacterDef {
     std::string id;           // "like_ezreal"
     std::string displayName;  // "like ezreal"
     std::string origin;       // "LoL" / "ER"
+    int menuOrder = 1000;     // メニューなどに並べる順（小さいほど先。同じなら id の順）
     float moveSpeed = 325.0f;
     float hitboxRadius = 65.0f;
     Color color{200, 200, 200, 255};

@@ -184,6 +184,7 @@ data/
 | `id` | （必須） | キャラの ID。ファイル同士で重複してはいけない | `src/data/GameData.cpp`（キャラの一覧・重複のチェック）<br>`src/game/World.cpp`（キャラの設定を ID で探す）<br>`src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの配置）<br>`src/app/App.cpp`（コマンドラインでの指定・エラーの表示）<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`（キャラの選択） |
 | `displayName` | `id` と同じ | 画面に出す名前（`like ezreal` など） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`（キャラ名としてコピー → `src/render/Hud.cpp` が頭上に表示、ログにも出る）<br>`src/game/Match.cpp` → `src/ui/ResultScreen.cpp`（リザルトの表示）<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`（キャラの一覧） |
 | `origin` | 空 | 元のゲーム（`"LoL"` / `"ER"`）。メニューの表示用 | `src/ui/MainMenu.cpp` |
+| `menuOrder` | `1000` | キャラを並べる順（小さいほど先。同じなら `id` の順）。今は エマ 1・エズリアル 2・ブランド 3 で、新しいキャラは今の最後の番号の次を付けて末尾に足す。一覧の最初のキャラがメニューの初期値になる | `src/data/GameData.cpp`（キャラの一覧と、敵として出られるキャラの一覧の並び）→ `src/ui/MainMenu.cpp`（キャラの選択・登場する敵の表示）、`src/ui/DebugPanel.cpp`（キャラの選択）、`src/app/App.cpp`（コマンドラインでキャラを指定しなかった時の初期値）、`src/game/Match.cpp`（キャラが見つからない時の代わり・敵のキャラの選択） |
 | `moveSpeed` | `325` | 移動速度（ゲーム内単位 / 秒） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（移動）、`src/game/ai/EnemyAI.cpp`（狙いの計算）、`src/ui/DebugPanel.cpp`（表示） |
 | `hitboxRadius` | `65` | 当たり判定の半径。画面に描く円の大きさでもある | `src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（当たり判定・カーソル下の敵の選択）、`src/game/SkillCasting.cpp`（移動先の調整・兎の選択）、`src/game/skills/SkillHelpers.cpp`（ワープ先の調整）、`src/game/skills/EmmaSkills.cpp`（R の移動先）、`src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp`（狙いの計算）、`src/render/Renderer.cpp`（描画）、`src/render/Hud.cpp`（名前の位置・画面外の判定） |
 | `color` | 灰色 | キャラの色 | `src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`（キャラの情報にコピー）<br>→ `src/render/Renderer.cpp`（描画）、`src/game/skills/SkillHelpers.cpp`（スキルの `color` を省略した時の弾・範囲の色） |
@@ -399,7 +400,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `GameData.cpp` / `GameData.h` | 4 種類のファイルをまとめて読み込み、変更を検知して再読み込みする。キャラの一覧と、敵として出られるキャラの一覧を作る。練習場のダミーのプリセットを選び直して保存する | すべて |
+| `GameData.cpp` / `GameData.h` | 4 種類のファイルをまとめて読み込み、変更を検知して再読み込みする。キャラの一覧と、敵として出られるキャラの一覧を作る（`menuOrder` の順）。練習場のダミーのプリセットを選び直して保存する | すべて |
 | `Settings.cpp` / `Settings.h` | `settings.jsonc` を読み、値の範囲をチェックする | settings |
 | `AiConfig.cpp` / `AiConfig.h` | `ai.jsonc` を読む | ai |
 | `SandboxConfig.cpp` / `SandboxConfig.h` | `sandbox.jsonc` を読む。選んだプリセットの名前を `"preset"` に書き戻す（コメントや他の行は変えない） | sandbox |

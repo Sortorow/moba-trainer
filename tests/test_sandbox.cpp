@@ -72,16 +72,19 @@ TEST_CASE("sandbox.jsonc: プリセットを選ぶと \"preset\" だけが書き
     TempDataCopy copy;
     const AppPaths paths = copy.paths();
     const std::string before = readText(paths.sandboxFile);
+    // 今選ばれているプリセット（ゲームで選び直すと変わる）とは別のプリセットを選ぶ
+    const std::string current = loadSandboxConfig(paths.sandboxFile).config.selectedPreset;
+    const std::string next = current == "標準" ? "小さい的" : "標準";
 
-    REQUIRE(saveSelectedSandboxPreset(paths.sandboxFile, "小さい的").empty());
+    REQUIRE(saveSelectedSandboxPreset(paths.sandboxFile, next).empty());
     const std::string after = readText(paths.sandboxFile);
-    CHECK(after.find("\"preset\": \"小さい的\"") != std::string::npos);
-    CHECK(after.find("■ 書き方") != std::string::npos);  // 先頭のコメントは残っている
-    CHECK(after.size() == before.size() + std::string("小さい的").size() - std::string("標準").size());
+    CHECK(after.find("\"preset\": \"" + next + "\"") != std::string::npos);
+    CHECK(after.find("■ 書き方") != std::string::npos);                   // 先頭のコメントは残っている
+    CHECK(after.size() == before.size() + next.size() - current.size());  // 変わったのは名前の部分だけ
 
     const SandboxConfigLoadResult reloaded = loadSandboxConfig(paths.sandboxFile);
     REQUIRE(reloaded.error.empty());
-    CHECK(reloaded.config.selectedPreset == "小さい的");
+    CHECK(reloaded.config.selectedPreset == next);
 }
 
 TEST_CASE("練習場: 選んだプリセットのダミーが置かれ、プレイの途中で切り替えると置き直される") {
