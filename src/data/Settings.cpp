@@ -25,12 +25,15 @@ SettingsLoadResult loadSettings(const std::filesystem::path& file) {
                 std::format("castMode \"{}\" はまだ対応していないため \"quick\" を使います", castMode));
         }
         const std::string cameraMode = j.value("cameraMode", std::string("locked"));
-        if (cameraMode != "locked") {
-            result.warnings.push_back(
-                std::format("cameraMode \"{}\" はまだ対応していないため \"locked\" を使います", cameraMode));
+        if (cameraMode == toString(CameraMode::Free)) {
+            s.cameraMode = CameraMode::Free;
+        } else if (cameraMode != toString(CameraMode::Locked)) {
+            result.warnings.push_back(std::format("cameraMode \"{}\" は不明なため \"locked\" を使います", cameraMode));
         }
 
         s.cameraViewHeight = std::clamp(j.value("cameraViewHeight", s.cameraViewHeight), 400.0f, 6000.0f);
+        s.cameraEdgeScrollSpeed = std::max(0.0f, j.value("cameraEdgeScrollSpeed", s.cameraEdgeScrollSpeed));
+        s.cameraEdgeMargin = std::clamp(j.value("cameraEdgeMargin", s.cameraEdgeMargin), 1.0f, 100.0f);
         s.cooldownScale = std::max(0.0f, j.value("cooldownScale", s.cooldownScale));
         s.showHitboxes = j.value("showHitboxes", s.showHitboxes);
         s.uiScale = std::clamp(j.value("uiScale", s.uiScale), 0.5f, 3.0f);

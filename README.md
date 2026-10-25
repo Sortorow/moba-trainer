@@ -13,7 +13,7 @@ MOBA（LoL・エターナルリターンなど）のスキルショットとス�
 
 ## ビルド
 
-```
+```text
 build.bat            # Release ビルド → build\release\moba_trainer.exe
 build.bat debug      # Debug ビルド   → build\debug\moba_trainer.exe
 ```
@@ -27,13 +27,20 @@ C++ のコードの書式は [.clang-format](.clang-format) で決めていま�
 ## 操作
 
 | 操作 | 内容 |
-|---|---|
+| --- | --- |
 | 右クリック | 移動（押しっぱなしでカーソルを追いかける） |
 | Q / W / E / R / D / F | スキル（キーを押した瞬間にカーソル方向へ発動） |
+| Y | カメラの切り替え（自キャラに固定 / 固定しない）。メニューでも選べる |
+| Space | 押している間、自キャラを画面の中央に映す |
+| 画面の端にカーソル | カメラを固定しない時に、その方向へカメラが動く |
 | F1 | デバッグパネルの表示切り替え |
 | F5 | 設定ファイルの再読み込み |
 | Esc | メニューに戻る |
 | Alt + Enter | 全画面の切り替え |
+
+プレイ中は、カーソルがウィンドウの外に出ません（画面の端でカメラを動かせるように）。
+メニュー・リザルト画面に移った時と、Alt + Tab などで別のウィンドウに切り替えた時は解除されます。
+ウィンドウを動かしたり閉じたりする時は、Esc でメニューに戻ってください。
 
 ## スキルドッジ
 
@@ -49,7 +56,7 @@ C++ のコードの書式は [.clang-format](.clang-format) で決めていま�
 ゲームを起動したままファイルを保存すると、自動で再読み込みされます。
 
 | ファイル | 内容 |
-|---|---|
+| --- | --- |
 | `data/characters/*.jsonc` | キャラとスキルの数値（項目の説明は like_ezreal.jsonc の先頭） |
 | `data/ai.jsonc` | スキルドッジの敵 AI（賢さ 1〜5 ごとの反応速度・狙い方・撃つ間隔など） |
 | `data/settings.jsonc` | 文字・ボタンの大きさ（`uiScale`）・視点の広さ・クールダウン倍率の初期値・ログの詳しさなど |
@@ -57,7 +64,7 @@ C++ のコードの書式は [.clang-format](.clang-format) で決めていま�
 ## 資料
 
 | 資料 | 内容 |
-|---|---|
+| --- | --- |
 | [docs/data-files.md](docs/data-files.md) | data フォルダの設定ファイル（用途・書ける項目・単位・参照しているソースコード） |
 | [docs/dpi-scaling.md](docs/dpi-scaling.md) | 画面の文字が小さく表示される問題と、Windows の拡大率への対応（背景・原因・修正方法・今後の注意） |
 
@@ -70,7 +77,7 @@ VSCode では、Markdown ファイルを開いて `Ctrl + Shift + V` を押す�
 
 ## 自動での確認
 
-```
+```text
 build\release\moba_tests.exe       # ゲームロジックの自動テスト
 build\release\moba_trainer.exe --character like_ezreal --mode dodge --enemies 3 --ai 3 --time 12 --seed 42 --script tests\scripts\dodge_tour.txt
 ```

@@ -20,6 +20,8 @@ struct InputFrame {
     bool toggleDebugPressed = false;       // F1
     bool reloadPressed = false;            // F5
     bool toggleFullscreenPressed = false;  // Alt + Enter
+    bool toggleCameraPressed = false;      // Y（カメラを「自キャラに固定」と「固定しない」で切り替える）
+    bool centerCameraDown = false;         // Space を押している間（自キャラを画面の中央に映す）
 
     // 入力スクリプトからの指示
     std::optional<std::string> screenshotRequest;

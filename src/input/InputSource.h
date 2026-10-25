@@ -41,7 +41,7 @@ public:
     bool isScripted() const override { return true; }
 
 private:
-    enum class Kind { Move, Cast, Cursor, Screenshot, ResetCooldowns, Exit };
+    enum class Kind { Move, Cast, Cursor, Screenshot, ResetCooldowns, ToggleCamera, Exit };
     struct Command {
         float time = 0.0f;
         Kind kind = Kind::Move;

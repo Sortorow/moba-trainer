@@ -1,0 +1,8 @@
+# カメラの切り替えの確認: 「固定しない」にして自キャラを動かすと、カメラは付いてこない
+# build\release\moba_trainer.exe --character like_ezreal --script tests\scripts\camera_tour.txt
+0.2  togglecamera                    # 「固定しない」へ
+0.3  move 900 0                      # 右へ歩く（カメラは動かないので、自キャラが画面の右へずれていく）
+3.0  screenshot camera_free.png
+3.1  togglecamera                    # 「自キャラに固定」へ戻す（自キャラが画面の中央に戻る）
+3.3  screenshot camera_locked.png
+3.4  exit

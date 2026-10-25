@@ -10,6 +10,7 @@
 #include "core/Platform.h"
 #include "game/skills/Skill.h"
 #include "imgui.h"
+#include "render/CameraControl.h"
 #include "render/Hud.h"
 #include "render/Renderer.h"
 #include "rlImGui.h"
@@ -42,6 +43,7 @@ int App::run() {
     data_.loadAll();
     validateData();
     log::setMinLevel(data_.settings().logLevel);
+    cameraMode_ = settingsCameraMode_ = data_.settings().cameraMode;
 
     if (options_.scriptFile) {
         std::string error;
@@ -118,6 +120,7 @@ void App::checkDpiChange() {
 }
 
 void App::shutdownWindow() {
+    if (cursorConfined_) platform::releaseCursor();
     rlImGuiShutdown();
     CloseWindow();
     log::info("app", "ウィンドウを閉じました");
@@ -140,6 +143,7 @@ void App::frame() {
     const InputPollContext pollContext{camera_, scriptClock_, io.WantCaptureMouse, io.WantTextInput};
     const InputFrame input = input_->poll(pollContext);
     handleGlobalKeys(input);
+    updateCursorConfinement();
     if (input.screenshotRequest) screenshotRequest_ = input.screenshotRequest;
 
     if (screen_ == Screen::Playing && match_) updateMatch(frameDt, input);
@@ -175,6 +179,7 @@ void App::handleGlobalKeys(const InputFrame& input) {
     if (input.reloadPressed) reloadData(true);
     if (input.toggleFullscreenPressed) ToggleBorderlessWindowed();
     if (input.escapePressed && screen_ != Screen::Menu) backToMenu();
+    if (input.toggleCameraPressed && screen_ == Screen::Playing) toggleCameraMode();
     if (input.resetCooldownsRequested && match_) {
         if (Unit* player = match_->world().player()) player->cooldowns = {};
         log::debug("app", "入力スクリプト: クールダウンを解除しました");
@@ -191,6 +196,11 @@ void App::reloadData(bool force) {
     validateData();
     log::setMinLevel(data_.settings().logLevel);
     applyUiScale();  // uiScale が変わっているかもしれないので反映し直す
+    // カメラは、設定ファイルの cameraMode が書き換えられた時だけ反映する（Y キーで切り替えた状態を、別の項目の保存で戻さないように）
+    if (data_.settings().cameraMode != settingsCameraMode_) {
+        settingsCameraMode_ = cameraMode_ = data_.settings().cameraMode;
+        log::info("camera", "設定ファイルにより、カメラを「{}」にしました", displayName(cameraMode_));
+    }
     if (match_) match_->world().refreshUnitsFromData();
 }
 
@@ -234,7 +244,10 @@ void App::startMatch(const MatchConfig& config) {
     accumulator_ = 0.0f;
     menu_.setConfig(match_->config());
     screen_ = Screen::Playing;
-    updateCamera();
+    // どちらのカメラでも、始めは自キャラを画面の中央に映す
+    if (const Unit* player = match_->world().player()) camera_.target = player->pos;
+    updateCamera(0.0f, InputFrame{});
+    log::info("camera", "カメラ: {}", displayName(cameraMode_));
 }
 
 void App::backToMenu() {
@@ -252,20 +265,51 @@ void App::updateMatch(float frameDt, const InputFrame& input) {
         pendingInput_.clearPressed();
         accumulator_ -= kFixedDt;
     }
-    updateCamera();
+    updateCamera(frameDt, input);
     if (match_->finished()) {
         result_ = match_->result();
         screen_ = Screen::Result;
     }
 }
 
-void App::updateCamera() {
+void App::updateCamera(float frameDt, const InputFrame& input) {
+    const Settings& settings = data_.settings();
     camera_.offset = Vector2{GetScreenWidth() * 0.5f, GetScreenHeight() * 0.5f};
     camera_.rotation = 0.0f;
-    camera_.zoom = static_cast<float>(GetScreenHeight()) / data_.settings().cameraViewHeight;
-    if (match_) {
-        if (const Unit* player = match_->world().player()) camera_.target = player->pos;  // カメラは自キャラに固定
+    camera_.zoom = static_cast<float>(GetScreenHeight()) / settings.cameraViewHeight;
+    if (!match_) return;
+    const Unit* player = match_->world().player();
+    if (!player) return;
+
+    CameraControlInput control;
+    control.mouse = GetMousePosition();
+    control.screenWidth = static_cast<float>(GetScreenWidth());
+    control.screenHeight = static_cast<float>(GetScreenHeight());
+    control.edgeMargin = ui::px(settings.cameraEdgeMargin);
+    // 入力スクリプトの時は実際のマウスを使わない。UI（デバッグパネルなど）の上にカーソルがある時も動かさない
+    control.edgeScrollEnabled = !input_->isScripted() && IsWindowFocused() && !ImGui::GetIO().WantCaptureMouse;
+    control.centerHeld = input.centerCameraDown;
+    camera_.target = nextCameraTarget(cameraMode_, camera_.target, player->pos, control, settings.cameraEdgeScrollSpeed,
+                                      match_->world().bounds(), frameDt);
+}
+
+void App::toggleCameraMode() {
+    cameraMode_ = cameraMode_ == CameraMode::Locked ? CameraMode::Free : CameraMode::Locked;
+    log::info("camera", "Y: カメラを「{}」にしました", displayName(cameraMode_));
+}
+
+// プレイ中（ウィンドウが選ばれている間）は、カーソルをウィンドウの外に出さない。カメラを固定しない時に、
+// 画面の端にカーソルを置いてカメラを動かせるように。メニュー・リザルト・別のウィンドウへ切り替えた時は解除する
+void App::updateCursorConfinement() {
+    const bool confine = screen_ == Screen::Playing && !input_->isScripted() && IsWindowFocused();
+    if (confine)
+        platform::confineCursorToWindow(GetWindowHandle());  // ウィンドウの移動・大きさの変更に追従するため毎回
+    else if (cursorConfined_) platform::releaseCursor();
+    if (confine != cursorConfined_) {
+        log::debug("camera", "{}",
+                   confine ? "カーソルをウィンドウの中に閉じ込めました" : "カーソルの閉じ込めを解除しました");
     }
+    cursorConfined_ = confine;
 }
 
 void App::draw() {
@@ -281,13 +325,13 @@ void App::draw() {
     rlImGuiBegin();
     switch (screen_) {
         case Screen::Menu: {
-            const MenuAction action = menu_.draw(data_);
+            const MenuAction action = menu_.draw(data_, cameraMode_);
             if (action.kind == MenuAction::Kind::Start) startMatch(action.config);
             if (action.kind == MenuAction::Kind::Quit) quit_ = true;
             break;
         }
         case Screen::Playing: {
-            drawHud(*match_, camera_);
+            drawHud(*match_, camera_, cameraMode_);
             if (!debugPanelVisible_) break;
             const DebugPanelResult result = drawDebugPanel(*match_, data_);
             if (result.reloadData) reloadData(true);
@@ -300,7 +344,7 @@ void App::draw() {
             break;
         }
         case Screen::Result: {
-            drawHud(*match_, camera_);
+            drawHud(*match_, camera_, cameraMode_);
             const ResultAction action = drawResultScreen(*result_);
             if (action == ResultAction::Retry) {
                 MatchConfig next = result_->config;

@@ -1,6 +1,7 @@
 #pragma once
-// メインメニュー（キャラ・モード・ステージ・クールダウンの選択）
+// メインメニュー（キャラ・モード・ステージ・クールダウン・カメラの選択）
 
+#include "data/Settings.h"
 #include "game/MatchConfig.h"
 
 namespace moba {
@@ -15,7 +16,8 @@ struct MenuAction {
 
 class MainMenu {
 public:
-    MenuAction draw(const GameData& data);
+    // cameraMode はプレイ中に Y キーでも変わるので、メニューでは持たずに App の値をそのまま変える
+    MenuAction draw(const GameData& data, CameraMode& cameraMode);
     // 前回のプレイの設定を、次にメニューを開いた時の初期値にする
     void setConfig(const MatchConfig& config);
 

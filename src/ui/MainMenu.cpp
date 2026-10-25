@@ -70,7 +70,7 @@ void MainMenu::setConfig(const MatchConfig& config) {
     initialized_ = true;
 }
 
-MenuAction MainMenu::draw(const GameData& data) {
+MenuAction MainMenu::draw(const GameData& data, CameraMode& cameraMode) {
     if (!initialized_) {
         config_.cooldownScale = data.settings().cooldownScale;
         initialized_ = true;
@@ -126,6 +126,14 @@ MenuAction MainMenu::draw(const GameData& data) {
     ImGui::BeginDisabled(config_.cooldownMode == CooldownMode::None);
     drawCooldownScaleCombo(config_.cooldownScale, data.settings().cooldownScale);
     ImGui::EndDisabled();
+
+    ImGui::SeparatorText("カメラ");
+    if (ImGui::RadioButton("自キャラに固定", cameraMode == CameraMode::Locked)) cameraMode = CameraMode::Locked;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("固定しない（画面の端で動かす）", cameraMode == CameraMode::Free)) {
+        cameraMode = CameraMode::Free;
+    }
+    ImGui::TextDisabled("プレイ中も Y キーで切り替えられます。Space を押している間は自キャラを映します");
 
     ImGui::Spacing();
     ImGui::Separator();

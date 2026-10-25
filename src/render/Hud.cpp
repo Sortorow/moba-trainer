@@ -86,13 +86,16 @@ void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) 
     }
 }
 
-// 画面の外にいる敵の方向を、画面の端に矢印で示す
+// 画面の外にいる敵の方向を、画面の端に矢印で示す。
+// カメラを固定しない時は自キャラも画面の外に出ることがあるので、自キャラも別の色で示す
 void drawOffscreenIndicators(ImDrawList* dl, const World& world, const Camera2D& camera) {
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     const Vector2 center{display.x * 0.5f, display.y * 0.5f};
     const float margin = px(30.0f);
     for (const Unit& unit : world.units()) {
-        if (unit.team != Team::Enemy || unit.characterId.empty()) continue;
+        const bool isPlayer = unit.team == Team::Player;
+        const bool isEnemyCharacter = unit.team == Team::Enemy && !unit.characterId.empty();
+        if (!isPlayer && !isEnemyCharacter) continue;
         const Vector2 s = GetWorldToScreen2D(unit.pos, camera);
         const float r = unit.radius * camera.zoom;
         if (s.x + r >= 0.0f && s.x - r <= display.x && s.y + r >= 0.0f && s.y - r <= display.y) continue;
@@ -105,9 +108,11 @@ void drawOffscreenIndicators(ImDrawList* dl, const World& world, const Camera2D&
         const Vector2 tip = p + dir * px(14.0f);
         const Vector2 b1 = p - dir * px(10.0f) + side * px(11.0f);
         const Vector2 b2 = p - dir * px(10.0f) - side * px(11.0f);
-        dl->AddTriangleFilled(ImVec2{tip.x, tip.y}, ImVec2{b1.x, b1.y}, ImVec2{b2.x, b2.y}, IM_COL32(255, 80, 80, 230));
+        const ImU32 arrowColor = isPlayer ? IM_COL32(120, 230, 140, 240) : IM_COL32(255, 80, 80, 230);
+        const ImU32 labelColor = isPlayer ? IM_COL32(180, 245, 190, 240) : IM_COL32(255, 170, 160, 230);
+        dl->AddTriangleFilled(ImVec2{tip.x, tip.y}, ImVec2{b1.x, b1.y}, ImVec2{b2.x, b2.y}, arrowColor);
         const Vector2 label = p - dir * px(30.0f);
-        drawCenteredText(dl, ImVec2{label.x, label.y}, 13.0f, IM_COL32(255, 170, 160, 230), unit.name);
+        drawCenteredText(dl, ImVec2{label.x, label.y}, 13.0f, labelColor, unit.name);
     }
 }
 
@@ -205,26 +210,28 @@ void drawDodgePanel(ImDrawList* dl, const Match& match) {
                      std::format("ドッジ率 {}　　被弾 {}　　ダウン {}", rate, dodge.hit, player ? player->deaths : 0));
 }
 
-void drawHelp(ImDrawList* dl) {
-    const char* help =
-        "右クリック: 移動    Q/W/E/R/D/F: スキル    F1: デバッグ表示    F5: 設定の再読み込み    Esc: メニュー";
+void drawHelp(ImDrawList* dl, CameraMode cameraMode) {
+    const std::string help = std::format(
+        "右クリック: 移動    Q/W/E/R/D/F: スキル    Y: カメラ（今: {}）    Space: 自キャラを映す    "
+        "F1: デバッグ表示    F5: 設定の再読み込み    Esc: メニュー",
+        displayName(cameraMode));
     const float size = px(15.0f);
     const ImVec2 pos = px(12.0f, 10.0f);
     const float shadow = std::max(1.0f, px(1.0f));
-    dl->AddText(ImGui::GetFont(), size, ImVec2{pos.x + shadow, pos.y + shadow}, IM_COL32(0, 0, 0, 200), help);
-    dl->AddText(ImGui::GetFont(), size, pos, IM_COL32(230, 235, 240, 255), help);
+    dl->AddText(ImGui::GetFont(), size, ImVec2{pos.x + shadow, pos.y + shadow}, IM_COL32(0, 0, 0, 200), help.c_str());
+    dl->AddText(ImGui::GetFont(), size, pos, IM_COL32(230, 235, 240, 255), help.c_str());
 }
 
 }  // namespace
 
-void drawHud(const Match& match, const Camera2D& camera) {
+void drawHud(const Match& match, const Camera2D& camera, CameraMode cameraMode) {
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
     const World& world = match.world();
     drawUnitLabels(dl, world, camera);
     drawOffscreenIndicators(dl, world, camera);
     drawSkillBar(dl, world);
     if (match.config().mode == GameMode::SkillDodge) drawDodgePanel(dl, match);
-    drawHelp(dl);
+    drawHelp(dl, cameraMode);
 }
 
 }  // namespace moba

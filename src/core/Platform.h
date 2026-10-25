@@ -27,6 +27,12 @@ struct ScreenRect {
 };
 ScreenRect monitorWorkArea(void* nativeWindowHandle);
 
+// カーソルが動ける範囲を、ウィンドウの中（タイトルバーと枠を除いた部分）に制限する。
+// ウィンドウの移動・大きさの変更に追従するため、制限したい間は毎フレーム呼ぶ
+void confineCursorToWindow(void* nativeWindowHandle);
+// カーソルの制限を解除する
+void releaseCursor();
+
 void showErrorDialog(std::string_view titleUtf8, std::string_view messageUtf8);
 
 }  // namespace moba::platform

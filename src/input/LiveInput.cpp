@@ -20,6 +20,8 @@ InputFrame LiveInput::poll(const InputPollContext& ctx) {
         frame.reloadPressed = IsKeyPressed(KEY_F5);
         frame.toggleFullscreenPressed =
             IsKeyPressed(KEY_ENTER) && (IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT));
+        frame.toggleCameraPressed = IsKeyPressed(KEY_Y);
+        frame.centerCameraDown = IsKeyDown(KEY_SPACE);
     }
     return frame;
 }

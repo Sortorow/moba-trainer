@@ -29,7 +29,7 @@ data/
 
 | ファイル | 用途 | 読み込むコード | 値を使うコード |
 |---|---|---|---|
-| `settings.jsonc` | 画面・カメラ・クールダウン倍率の初期値・ログの詳しさ | `src/data/Settings.cpp` | `src/app/App.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ App.cpp から `src/render/Renderer.cpp`、`src/ui/UiScale.cpp`、`src/core/Log.cpp` へ渡される |
+| `settings.jsonc` | 画面・カメラ・クールダウン倍率の初期値・ログの詳しさ | `src/data/Settings.cpp` | `src/app/App.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ App.cpp から `src/render/Renderer.cpp`、`src/render/CameraControl.cpp`、`src/render/Hud.cpp`、`src/ui/UiScale.cpp`、`src/core/Log.cpp` へ渡される |
 | `ai.jsonc` | スキルドッジの敵の強さ・動き方 | `src/data/AiConfig.cpp` | `src/game/Match.cpp`、`src/game/ai/EnemyAI.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ EnemyAI.cpp から `src/game/ai/Aim.cpp` へ、Match.cpp から `src/ui/ResultScreen.cpp` へ渡される |
 | `characters/*.jsonc` | キャラのステータスとスキルの数値・動き | `src/data/CharacterDef.cpp` | `src/app/App.cpp`<br>`src/data/GameData.cpp`<br>`src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`、`src/game/SkillCasting.cpp`<br>`src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`、`SkillRegistry.cpp`<br>`src/game/ai/`：`Aim.cpp`、`EnemyAI.cpp`<br>`src/render/Hud.cpp`<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ キャラの大きさ・移動速度・色は配置時にキャラの情報（`Unit`）へコピーされ、`src/render/Renderer.cpp` などでも使われる（[5 章](#5-charactersjsoncキャラとスキル)の表を参照） |
 
@@ -71,8 +71,10 @@ data/
 | 項目 | 既定値 | 意味 | 使うコード |
 |---|---|---|---|
 | `castMode` | `"quick"` | スキルの発動方式。今は `"quick"`（キーを押した瞬間に発動）だけ | `src/data/Settings.cpp`（未対応の値を書いた時の警告だけ。値を使うコードはまだ無い） |
-| `cameraMode` | `"locked"` | カメラ。今は `"locked"`（自キャラに固定）だけ | `src/data/Settings.cpp`（未対応の値を書いた時の警告だけ。値を使うコードはまだ無い） |
+| `cameraMode` | `"locked"` | 起動時のカメラ。`"locked"`（自キャラに固定）/ `"free"`（固定しない。画面の端にカーソルを置くとその方向へ動く）。メニューとプレイ中の `Y` キーでも切り替えられる。設定ファイルのこの値を書き換えて保存した時だけ、今のカメラに反映する | `src/app/App.cpp`（今のカメラとして保持する・`Y` キーでの切り替え）<br>→ `src/render/CameraControl.cpp`（カメラの動かし方）、`src/ui/MainMenu.cpp`（メニューでの選択）、`src/render/Hud.cpp`（操作説明に今のカメラを表示） |
 | `cameraViewHeight` | `1500` | 画面の縦方向に映るゲーム内の距離。大きいほど引いた視点（400〜6000） | `src/app/App.cpp`（カメラの拡大率）<br>`src/ui/DebugPanel.cpp`（一時的に変えるスライダー） |
+| `cameraEdgeScrollSpeed` | `2500` | カメラを固定しない時に、画面の端でカメラが動く速さ（ゲーム内の距離 / 秒。0 以上） | `src/app/App.cpp` → `src/render/CameraControl.cpp` |
+| `cameraEdgeMargin` | `12` | カメラを固定しない時に、画面の端からこの幅まで近づくとカメラが動く（Windows の拡大率 100% の時のピクセル。1〜100） | `src/app/App.cpp`（Windows の拡大率と `uiScale` を掛ける）→ `src/render/CameraControl.cpp` |
 | `cooldownScale` | `0.25` | クールダウン「標準」モードの倍率の初期値（0 以上）。メニューで変えられる | `src/ui/MainMenu.cpp`（メニューの初期値と選択肢）<br>`src/app/App.cpp`（コマンドラインで開始する時の初期値） |
 | `showHitboxes` | `true` | 弾・範囲の当たり判定の円を表示するか | `src/app/App.cpp` → `src/render/Renderer.cpp`（描画）<br>`src/ui/DebugPanel.cpp`（一時的に変えるチェックボックス） |
 | `uiScale` | `1.0` | 文字・ボタンの大きさの倍率。Windows の拡大率にさらに掛ける（0.5〜3.0）。詳しくは [dpi-scaling.md](dpi-scaling.md) | `src/app/App.cpp` → `src/ui/UiScale.cpp` |
@@ -335,7 +337,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `App.cpp` / `App.h` | ウィンドウの大きさ・文字の大きさ・カメラ・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。読み込み時に handler が実在するかを確認する。コマンドラインで指定したキャラを探す | settings、characters |
+| `App.cpp` / `App.h` | ウィンドウの大きさ・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。読み込み時に handler が実在するかを確認する。コマンドラインで指定したキャラを探す | settings、characters |
 | `CommandLine.cpp` / `CommandLine.h` | 使わない | — |
 
 ### src/core/
@@ -410,13 +412,14 @@ data/
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
 | `Renderer.cpp` / `Renderer.h` | 当たり判定の円の表示（`showHitboxes`）、キャラの大きさと色。弾の見た目のずれ（エマの `doveCardDrawOffsetForward` / `doveCardDrawOffsetSide`。値は `EmmaSkills.cpp` が弾に設定する） | settings、characters |
-| `Hud.cpp` / `Hud.h` | スキルバー（スキル名・クールダウン・使えないスキルを暗く表示）、詠唱バー、キャラ名の表示 | characters |
+| `Hud.cpp` / `Hud.h` | スキルバー（スキル名・クールダウン・使えないスキルを暗く表示）、詠唱バー、キャラ名の表示。操作説明に今のカメラ（`cameraMode`。値は `App.cpp` から受け取る）を表示 | settings、characters |
+| `CameraControl.cpp` / `CameraControl.h` | カメラの動かし方（自キャラに固定 / 固定しない）。`cameraEdgeScrollSpeed`・`cameraEdgeMargin` を使う（値は `App.cpp` から受け取る）。カメラが動ける範囲はステージの範囲 | settings |
 
 ### src/ui/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前、キャラの一覧、敵として出るキャラの一覧を表示する | settings、ai、characters |
+| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ | settings、ai、characters |
 | `DebugPanel.cpp` / `DebugPanel.h` | 視点の広さ・当たり判定の円の表示を一時的に変える。キャラの選択、敵 AI の賢さの名前、移動速度の表示 | settings、ai、characters |
 | `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名と敵 AI の賢さの名前を表示する（値は `Match.cpp` から受け取る） | ai、characters |
 | `UiScale.cpp` / `UiScale.h` | `uiScale` とウィンドウの大きさから、画面に出す大きさを計算する（値は `App.cpp` から受け取る） | settings |
@@ -433,4 +436,5 @@ data/
 | `test_log_retention.cpp` | 使わない | — |
 | `test_main.cpp` | 使わない | — |
 | `test_ui_scale.cpp` | 使わない（`UiScale.cpp` の計算を、テスト用の値で確かめる） | — |
-| `scripts/brand_tour.txt`、`scripts/dodge_tour.txt`、`scripts/emma_tour.txt`、`scripts/ezreal_tour.txt` | 使わない（`--script` で使う入力スクリプト） | — |
+| `test_camera.cpp` | 使わない（`CameraControl.cpp` の計算を、テスト用の値で確かめる） | — |
+| `scripts/brand_tour.txt`、`scripts/camera_tour.txt`、`scripts/dodge_tour.txt`、`scripts/emma_tour.txt`、`scripts/ezreal_tour.txt` | 使わない（`--script` で使う入力スクリプト） | — |

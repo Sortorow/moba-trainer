@@ -40,7 +40,9 @@ private:
     void startMatch(const MatchConfig& config);
     void backToMenu();
     void updateMatch(float frameDt, const InputFrame& input);
-    void updateCamera();
+    void updateCamera(float frameDt, const InputFrame& input);
+    void toggleCameraMode();
+    void updateCursorConfinement();  // プレイ中は、カーソルをウィンドウの外に出さない
     void draw();
     void saveScreenshot(const std::string& file);
 
@@ -54,7 +56,10 @@ private:
     std::unique_ptr<InputSource> input_;
 
     Camera2D camera_{};
-    InputFrame pendingInput_;  // まだゲームの更新に渡していない入力
+    CameraMode cameraMode_ = CameraMode::Locked;          // 今のカメラ（メニューと Y キーで変わる）
+    CameraMode settingsCameraMode_ = CameraMode::Locked;  // 設定ファイルの cameraMode（変わった時だけ反映するため）
+    bool cursorConfined_ = false;                         // カーソルをウィンドウの中に閉じ込めているか
+    InputFrame pendingInput_;                             // まだゲームの更新に渡していない入力
     float accumulator_ = 0.0f;
     float reloadCheckTimer_ = 0.0f;
     float scriptClock_ = 0.0f;  // 入力スクリプトの時刻（1 フレームごとに 1/60 秒進む）

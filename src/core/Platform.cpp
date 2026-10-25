@@ -87,6 +87,17 @@ ScreenRect monitorWorkArea(void* nativeWindowHandle) {
                       info.rcWork.bottom - info.rcWork.top};
 }
 
+void confineCursorToWindow(void* nativeWindowHandle) {
+    const HWND window = static_cast<HWND>(nativeWindowHandle);
+    RECT client{};
+    if (!window || !GetClientRect(window, &client)) return;
+    // GetClientRect はウィンドウ内の座標なので、画面全体の座標に直す（左上と右下の 2 点）
+    MapWindowPoints(window, nullptr, reinterpret_cast<POINT*>(&client), 2);
+    ClipCursor(&client);
+}
+
+void releaseCursor() { ClipCursor(nullptr); }
+
 void showErrorDialog(std::string_view titleUtf8, std::string_view messageUtf8) {
     MessageBoxW(nullptr, widen(messageUtf8).c_str(), widen(titleUtf8).c_str(), MB_OK | MB_ICONERROR);
 }
