@@ -7,7 +7,8 @@
 //   "emma_q"             カードを投げて、自分の位置に鳩を残す。鳩がいれば（どれだけ離れていても）鳩もカードになって狙った地点へ飛ぶ
 //                        speed, width, visual, color（エマのカード）,
 //                        cooldownRefundOnHit（エマのカードが当たった時に、Q のクールダウンを本来の値の何割分短くするか）,
-//                        doveLifetime（鳩が残る時間）, doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）,
+//                        doveLifetime（鳩が残る時間）, doveCardColor（鳩のカードの色）,
+//                        doveCardSpeed, doveCardRange（鳩のカードの弾速・飛距離。省略するとエマ本体の speed / range と同じ）,
 //                        doubleHitEffects（2 枚とも同じ敵に当たった時の効果）
 //   "emma_w"             指定した地点が少し遅れて爆発し、その場に帽子が残る（R の対象）
 //                        delay（爆発までの時間）, radius, hatLifetime, color, onHit,
@@ -26,7 +27,7 @@
   "id": "like_emma",
   "displayName": "like emma",
   "origin": "ER",
-  "moveSpeed": 355,
+  "moveSpeed": 375,
   "hitboxRadius": 50,
   "color": [150, 225, 240],
 
@@ -39,18 +40,20 @@
       // 溜めの間に R を使うと、溜めを続けたまま移動し、移動先からカードが出て鳩もそこに残る
       "usableDuringCast": ["R"],
       "cooldown": 4,
-      "range": 700,
+      "range": 950,
       "countsForHitRate": true,
       "usedByEnemy": true,
       "params": {
-        "speed": 1600,
-        "width": 60,
+        "speed": 800,
+        "width": 90,
         "visual": "card",
         "color": [190, 150, 255],
         "cooldownRefundOnHit": 0.3,
         "doveLifetime": 6,
-        "doveCardSpeed": 1600,
-        "doveCardRange": 800,
+        // 鳩のカードの弾速・飛距離。書かなければエマ本体のカード（speed / range）と同じになる。
+        // 本体と別の値にしたい時だけ、コメントを外して書く
+        // "doveCardSpeed": 1600,
+        // "doveCardRange": 950,
         "doveCardColor": [245, 245, 255],
         "doubleHitEffects": [ { "type": "slow", "amount": 0.4, "duration": 1.5 } ]
       }

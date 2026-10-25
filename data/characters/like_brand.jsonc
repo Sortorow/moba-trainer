@@ -16,7 +16,7 @@
   "id": "like_brand",
   "displayName": "like brand",
   "origin": "LoL",
-  "moveSpeed": 340,
+  "moveSpeed": 365,
   "hitboxRadius": 65,
   "color": [255, 140, 60],
 

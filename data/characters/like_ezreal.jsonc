@@ -34,7 +34,7 @@
   "id": "like_ezreal",
   "displayName": "like ezreal",
   "origin": "LoL",
-  "moveSpeed": 325,
+  "moveSpeed": 345,
   "hitboxRadius": 65,
   "color": [70, 170, 255],
 

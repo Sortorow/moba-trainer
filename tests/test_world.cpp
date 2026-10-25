@@ -49,6 +49,14 @@ public:
     void resetCooldowns() { player().cooldowns = {}; }
     float cooldown(SkillSlot slot) { return player().cooldowns[static_cast<std::size_t>(index(slot))]; }
 
+    // 設定ファイルのスキル定義（数値を調整してもテストが壊れないよう、期待値はここから計算する）
+    const SkillDef& skill(SkillSlot slot) { return *data_.character(player().characterId)->skill(slot); }
+    // スキルを使ってから、弾が distance だけ進むまでの時間
+    float timeToReach(SkillSlot slot, float distance) {
+        const SkillDef& def = skill(slot);
+        return def.castTime + distance / def.numOr("speed", 1.0f);
+    }
+
     const Prop* findProp(PropKind kind) {
         for (const Prop& prop : world_->props()) {
             if (prop.alive && prop.kind == kind) return &prop;
@@ -73,7 +81,7 @@ TEST_CASE("右クリックの移動: 移動速度どおりに進む") {
     Fixture f("like_ezreal");
     casting::orderMove(f.world(), f.player(), {1000, 0});
     f.run(1.0f);
-    CHECK(f.player().pos.x == doctest::Approx(325.0f).epsilon(0.02));
+    CHECK(f.player().pos.x == doctest::Approx(f.player().baseMoveSpeed).epsilon(0.02));
 }
 
 TEST_CASE("エズリアル Q: 正面の敵に当たり、外せば当たらない") {
@@ -170,14 +178,14 @@ TEST_CASE("エマ Q: 鳩を残し、次の Q で鳩のカードも飛ぶ。2 枚
     Fixture f("like_emma");
     const EntityId target = f.addDummy({500, 0});
     f.cast(SkillSlot::Q, {500, 0});
-    f.run(0.5f);
+    f.run(f.timeToReach(SkillSlot::Q, 500.0f) + 0.1f);
     REQUIRE(f.world().props().size() == 1);  // (0, 0) に鳩
     CHECK_FALSE(f.unit(target).status.has(EffectType::Slow));
 
     f.player().pos = {0, 250};  // 鳩から少し離れた位置から投げる
     f.resetCooldowns();
     f.cast(SkillSlot::Q, {500, 0});
-    f.run(0.7f);
+    f.run(f.timeToReach(SkillSlot::Q, 600.0f) + 0.1f);
     CHECK(f.unit(target).status.has(EffectType::Slow));
     REQUIRE(f.world().props().size() == 1);  // 古い鳩はカードになり、新しい鳩が 1 羽
     CHECK(f.world().props().front().pos.y == doctest::Approx(250.0f));
@@ -200,14 +208,18 @@ TEST_CASE("エマ W → R（帽子）: 帽子の位置へ移動し、元の位�
 TEST_CASE("エマ Q: 鳩がどれだけ離れていても、鳩のカードが飛ぶ") {
     Fixture f("like_emma");
     f.cast(SkillSlot::Q, {500, 0});
-    f.run(0.5f);
+    f.run(f.timeToReach(SkillSlot::Q, f.skill(SkillSlot::Q).range) + 0.1f);  // 1 回目のカードが射程の端で消えるまで待つ
     REQUIRE(f.findProp(PropKind::Dove) != nullptr);  // (0, 0) に鳩
 
     f.player().pos = {2000, 0};  // 鳩から 2000 離れる
     f.resetCooldowns();
     f.cast(SkillSlot::Q, {2500, 0});
     f.run(0.3f);
-    CHECK(f.world().projectiles().size() == 2);  // エマのカードと鳩のカード
+    REQUIRE(f.world().projectiles().size() == 2);  // エマのカードと鳩のカード
+    // doveCardSpeed を書かなければ、鳩のカードはエマ本体と同じ弾速
+    if (!f.skill(SkillSlot::Q).params.contains("doveCardSpeed")) {
+        CHECK(f.world().projectiles()[0].speed == doctest::Approx(f.world().projectiles()[1].speed));
+    }
     REQUIRE(f.world().props().size() == 1);      // 古い鳩はカードになり、新しい鳩が 1 羽
     CHECK(f.world().props().front().pos.x == doctest::Approx(2000.0f));
 }
@@ -216,9 +228,11 @@ TEST_CASE("エマ Q: エマのカードが当たると、Q のクールダウン
     Fixture f("like_emma");
     f.addDummy({500, 0});
     f.cast(SkillSlot::Q, {500, 0});
-    f.run(0.6f);
-    // クールダウン 4 秒 - 経過 0.6 秒 - 短縮 1.2 秒（4 秒の 30%）
-    CHECK(f.cooldown(SkillSlot::Q) == doctest::Approx(2.2f).epsilon(0.02));
+    const float elapsed = f.timeToReach(SkillSlot::Q, 500.0f) + 0.1f;  // カードが当たった後まで待つ
+    f.run(elapsed);
+    // クールダウン - 経過時間 - 短縮分（本来のクールダウンの 30%）
+    const float cooldown = f.skill(SkillSlot::Q).cooldown;
+    CHECK(f.cooldown(SkillSlot::Q) == doctest::Approx(cooldown - elapsed - cooldown * 0.3f).epsilon(0.02));
 }
 
 TEST_CASE("エマ W: 当たるとクールダウンが 30% 分短くなる（複数に当たっても 1 回だけ）") {

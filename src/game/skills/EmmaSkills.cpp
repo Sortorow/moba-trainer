@@ -60,9 +60,10 @@ void handleEmmaQ(SkillContext& ctx) {
     for (Prop& dove : world.props()) {
         if (!dove.alive || dove.owner != emma.id || dove.kind != PropKind::Dove) continue;
         dove.alive = false;
+        // 鳩のカードの飛距離・弾速は、書かれていなければエマ本体のカード（range / speed）と同じにする
         Projectile doveCard = makeProjectile(ctx, dove.pos, geo::normalizedOr(target - dove.pos, dir),
-                                             def.num("doveCardRange", 800.0f));
-        doveCard.speed = def.num("doveCardSpeed", doveCard.speed);
+                                             def.numOr("doveCardRange", def.range));
+        doveCard.speed = def.numOr("doveCardSpeed", doveCard.speed);
         doveCard.color = def.color("doveCardColor", kDoveColor);
         doveCard.label = def.name + "（鳩のカード）";
         doveCard.onHit = makeOnHit(2);
