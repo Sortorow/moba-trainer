@@ -24,7 +24,8 @@ void cancelAndRefund(SkillContext& ctx, std::string_view reason) {
 //    鳩がいれば（どれだけ離れていても）、その鳩もカードになって狙った地点へ飛ぶ。
 //    エマ本体のカードが当たると、Q のクールダウンが短くなる。両方のカードが同じ敵に当たると追加効果。
 // params: speed, width, visual, color, cooldownRefundOnHit（エマのカード）,
-//         doveLifetime, doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）, doubleHitEffects
+//         doveLifetime, doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）, doubleHitEffects,
+//         doveCardDrawOffsetForward, doveCardDrawOffsetSide（溜めの間に R で鳩と入れ替わった時の、鳩のカードの見た目のずれ）
 void handleEmmaQ(SkillContext& ctx) {
     World& world = ctx.world;
     Unit& emma = ctx.caster;
@@ -69,6 +70,11 @@ void handleEmmaQ(SkillContext& ctx) {
         doveCard.color = def.color("doveCardColor", kDoveColor);
         doveCard.label = def.name + "（鳩のカード）";
         doveCard.onHit = makeOnHit(2);
+        if (ctx.request.doveCardOrigin) {
+            // エマのカードとぴったり重なって 1 枚に見えないよう、見た目だけずらす（当たり判定は重なったまま）
+            doveCard.drawOffsetForward = def.numOr("doveCardDrawOffsetForward", 0.0f);
+            doveCard.drawOffsetSide = def.numOr("doveCardDrawOffsetSide", 0.0f);
+        }
         world.spawnProjectile(std::move(doveCard));
         log::debug("skill", "鳩 #{} が {} からカードになって {} へ飛びます", dove.id, geo::str(from), geo::str(target));
     }

@@ -3,7 +3,9 @@
 #include <doctest/doctest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <format>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <random>
@@ -253,16 +255,16 @@ TEST_CASE("賢さが高いほど、ランダムに動き回る相手に当てや
     data.loadAll();
 
     // 0.5 秒ごとにランダムな方向へ向きを変えて動き回る相手に、敵 3 体で 60 秒間撃たせた時のドッジ率
-    auto dodgeRateAgainstRandomWalker = [&](int aiLevel) {
+    auto dodgeRateAgainstRandomWalker = [&](int aiLevel, std::uint32_t seed) {
         MatchConfig config;
         config.mode = GameMode::SkillDodge;
         config.characterId = "like_ezreal";
         config.enemyCount = 3;
         config.aiLevel = aiLevel;
         config.timeLimitSeconds = 60.0f;
-        config.seed = 7;
+        config.seed = seed;
         Match match(data, config);
-        std::mt19937 rng(123);
+        std::mt19937 rng(seed + 100);
         std::uniform_real_distribution<float> angle(-PI, PI);
         const InputFrame noInput;
         for (int i = 0; !match.finished(); ++i) {
@@ -276,8 +278,13 @@ TEST_CASE("賢さが高いほど、ランダムに動き回る相手に当てや
         return match.result().dodge.rate();
     };
 
+    // 1 回だけだと、キャラの数値を少し調整しただけで順位が入れ替わることがあるので、乱数の種を変えた平均で比べる
+    constexpr std::uint32_t kSeeds[] = {7, 8, 9, 10};
     float rates[6] = {};
-    for (int level = 1; level <= 5; ++level) rates[level] = dodgeRateAgainstRandomWalker(level);
+    for (int level = 1; level <= 5; ++level) {
+        for (const std::uint32_t seed : kSeeds) rates[level] += dodgeRateAgainstRandomWalker(level, seed);
+        rates[level] /= static_cast<float>(std::size(kSeeds));
+    }
     MESSAGE(std::format("ランダムに動く相手のドッジ率: 賢さ1 {:.0f}% / 2 {:.0f}% / 3 {:.0f}% / 4 {:.0f}% / 5 {:.0f}%",
                         rates[1] * 100, rates[2] * 100, rates[3] * 100, rates[4] * 100, rates[5] * 100));
     CHECK(rates[1] > rates[3]);

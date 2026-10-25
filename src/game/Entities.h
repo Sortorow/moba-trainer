@@ -41,6 +41,9 @@ struct Projectile {
 
     ProjectileVisual visual = ProjectileVisual::Orb;
     Color color = WHITE;
+    // 見た目だけずらして描く量（当たり判定の位置は pos のまま）。forward は進む方向、side は進む方向の右側（画面上）が正
+    float drawOffsetForward = 0.0f;
+    float drawOffsetSide = 0.0f;
 
     std::vector<EntityId> hitUnits;  // 既に当たった相手（同じ相手には 1 回だけ当たる）
     std::function<void(World&, Projectile&, Unit&)> onHit;

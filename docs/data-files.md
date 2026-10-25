@@ -241,6 +241,7 @@ data/
 | `doveLifetime` | ○ | 鳩が残る時間 |
 | `doveCardSpeed` / `doveCardRange` | | 鳩のカードの弾速 / 飛距離。**省略するとエマ本体の `speed` / `range` と同じ** |
 | `doveCardColor` | | 鳩のカードの色 |
+| `doveCardDrawOffsetForward` / `doveCardDrawOffsetSide` | | 溜めの間に R で鳩と入れ替わった時に、鳩のカードを**見た目だけ**ずらす量（当たり判定はずらさない。省略すると 0）。2 枚が同じ位置から同じ方向へ飛んで、1 枚に見えてしまうのを防ぐ。Forward は進む方向（マイナスなら後ろ）、Side は横方向（プラスなら進む方向の右） |
 | `doubleHitEffects` | | 2 枚とも同じ敵に当たった時の効果 |
 
 **`"emma_w"`**：指定した地点が遅れて爆発し、帽子が残る（`EmmaSkills.cpp`）。`ground_blast` の項目に加えて、`hatLifetime`（必須。帽子が残る時間）を書きます。

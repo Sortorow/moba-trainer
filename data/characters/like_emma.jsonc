@@ -9,7 +9,9 @@
 //                        cooldownRefundOnHit（エマのカードが当たった時に、Q のクールダウンを本来の値の何割分短くするか）,
 //                        doveLifetime（鳩が残る時間）, doveCardColor（鳩のカードの色）,
 //                        doveCardSpeed, doveCardRange（鳩のカードの弾速・飛距離。省略するとエマ本体の speed / range と同じ）,
-//                        doubleHitEffects（2 枚とも同じ敵に当たった時の効果）
+//                        doubleHitEffects（2 枚とも同じ敵に当たった時の効果）,
+//                        doveCardDrawOffsetForward, doveCardDrawOffsetSide（溜めの間に R で鳩と入れ替わった時に、
+//                        鳩のカードを見た目だけずらす量。省略すると 0）
 //   "emma_w"             指定した地点が少し遅れて爆発し、その場に帽子が残る（R の対象）
 //                        delay（爆発までの時間）, radius, hatLifetime, color, onHit,
 //                        cooldownRefundOnHit（敵に当たった時に、W のクールダウンを本来の値の何割分短くするか）
@@ -55,6 +57,11 @@
         // "doveCardSpeed": 1600,
         // "doveCardRange": 950,
         "doveCardColor": [245, 245, 255],
+        // 溜めの間に R で鳩と入れ替わると、2 枚のカードが同じ位置から同じ方向へ飛んで重なるので、
+        // 鳩のカードを見た目だけずらして描く（当たり判定はずらさない）。
+        // Forward: 進む方向へのずれ（マイナスなら後ろ）、Side: 横方向のずれ（プラスなら進む方向の右）
+        "doveCardDrawOffsetForward": -70,
+        "doveCardDrawOffsetSide": 0,
         "doubleHitEffects": [ { "type": "slow", "amount": 0.4, "duration": 1.5 } ]
       }
     },
@@ -65,12 +72,12 @@
       "targeting": "point",
       "castTime": 0.15,
       "cooldown": 10,
-      "range": 650,
+      "range": 700,
       "countsForHitRate": true,
       "usedByEnemy": true,
       "params": {
         "delay": 0.5,
-        "radius": 175,
+        "radius": 170,
         "hatLifetime": 6,
         "color": [120, 200, 220],
         "cooldownRefundOnHit": 0.3,
@@ -84,7 +91,7 @@
       "targeting": "unit",
       "castTime": 0.2,
       "cooldown": 12,
-      "range": 550,
+      "range": 475,
       "countsForHitRate": false,
       "params": {
         "speed": 1600,
@@ -102,7 +109,7 @@
       "targeting": "prop",
       "castTime": 0,                  // 動画では溜めが無く、すぐに移動する
       "cooldown": 20,
-      "range": 1000,
+      "range": 800,
       "countsForHitRate": false,
       "params": {
         "pickRadius": 150,

@@ -333,6 +333,11 @@ TEST_CASE("エマ Q の溜めの間に R で鳩と入れ替わると、鳩のカ
         CHECK(card->pos.x > 50.0f);
         CHECK(card->pos.y == doctest::Approx(0.0f).epsilon(0.01));
     }
+    // 重なって 1 枚に見えないよう、鳩のカードだけ見た目をずらす（当たり判定の位置はずらさない）
+    const SkillDef& q = f.skill(SkillSlot::Q);
+    CHECK(cards[0]->drawOffsetForward == doctest::Approx(0.0f));
+    CHECK(cards[1]->drawOffsetForward == doctest::Approx(q.numOr("doveCardDrawOffsetForward", 0.0f)));
+    CHECK(cards[1]->drawOffsetSide == doctest::Approx(q.numOr("doveCardDrawOffsetSide", 0.0f)));
 }
 
 TEST_CASE("クールダウン「なし」: 使ってもクールダウンが 0 のまま") {

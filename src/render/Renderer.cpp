@@ -162,35 +162,37 @@ void drawUnit(const Unit& unit, float time) {
 
 void drawProjectile(const Projectile& p, bool showHitboxes) {
     const float angle = geo::angleDegrees(p.dir);
+    // 見た目だけずらす分を足した位置に描く（当たり判定の円は本当の位置 p.pos に描く）
+    const Vector2 pos = p.pos + p.dir * p.drawOffsetForward + geo::perpendicular(p.dir) * p.drawOffsetSide;
     switch (p.visual) {
         case ProjectileVisual::Orb:
-            DrawLineEx(p.pos - p.dir * p.radius * 2.5f, p.pos, p.radius * 0.9f, Fade(p.color, 0.35f));
-            DrawCircleV(p.pos, p.radius * 0.95f, Fade(p.color, 0.35f));
-            DrawCircleV(p.pos, p.radius * 0.6f, p.color);
+            DrawLineEx(pos - p.dir * p.radius * 2.5f, pos, p.radius * 0.9f, Fade(p.color, 0.35f));
+            DrawCircleV(pos, p.radius * 0.95f, Fade(p.color, 0.35f));
+            DrawCircleV(pos, p.radius * 0.6f, p.color);
             break;
         case ProjectileVisual::Ring:
-            DrawRing(p.pos, p.radius * 0.45f, p.radius * 0.75f, 0.0f, 360.0f, 32, p.color);
-            DrawCircleV(p.pos, p.radius * 0.25f, Fade(p.color, 0.8f));
+            DrawRing(pos, p.radius * 0.45f, p.radius * 0.75f, 0.0f, 360.0f, 32, p.color);
+            DrawCircleV(pos, p.radius * 0.25f, Fade(p.color, 0.8f));
             break;
         case ProjectileVisual::Crescent:
-            DrawRing(p.pos - p.dir * p.radius * 0.6f, p.radius * 0.55f, p.radius, angle - 75.0f, angle + 75.0f, 32,
+            DrawRing(pos - p.dir * p.radius * 0.6f, p.radius * 0.55f, p.radius, angle - 75.0f, angle + 75.0f, 32,
                      Fade(p.color, 0.9f));
             break;
         case ProjectileVisual::Card:
-            DrawRectanglePro({p.pos.x, p.pos.y, 44.0f, 28.0f}, {22.0f, 14.0f}, angle, Color{250, 250, 255, 255});
-            DrawRectanglePro({p.pos.x, p.pos.y, 36.0f, 20.0f}, {18.0f, 10.0f}, angle, p.color);
+            DrawRectanglePro({pos.x, pos.y, 44.0f, 28.0f}, {22.0f, 14.0f}, angle, Color{250, 250, 255, 255});
+            DrawRectanglePro({pos.x, pos.y, 36.0f, 20.0f}, {18.0f, 10.0f}, angle, p.color);
             break;
         case ProjectileVisual::Beam:
-            DrawLineEx(p.pos - p.dir * 90.0f, p.pos, p.radius * 0.8f, Fade(p.color, 0.5f));
-            DrawCircleV(p.pos, p.radius * 0.7f, p.color);
+            DrawLineEx(pos - p.dir * 90.0f, pos, p.radius * 0.8f, Fade(p.color, 0.5f));
+            DrawCircleV(pos, p.radius * 0.7f, p.color);
             break;
         case ProjectileVisual::Bolt:
-            DrawLineEx(p.pos - p.dir * 60.0f, p.pos, p.radius * 0.6f, Fade(p.color, 0.5f));
-            DrawCircleV(p.pos, p.radius * 0.55f, p.color);
+            DrawLineEx(pos - p.dir * 60.0f, pos, p.radius * 0.6f, Fade(p.color, 0.5f));
+            DrawCircleV(pos, p.radius * 0.55f, p.color);
             break;
         case ProjectileVisual::Dove:
-            DrawLineEx(p.pos - p.dir * 120.0f, p.pos, p.radius * 0.5f, Fade(p.color, 0.3f));
-            drawBird(p.pos, p.dir, 22.0f, p.color);
+            DrawLineEx(pos - p.dir * 120.0f, pos, p.radius * 0.5f, Fade(p.color, 0.3f));
+            drawBird(pos, p.dir, 22.0f, p.color);
             break;
     }
     if (showHitboxes) DrawCircleLinesV(p.pos, p.radius, kHitboxColor);
