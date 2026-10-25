@@ -1,5 +1,5 @@
 #pragma once
-// スキルドッジモードの敵 AI の設定（data/ai.jsonc）
+// 敵 AI の設定（data/ai.jsonc）。スキルドッジの敵と、スキルショットの的
 
 #include <array>
 #include <filesystem>
@@ -29,13 +29,40 @@ struct AiLevel {
     float engageRangeRatio = 0.85f;  // 自キャラとの距離を「スキルの射程 × この値」に保とうとする
 };
 
-/// スキルドッジの敵 AI の設定（data/ai.jsonc）。全体の設定と、賢さ 1〜5 ごとの設定
+/// スキルショットの的の、賢さ 1 段階分の設定
+struct SkillShotLevel {
+    std::string name;
+    float reactionTime = 0.4f;     // 自キャラの弾・範囲が出てから、気づいて避け始めるまでの遅れ（秒）
+    float dodgeChance = 0.0f;      // 気づいた弾・範囲を避けようとする確率（0〜1）
+    bool readCast = false;         // 自キャラの詠唱を見て、弾・範囲が出る前に避け始める
+    float moveIntervalMin = 1.5f;  // 移動先を決め直す間隔（この範囲でランダム）
+    float moveIntervalMax = 3.0f;
+    float stopChance = 0.3f;  // 移動先を決め直す時に、その場で止まる確率（0〜1）
+    float sideRandom = 0.0f;  // 直線の弾を避ける時に、近い側ではなく遠い側へ避ける確率（0〜1。読まれにくくする）
+};
+
+/// スキルショットの的の設定（ai.jsonc の "skillShot"）。的の大きさ・移動速度・自キャラとの距離と、賢さ 1〜5 ごとの設定
+struct SkillShotConfig {
+    float targetRadius = 65.0f;      // 的の当たり判定の半径
+    float targetMoveSpeed = 350.0f;  // 的の移動速度
+    float distanceMin = 550.0f;      // 自キャラとの距離をこの範囲に保つ
+    float distanceMax = 850.0f;
+    float maxVerticalOffset = 400.0f;    // 自キャラから上下（画面の縦方向）に離れる距離の上限
+    float dodgeMargin = 25.0f;           // 避ける時に、弾・範囲の端からさらに離れる距離
+    std::vector<SkillShotLevel> levels;  // 賢さ 1〜5
+
+    /// 賢さ（1 始まり）の設定。範囲外なら端の値を使う。levels が空なら既定値の設定
+    const SkillShotLevel& level(int aiLevel) const;
+};
+
+/// 敵 AI の設定（data/ai.jsonc）。スキルドッジの敵（全体の設定と、賢さ 1〜5 ごとの設定）と、スキルショットの的
 struct AiConfig {
     float enemyCooldownScale = 0.5f;   // 敵のスキルのクールダウン倍率
     float firstCastDelay = 1.5f;       // 開始から最初にスキルを撃つまでの時間
     float maxEngageRange = 1000.0f;    // 自キャラと取る距離の上限
     float playerReactionTime = 0.25f;  // AI が想定する、プレイヤーが弾を見て避け始めるまでの時間
     std::vector<AiLevel> levels;       // 賢さ 1〜5
+    SkillShotConfig skillShot;         // スキルショットの的
 
     /// 賢さ（1 始まり）の設定。範囲外なら端の値を使う。levels が空なら既定値の設定
     const AiLevel& level(int aiLevel) const;
@@ -48,7 +75,7 @@ struct AiConfigLoadResult {
 };
 
 /// data/ai.jsonc を読み込む。値は決められた範囲に収める
-/// @return 読み込んだ設定。読めない・"levels" が空の時は error に理由が入る
+/// @return 読み込んだ設定。読めない・"levels" や "skillShot" の "levels" が空の時は error に理由が入る
 AiConfigLoadResult loadAiConfig(const std::filesystem::path& file);
 
 }  // namespace moba

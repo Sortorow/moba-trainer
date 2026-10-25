@@ -73,6 +73,18 @@ void drawSkillDodgeInfo(const Match& match) {
     ImGui::Text("ドッジ %d / %d（被弾 %d）", dodge.dodged, dodge.total, dodge.hit);
 }
 
+/// スキルショットの的の AI の設定（賢さ・反応・避ける確率）と、的の状態を表示する
+void drawSkillShotInfo(const Match& match) {
+    const ai::SkillShotTarget& target = match.target();
+    const SkillShotLevel& level = target.level();
+    ImGui::Text("賢さ %d（%s）  乱数の種 %u", match.config().targetLevel, level.name.c_str(), match.config().seed);
+    ImGui::Text("反応 %.2fs  避ける確率 %.0f%%  詠唱を見る %s", level.reactionTime, level.dodgeChance * 100.0f,
+                level.readCast ? "あり" : "なし");
+    ImGui::Text("移動の間隔 %.1f〜%.1fs  止まる %.0f%%  遠い側へ %.0f%%", level.moveIntervalMin, level.moveIntervalMax,
+                level.stopChance * 100.0f, level.sideRandom * 100.0f);
+    ImGui::Text("状態 %s  避けた回数 %d", target.dodging() ? "避けている" : "動き回っている", target.dodgeCount());
+}
+
 }  // namespace
 
 DebugPanelResult drawDebugPanel(Match& match, GameData& data) {
@@ -121,6 +133,10 @@ DebugPanelResult drawDebugPanel(Match& match, GameData& data) {
 
     if (match.config().mode == GameMode::SkillDodge) {
         if (ImGui::CollapsingHeader("スキルドッジ・敵 AI", ImGuiTreeNodeFlags_DefaultOpen)) drawSkillDodgeInfo(match);
+    } else if (match.config().mode == GameMode::SkillShot) {
+        if (ImGui::CollapsingHeader("スキルショット・的の AI", ImGuiTreeNodeFlags_DefaultOpen))
+            drawSkillShotInfo(match);
+        if (ImGui::CollapsingHeader("スキルの命中集計", ImGuiTreeNodeFlags_DefaultOpen)) drawStatsTable(world);
     } else {
         if (ImGui::CollapsingHeader("スキルの命中集計", ImGuiTreeNodeFlags_DefaultOpen)) {
             drawStatsTable(world);

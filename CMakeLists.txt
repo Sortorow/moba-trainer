@@ -92,6 +92,7 @@ add_library(moba_lib STATIC
   src/game/ai/Aim.cpp
   src/game/ai/PlayerObserver.cpp
   src/game/ai/EnemyAI.cpp
+  src/game/ai/SkillShotTarget.cpp
   src/game/skills/SkillRegistry.cpp
   src/game/skills/SkillHelpers.cpp
   src/game/skills/CommonSkills.cpp
@@ -138,6 +139,7 @@ add_executable(moba_tests
   tests/test_character_data.cpp
   tests/test_world.cpp
   tests/test_dodge.cpp
+  tests/test_shot.cpp
   tests/test_ui_scale.cpp
   tests/test_camera.cpp
   tests/test_sandbox.cpp

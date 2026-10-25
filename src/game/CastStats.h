@@ -1,6 +1,8 @@
 #pragma once
 // スキルヒット率の集計
-// 1 回の発動（castId）につき、1 体以上に当たれば「命中」と数える（多段ヒット・複数の弾も 1 回扱い）
+// 1 回の発動（castId）につき、1 体以上に当たれば「命中」と数える（多段ヒット・複数の弾も 1 回扱い）。
+// 当たらずに弾・範囲がまだ残っている発動は「結果が出ていない」として覚えておき、
+// 制限時間の終了時に飛んでいる途中だった発動を、リザルトの集計から除けるようにする
 
 #include <array>
 #include <unordered_map>
@@ -35,6 +37,8 @@ public:
     void recordCast(int castId, SkillSlot slot);
     /// その発動が当たったことを記録する。同じ発動の 2 回目以降の命中と、集計対象外の castId は無視する
     void recordHit(int castId);
+    /// その発動で出た弾・範囲がすべて消えたことを記録する（当たらなければ、ここで「外れ」が確定する）
+    void settle(int castId) { unsettled_.erase(castId); }
     /// 集計を 0 に戻す（デバッグパネルの「集計をリセット」）
     void reset();
 
@@ -42,11 +46,16 @@ public:
     const HitCount& slot(SkillSlot s) const { return slots_[static_cast<std::size_t>(index(s))]; }
     /// すべてのキーを合わせた発動数と命中数
     HitCount total() const;
+    /// キーごとの、結果が出た発動の数と命中数（当たらずに飛んでいる途中の発動を除く。リザルト用）
+    HitCount settledSlot(SkillSlot s) const;
+    /// すべてのキーを合わせた、結果が出た発動の数と命中数（当たらずに飛んでいる途中の発動を除く。リザルト用）
+    HitCount settledTotal() const;
 
 private:
     std::array<HitCount, kSkillSlotCount> slots_{};
     std::unordered_map<int, SkillSlot> castSlots_;
     std::unordered_set<int> hitCasts_;
+    std::unordered_set<int> unsettled_;  // 当たっておらず、弾・範囲がまだ残っている発動
 };
 
 }  // namespace moba

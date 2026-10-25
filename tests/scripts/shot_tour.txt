@@ -1,0 +1,16 @@
+# スキルショットの動作確認用の入力スクリプト
+# 実行例: build\release\moba_trainer.exe --character like_ezreal --mode shot --ai 3 --time 8 --seed 42 --script tests\scripts\shot_tour.txt
+# スクリーンショットは、実行した時のフォルダ（カレントディレクトリ）に保存される
+# 的は動き回るので、座標は決め打ち（当たるとは限らない）。的の動きと、上部のヒット率・リザルト画面を見る
+
+0.00 cursor 0 0
+0.50 screenshot shot_1_start.png      # 的（橙）が自キャラから離れた位置にいる
+1.00 cast Q 700 0
+1.30 screenshot shot_2_q.png          # Q が飛び、的が避けようとする
+2.50 cast W 0 700
+2.80 screenshot shot_3_w.png
+4.00 move 300 300
+5.00 cast Q -700 0
+5.40 screenshot shot_4_q.png
+8.60 screenshot shot_5_result.png     # 制限時間 8 秒の後のリザルト画面（ヒット率）
+9.00 exit

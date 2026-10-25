@@ -22,6 +22,38 @@ std::string cooldownLabel(const MatchConfig& config) {
     return std::format("標準（×{:.2f}）", config.cooldownScale);
 }
 
+/// 「52.0%」のような割合の大きな表示と、その下の「13 / 25」の表示
+void drawRate(const char* title, float rate, int count, int total) {
+    textCentered(title);
+    ImGui::PushFont(nullptr, 52.0f);
+    textCentered(total > 0 ? std::format("{:.1f}%", rate * 100.0f) : std::string("-"));
+    ImGui::PopFont();
+    ImGui::PushFont(nullptr, 24.0f);
+    textCentered(std::format("{} / {}", count, total));
+    ImGui::PopFont();
+}
+
+/// スキルドッジの結果（ドッジ率・被弾・ダウン）
+void drawDodgeResult(const MatchResult& result) {
+    drawRate("スキルドッジ率", result.dodge.rate(), result.dodge.dodged, result.dodge.total);
+    ImGui::Spacing();
+    textCentered(std::format("被弾 {} 回　　ダウン {} 回", result.hitsTaken, result.deaths));
+}
+
+/// スキルショットの結果（ヒット率と、キーごとの命中）
+void drawShotResult(const MatchResult& result) {
+    drawRate("スキルヒット率", result.playerHits.rate(), result.playerHits.hits, result.playerHits.casts);
+    ImGui::Spacing();
+    std::string bySlot;
+    for (const SkillSlot slot : kAllSkillSlots) {
+        const HitCount& count = result.playerHitsBySlot[static_cast<std::size_t>(index(slot))];
+        if (count.casts <= 0) continue;
+        bySlot += std::format("{}{} {:.0f}%（{} / {}）", bySlot.empty() ? "" : "　", toString(slot),
+                              count.rate() * 100.0f, count.hits, count.casts);
+    }
+    textCentered(bySlot.empty() ? std::string("ヒット率に数えるスキルを使っていません") : bySlot);
+}
+
 }  // namespace
 
 ResultAction drawResultScreen(const MatchResult& result) {
@@ -38,20 +70,18 @@ ResultAction drawResultScreen(const MatchResult& result) {
 
     ImGui::Text("%s ／ %s ／ %s", std::string(displayName(config.mode)).c_str(), result.characterName.c_str(),
                 result.stageName.empty() ? "-" : result.stageName.c_str());
-    ImGui::TextDisabled("敵 %d 体 ／ 賢さ %s ／ 制限時間 %.0f 秒 ／ クールダウン %s", config.enemyCount,
-                        result.aiLevelName.c_str(), config.timeLimitSeconds, cooldownLabel(config).c_str());
+    if (config.mode == GameMode::SkillShot) {
+        ImGui::TextDisabled("的の賢さ %s ／ 制限時間 %.0f 秒 ／ クールダウン %s", result.aiLevelName.c_str(),
+                            config.timeLimitSeconds, cooldownLabel(config).c_str());
+    } else {
+        ImGui::TextDisabled("敵 %d 体 ／ 賢さ %s ／ 制限時間 %.0f 秒 ／ クールダウン %s", config.enemyCount,
+                            result.aiLevelName.c_str(), config.timeLimitSeconds, cooldownLabel(config).c_str());
+    }
     ImGui::Separator();
     ImGui::Spacing();
 
-    textCentered("スキルドッジ率");
-    ImGui::PushFont(nullptr, 52.0f);
-    textCentered(result.dodge.total > 0 ? std::format("{:.1f}%", result.dodge.rate() * 100.0f) : std::string("-"));
-    ImGui::PopFont();
-    ImGui::PushFont(nullptr, 24.0f);
-    textCentered(std::format("{} / {}", result.dodge.dodged, result.dodge.total));
-    ImGui::PopFont();
-    ImGui::Spacing();
-    textCentered(std::format("被弾 {} 回　　ダウン {} 回", result.hitsTaken, result.deaths));
+    if (config.mode == GameMode::SkillShot) drawShotResult(result);
+    else drawDodgeResult(result);
     ImGui::Spacing();
     ImGui::TextDisabled("※ 制限時間の終了時に飛んでいる途中だったスキルは、集計に含めません");
 

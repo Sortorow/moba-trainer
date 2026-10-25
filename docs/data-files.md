@@ -7,7 +7,7 @@
 1. [全体像](#1-全体像)
 2. [共通のルール（書き方・単位・再読み込み）](#2-共通のルール)
 3. [settings.jsonc（ゲーム全体の設定）](#3-settingsjsoncゲーム全体の設定)
-4. [ai.jsonc（スキルドッジの敵 AI）](#4-aijsoncスキルドッジの敵-ai)
+4. [ai.jsonc（スキルドッジの敵 AI・スキルショットの的）](#4-aijsoncスキルドッジの敵-aiスキルショットの的)
 5. [sandbox.jsonc（練習場のダミー）](#5-sandboxjsonc練習場のダミー)
 6. [stages/*.jsonc（ステージ）](#6-stagesjsoncステージ)
 7. [characters/*.jsonc（キャラとスキル）](#7-charactersjsoncキャラとスキル)
@@ -22,7 +22,7 @@
 ```
 data/
 ├─ settings.jsonc          ゲーム全体の設定（画面・カメラ・クールダウンの初期値・ログ）
-├─ ai.jsonc                スキルドッジの敵 AI（賢さ 1〜5 ごとの動き方）
+├─ ai.jsonc                スキルドッジの敵 AI とスキルショットの的（賢さ 1〜5 ごとの動き方）
 ├─ sandbox.jsonc           練習場のダミー（大きさ・速さ・数・位置・動き方のプリセット）
 ├─ stages/
 │   ├─ open.jsonc          ステージ 1 つにつき 1 ファイル（広さ・障害物・ブッシュ）。書き方の説明は open.jsonc の先頭
@@ -37,7 +37,7 @@ data/
 | ファイル | 用途 | 読み込むコード | 値を使うコード |
 |---|---|---|---|
 | `settings.jsonc` | 画面・カメラ・クールダウン倍率の初期値・ログの詳しさ | `src/data/Settings.cpp` | `src/app/App.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ App.cpp から `src/render/Renderer.cpp`、`src/render/CameraControl.cpp`、`src/render/Hud.cpp`、`src/ui/UiScale.cpp`、`src/core/Log.cpp` へ渡される |
-| `ai.jsonc` | スキルドッジの敵の強さ・動き方 | `src/data/AiConfig.cpp` | `src/game/Match.cpp`、`src/game/ai/EnemyAI.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ EnemyAI.cpp から `src/game/ai/Aim.cpp` へ、Match.cpp から `src/ui/ResultScreen.cpp` へ渡される |
+| `ai.jsonc` | スキルドッジの敵の強さ・動き方と、スキルショットの的の大きさ・動き方 | `src/data/AiConfig.cpp` | `src/game/Match.cpp`、`src/game/ai/EnemyAI.cpp`、`src/game/ai/SkillShotTarget.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ EnemyAI.cpp から `src/game/ai/Aim.cpp` へ、Match.cpp から `src/ui/ResultScreen.cpp` へ渡される。的の大きさ・移動速度はキャラの情報（`Unit`）へコピーされて `src/game/World.cpp`、`src/render/Renderer.cpp` などで使われる |
 | `sandbox.jsonc` | 練習場のダミーのプリセット | `src/data/SandboxConfig.cpp` | `src/data/GameData.cpp`、`src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/ui/SandboxPanel.cpp`<br>→ Sandbox.cpp から `src/game/DummyController.cpp` へ、ダミーの大きさ・移動速度・色はキャラの情報（`Unit`）へコピーされて `src/game/World.cpp`、`src/render/Renderer.cpp` などで使われる（[5 章](#5-sandboxjsonc練習場のダミー)の表を参照）。SandboxPanel.cpp は `src/ui/MainMenu.cpp` と `src/app/App.cpp` から呼ばれる |
 | `stages/*.jsonc` | ステージの広さ・障害物・ブッシュ | `src/data/StageDef.cpp` | `src/data/GameData.cpp`、`src/game/Match.cpp`、`src/game/Terrain.cpp`、`src/ui/MainMenu.cpp`<br>→ Terrain.cpp（地形）は `src/game/World.cpp` が持ち、`src/game/SkillCasting.cpp`、`src/game/skills/SkillHelpers.cpp`、`src/game/Sandbox.cpp`、`src/game/ai/EnemyAI.cpp`、`src/render/Renderer.cpp`、`src/render/Hud.cpp`、`src/render/CameraControl.cpp`（`src/app/App.cpp` から）で使われる。ステージの名前は Match.cpp から `src/ui/ResultScreen.cpp` へ渡される（[6 章](#6-stagesjsoncステージ)を参照） |
 | `characters/*.jsonc` | キャラのステータスとスキルの数値・動き | `src/data/CharacterDef.cpp` | `src/app/App.cpp`<br>`src/data/GameData.cpp`<br>`src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`、`src/game/SkillCasting.cpp`<br>`src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`、`SkillRegistry.cpp`<br>`src/game/ai/`：`Aim.cpp`、`EnemyAI.cpp`<br>`src/render/Hud.cpp`<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ キャラの大きさ・移動速度・色は配置時にキャラの情報（`Unit`）へコピーされ、`src/render/Renderer.cpp` などでも使われる（[7 章](#7-charactersjsoncキャラとスキル)の表を参照） |
@@ -95,9 +95,9 @@ data/
 
 ---
 
-## 4. ai.jsonc（スキルドッジの敵 AI）
+## 4. ai.jsonc（スキルドッジの敵 AI・スキルショットの的）
 
-読み込みは `src/data/AiConfig.cpp` です。新しい設定は、**次に開始したスキルドッジから**反映されます。
+読み込みは `src/data/AiConfig.cpp` です。新しい設定は、**次に開始したスキルドッジ・スキルショットから**反映されます。前半がスキルドッジの敵、`skillShot` の中がスキルショットの的の設定です。
 
 ### 全体の項目
 
@@ -108,6 +108,7 @@ data/
 | `maxEngageRange` | `1000` | 敵が自キャラと取ろうとする距離の上限（200 以上） | `src/game/ai/EnemyAI.cpp` |
 | `playerReactionTime` | `0.25` | AI が想定する「プレイヤーが弾を見てから避け始めるまでの時間」（秒） | `src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp` |
 | `levels` | （必須） | 賢さ 1〜5 の設定。上から順に 1, 2, 3, 4, 5 | 下の表と、表の後の説明を参照 |
+| `skillShot` | （必須） | スキルショットの的の設定 | [skillShot の項目](#skillshot-の項目スキルショットの的)を参照 |
 
 ### levels の各項目（賢さ 1 段階分）
 
@@ -137,6 +138,44 @@ data/
 | `src/game/ai/EnemyAI.cpp` | すべての項目を、敵の動きとスキル選びに使う |
 | `src/ui/MainMenu.cpp` | `name`（敵の賢さのスライダーの表示）と、段階の数 |
 | `src/ui/DebugPanel.cpp` | `name`・`reactionTime`・`castInterval`・`aimError`・`predict`・`adaptive` を表示 |
+
+### skillShot の項目（スキルショットの的）
+
+的は 1 体で、スキルを撃ちません。自キャラとの距離を保ちながら動き回り、賢さに応じて自キャラのスキルを避けます。動き方の考え方は `src/game/ai/SkillShotTarget.h` の先頭に書いてあります。
+
+| 項目 | 既定値 | 意味 | 使うコード |
+|---|---|---|---|
+| `targetRadius` | `65` | 的の当たり判定の半径（10〜300）。どのキャラで遊んでも同じ条件になるよう、キャラ設定とは別に決める | `src/game/Match.cpp` → 的の情報（`Unit`）へコピーされ、`src/game/World.cpp`（当たり判定）、`src/game/ai/SkillShotTarget.cpp`（避ける距離）、`src/render/Renderer.cpp`（大きさ）で使われる |
+| `targetMoveSpeed` | `350` | 的の移動速度（0〜1500） | `src/game/Match.cpp` → 的の情報（`Unit`）へコピーされ、`src/game/World.cpp`（移動）、`src/game/ai/SkillShotTarget.cpp`（避けるのに間に合うかの見積もり）で使われる |
+| `distance` | `[550, 850]` | 自キャラとの距離をこの範囲 `[最小, 最大]` に保つ。移動先を決め直すたびに、この範囲から選ぶ（最小 100 以上） | `src/game/ai/SkillShotTarget.cpp` |
+| `maxVerticalOffset` | `400` | 自キャラから上下（画面の縦方向）に離れる距離の上限（50 以上）。画面は横より縦が狭く、上下に離れすぎると画面の上下の表示に的が隠れるため。避ける時の移動では、少しはみ出すことがある | `src/game/ai/SkillShotTarget.cpp` |
+| `dodgeMargin` | `25` | 避ける時に、弾の幅・範囲の端から、さらにこの距離だけ離れる | `src/game/ai/SkillShotTarget.cpp` |
+| `levels` | （必須） | 賢さ 1〜5 の設定。上から順に 1, 2, 3, 4, 5 | 下の表を参照 |
+
+**skillShot.levels の各項目（賢さ 1 段階分）**
+
+| 項目 | 意味 | 値の範囲 |
+|---|---|---|
+| `name` | 表示名（メニュー・リザルト） | 文字列 |
+| `reactionTime` | 自キャラの弾・範囲が出てから、気づいて避け始めるまでの遅れ（秒） | 0 以上 |
+| `dodgeChance` | 気づいた弾・範囲を避けようとする確率。0 なら避けずに動き回るだけ | 0〜1 |
+| `readCast` | 自キャラの詠唱（構え）を見た時点で、弾・範囲が出る前に、カーソルの方向・位置へ出ると考えて避け始める | `true` / `false` |
+| `moveInterval` | 移動先を決め直す間隔 `[最小, 最大]`（秒）。短いほど、動きを読みにくい | 最小 0.1 以上 |
+| `stopChance` | 移動先を決め直す時に、その場で止まる確率 | 0〜1 |
+| `sideRandom` | 直線の弾を避ける時に、近い側ではなく遠い側へ避ける確率（避ける向きを読まれにくくする） | 0〜1 |
+
+避けるかどうかは、弾・範囲 1 つ（1 回の発動）につき 1 回だけ `dodgeChance` で決めます。`readCast` で詠唱を見て決めた時は、その詠唱から出た弾・範囲にも同じ判断を使います。追尾する弾（対象指定のスキル）は避けません。
+
+弾が速いスキル（エズリアルの Q など）は、弾を見てから（`reactionTime` の後に）避け始めても間に合わないことが多く、`readCast` のある賢さ 4・5 の的だけが避けられます。範囲の真ん中に置かれた時も、発動までに外へ出られなければ当たります。
+
+**skillShot を使うコード**
+
+| コード | 使い方 |
+|---|---|
+| `src/game/Match.cpp` | 的を置く（`targetRadius`・`targetMoveSpeed`）。メニューで選んだ的の賢さの段階を `src/game/ai/SkillShotTarget.cpp` に渡す。リザルト用に `name` を取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
+| `src/game/ai/SkillShotTarget.cpp` | すべての項目を、的の移動と回避に使う。詠唱を見る時は、キャラの設定（スキルの `targeting` / `castTime` / `range` と、`params` の `speed` / `width` / `radius` / `delay`）を `src/game/ai/Aim.cpp` を通して使う |
+| `src/ui/MainMenu.cpp` | `name`（的の賢さのスライダーの表示）と、段階の数 |
+| `src/ui/DebugPanel.cpp` | `levels` のすべての項目と、的の状態（避けているか・避けた回数）を表示 |
 
 ---
 
@@ -184,7 +223,7 @@ data/
 
 ステージ 1 つにつき 1 ファイルです。今は `open.jsonc`（障害物なし）・`alley.jsonc`（路地裏）・`forest.jsonc`（森）の 3 つがあります。読み込みは `src/data/StageDef.cpp`、地形の計算（当たり・押し出し・経路探索・ブッシュ）は `src/game/Terrain.cpp` です。
 
-- ステージは、メニューの「ステージ」で選びます。練習場とスキルドッジの両方で使えます。
+- ステージは、メニューの「ステージ」で選びます。練習場・スキルドッジ・スキルショットのどれでも使えます。
 - ゲームの起動中にファイルを保存すると再読み込みされ、**次に始めたプレイから**反映されます（遊んでいる途中のステージは変わりません）。
 - 地形が妨げるのは**移動だけ**です。弾や範囲は、壁や木を通り抜けます。
 - 壁の向こうを右クリックすると、壁を回り込む道のりを自動で探して進みます（敵も同じ）。建物の中など立てない場所を指定した時は、その近くの立てる場所まで進みます。たどり着けない場所なら、その場で止まります。
@@ -463,13 +502,13 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `Match.cpp` / `Match.h` | スキルドッジでキャラを配置し、敵を選ぶ。敵のクールダウン倍率と、敵 AI の賢さを設定する。リザルトに出すキャラ名とステージ名を渡す。選んだステージの地形で World を作り、自キャラ・敵を立てる位置に置く。練習場では、選んでいるプリセットのダミーを置き、プリセットが変わったら置き直す | ai、sandbox、stages、characters |
+| `Match.cpp` / `Match.h` | スキルドッジでキャラを配置し、敵を選ぶ。敵のクールダウン倍率と、敵 AI の賢さを設定する。スキルショットで的を置き（大きさ・移動速度）、的の AI の賢さを設定する。リザルトに出すキャラ名・ステージ名・賢さの名前を渡す。選んだステージの地形で World を作り、自キャラ・敵を立てる位置に置く。練習場では、選んでいるプリセットのダミーを置き、プリセットが変わったら置き直す | ai、sandbox、stages、characters |
 | `Sandbox.cpp` / `Sandbox.h` | 練習場で自キャラとダミーを配置する（ダミーの名前・位置・往復先・大きさ・移動速度・色）。建物や木と重なる位置はずらす | sandbox、stages、characters |
 | `World.cpp` / `World.h` | キャラの設定を ID で探す。移動速度・当たり判定の半径を使って移動と当たり判定をする。地形（`Terrain.cpp`）を持ち、道のりに沿って移動させ、障害物から押し出す。ブッシュの見え方を判定する（`bushRevealTime`）。敵のクールダウン倍率を保持する | settings、ai、stages、characters |
 | `Terrain.cpp` / `Terrain.h` | 地形の計算: 障害物との当たり・押し出し・まっすぐ進めるかの判定・経路探索（マス目の A*）・どのブッシュの中か | stages |
 | `SkillCasting.cpp` / `SkillCasting.h` | スキル発動の流れ（詠唱・クールダウン・射程・対象の選択・詠唱中に使えるスキル・移動系だけ使えるルール）。ブッシュの中で対象指定のスキルを使った時に、見えるようにする。ブッシュに隠れている兎は選ばない | stages、characters |
 | `StatusEffects.cpp` / `StatusEffects.h` | スキルの効果（`onHit` などに書いた状態異常）を働かせる | characters |
-| `CastStats.cpp` / `CastStats.h` | `countsForHitRate` が `true` のスキルだけを、ヒット率として集計する（判定は `SkillCasting.cpp` から受け取る） | characters |
+| `CastStats.cpp` / `CastStats.h` | `countsForHitRate` が `true` のスキルだけを、ヒット率として集計する（判定は `SkillCasting.cpp` から受け取る）。リザルト用に、制限時間の終了時に飛んでいる途中だった発動を除いた数も出す | characters |
 | `DummyController.cpp` / `DummyController.h` | ダミーを静止・往復させる（静止する位置・往復先は `Sandbox.cpp` から受け取る） | sandbox |
 | `Entities.cpp` / `Entities.h` | 使わない | — |
 | `MatchConfig.h` | 使わない | — |
@@ -481,6 +520,7 @@ data/
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
 | `EnemyAI.cpp` / `EnemyAI.h` | 敵の動きとスキル選び（`usedByEnemy`・`aiPriority`・射程・賢さごとの設定）。自キャラがブッシュに隠れている間は、最後に見えた位置を狙う | ai、stages、characters |
+| `SkillShotTarget.cpp` / `SkillShotTarget.h` | スキルショットの的の移動と回避（`skillShot` のすべての項目）。詠唱を見て避ける時は、スキルの当たり方を `Aim.cpp` の `aimModelFor` で作る。移動先にブッシュの中と、障害物で止まる位置を選ばない | ai、stages、characters |
 | `Aim.cpp` / `Aim.h` | 狙いの計算。スキルの `targeting` / `castTime` / `range` と、`params` の `speed` / `width` / `radius` / `delay` / `flightTime` を使う | characters |
 | `PlayerObserver.cpp` / `PlayerObserver.h` | 使わない | — |
 
@@ -517,10 +557,10 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ。練習場を選んでいる時は、ダミーのプリセットを選ぶ（`SandboxPanel.cpp` を使う）。ステージの一覧を表示して選ぶ | settings、ai、sandbox、stages、characters |
+| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前、スキルショットの的の賢さの名前、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ。練習場を選んでいる時は、ダミーのプリセットを選ぶ（`SandboxPanel.cpp` を使う）。ステージの一覧を表示して選ぶ | settings、ai、sandbox、stages、characters |
 | `SandboxPanel.cpp` / `SandboxPanel.h` | 練習場のダミーのプリセットを選ぶ UI（メニューと、練習場の画面右下のパネル）。プリセットの名前・説明・体数・半径を表示する | sandbox |
-| `DebugPanel.cpp` / `DebugPanel.h` | 視点の広さ・当たり判定の円の表示を一時的に変える。キャラの選択、敵 AI の賢さの名前、移動速度の表示 | settings、ai、characters |
-| `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名・ステージ名・敵 AI の賢さの名前を表示する（値は `Match.cpp` から受け取る） | ai、stages、characters |
+| `DebugPanel.cpp` / `DebugPanel.h` | 視点の広さ・当たり判定の円の表示を一時的に変える。キャラの選択、敵 AI の賢さの名前、スキルショットの的の設定、移動速度の表示 | settings、ai、characters |
+| `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名・ステージ名・敵 AI（スキルショットでは的）の賢さの名前を表示する（値は `Match.cpp` から受け取る） | ai、stages、characters |
 | `UiScale.cpp` / `UiScale.h` | `uiScale` とウィンドウの大きさから、画面に出す大きさを計算する（値は `App.cpp` から受け取る） | settings |
 | `Fonts.cpp` / `Fonts.h` | 使わない | — |
 
@@ -531,6 +571,7 @@ data/
 | `test_character_data.cpp` | 設定ファイルがすべて読み込めること、handler が実在することを確認するテスト | すべて |
 | `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する | characters |
 | `test_dodge.cpp` | スキルドッジのテスト。設定ファイルを読み込み、`src/game/Match.cpp` を通してキャラと敵 AI の設定を使う | ai、characters |
+| `test_shot.cpp` | スキルショットのテスト。的の置き方（`targetRadius`・`targetMoveSpeed`・`distance`・`maxVerticalOffset`）、的の回避（`skillShot.levels` を書き換えて確かめる）、賢さとヒット率、飛んでいる途中の発動を数えないこと | ai、stages、characters |
 | `test_geometry.cpp` | 使わない | — |
 | `test_log_retention.cpp` | 使わない | — |
 | `test_main.cpp` | 使わない | — |
@@ -538,4 +579,4 @@ data/
 | `test_camera.cpp` | 使わない（`CameraControl.cpp` の計算を、テスト用の値で確かめる） | — |
 | `test_sandbox.cpp` | sandbox.jsonc が読み込めること、プリセットを選ぶと `"preset"` だけが書き換わること、練習場のダミーが置き直されることのテスト（data フォルダを一時フォルダへ写して使う） | sandbox、characters |
 | `test_stage.cpp` | ステージのファイルが読み込めること、壁を回り込むこと、立てない場所を指定した時・たどり着けない時の動き、ブッシュの見え方、路地裏・森でスキルドッジを遊んでも障害物に入り込まないことのテスト | stages、characters |
-| `scripts/brand_tour.txt`、`scripts/camera_tour.txt`、`scripts/dodge_tour.txt`、`scripts/emma_tour.txt`、`scripts/ezreal_tour.txt`、`scripts/stage_tour.txt` | 使わない（`--script` で使う入力スクリプト） | — |
+| `scripts/brand_tour.txt`、`scripts/camera_tour.txt`、`scripts/dodge_tour.txt`、`scripts/emma_tour.txt`、`scripts/ezreal_tour.txt`、`scripts/shot_tour.txt`、`scripts/stage_tour.txt` | 使わない（`--script` で使う入力スクリプト） | — |

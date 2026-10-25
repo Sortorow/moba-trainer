@@ -189,7 +189,7 @@ private:
     void removeDead();
     /// 発動で出た弾・範囲が 1 つ消えたことを記録する。すべて消えたら発動の結果を確定する
     void releaseCastEntity(int castId);
-    /// 発動の結果（当たった・避けた）を確定し、敵の発動ならドッジ率に数える
+    /// 発動の結果（当たった・避けた）を確定し、敵の発動ならドッジ率に、自キャラの発動ならヒット率の「外れ」に数える
     void finishCastRecord(int castId);
     /// 自キャラの HP を 1 減らす。0 になったらダウン数を増やして全回復する
     void damagePlayer(Unit& player);

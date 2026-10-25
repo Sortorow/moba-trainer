@@ -32,7 +32,7 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::s
             options.characterId = std::string(value);
             ++i;
         } else if (arg == "--mode" && hasValue) {
-            if (value != "sandbox" && value != "dodge") return fail(arg, value);
+            if (value != "sandbox" && value != "dodge" && value != "shot") return fail(arg, value);
             options.mode = std::string(value);
             ++i;
         } else if (arg == "--stage" && hasValue) {

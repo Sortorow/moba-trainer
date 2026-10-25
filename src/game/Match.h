@@ -1,7 +1,8 @@
 #pragma once
-// 1 回のプレイ（練習場・スキルドッジ）。
-// World と、自キャラ・ダミー・敵 AI の操作、制限時間、結果をまとめて持つ
+// 1 回のプレイ（練習場・スキルドッジ・スキルショット）。
+// World と、自キャラ・ダミー・敵 AI・的の AI の操作、制限時間、結果をまとめて持つ
 
+#include <array>
 #include <memory>
 #include <string>
 
@@ -11,6 +12,7 @@
 #include "game/PlayerController.h"
 #include "game/World.h"
 #include "game/ai/EnemyAI.h"
+#include "game/ai/SkillShotTarget.h"
 #include "input/InputFrame.h"
 
 namespace moba {
@@ -22,15 +24,18 @@ struct MatchResult {
     MatchConfig config;
     std::string characterName;
     std::string stageName;
-    std::string aiLevelName;
+    std::string aiLevelName;  // スキルドッジ: 敵の賢さの名前。スキルショット: 的の賢さの名前
     float playedSeconds = 0.0f;
-    DodgeCount dodge;     // スキルドッジ: 敵のスキルを避けた割合
-    int hitsTaken = 0;    // スキルドッジ: 被弾した回数
-    int deaths = 0;       // スキルドッジ: HP が 0 になった回数
-    HitCount playerHits;  // 自キャラのスキルの命中
+    DodgeCount dodge;   // スキルドッジ: 敵のスキルを避けた割合
+    int hitsTaken = 0;  // スキルドッジ: 被弾した回数
+    int deaths = 0;     // スキルドッジ: HP が 0 になった回数
+    // 自キャラのスキルの命中（ヒット率の集計対象のスキルだけ。制限時間の終了時に飛んでいる途中だった発動は含めない）
+    HitCount playerHits;
+    std::array<HitCount, kSkillSlotCount> playerHitsBySlot{};  // キーごとの命中
 };
 
-/// 1 回のプレイ（練習場・スキルドッジ）。World と、自キャラ・ダミー・敵 AI の操作、制限時間、結果をまとめて持つ
+/// 1 回のプレイ（練習場・スキルドッジ・スキルショット）。World と、自キャラ・ダミー・敵 AI・的の AI の操作、
+/// 制限時間、結果をまとめて持つ
 class Match {
 public:
     /// プレイを始める。ステージの地形で World を作り、モードに合わせて自キャラ・ダミー・敵を置く。
@@ -39,7 +44,7 @@ public:
 
     /// 開始できたか（キャラの設定が 1 つも無い時は false）
     bool valid() const { return world_ != nullptr; }
-    /// ゲームを dt 秒進める（自キャラ・ダミー・敵 AI・World の順）。制限時間になったら終了する。固定の時間刻みで呼ぶ
+    /// ゲームを dt 秒進める（自キャラ・ダミー・敵 AI・的の AI・World の順）。制限時間になったら終了する。固定の時間刻みで呼ぶ
     void update(float dt, const InputFrame& input);
 
     /// 制限時間になって終わったか
@@ -48,7 +53,7 @@ public:
     float elapsed() const { return elapsed_; }
     /// 制限時間の残り（秒。制限なしなら 0）
     float remaining() const;
-    /// 今の結果（ドッジ率・被弾・ダウン・命中など。リザルト画面に渡す）
+    /// 今の結果（ドッジ率・被弾・ダウン・ヒット率など。リザルト画面に渡す）
     MatchResult result() const;
 
     /// 始めた時の設定（キャラやステージが見つからなかった場合は、代わりに使ったものに直してある）
@@ -61,6 +66,8 @@ public:
     DummyController& dummies() { return dummies_; }
     /// スキルドッジの敵 AI
     const ai::EnemyDirector& enemies() const { return enemies_; }
+    /// スキルショットの的の AI
+    const ai::SkillShotTarget& target() const { return target_; }
 
     /// 練習場: ダミーの設定（プリセットの選択や sandbox.jsonc の中身）が変わっていれば、ダミーを置き直す
     void refreshDummiesIfChanged();
@@ -68,6 +75,8 @@ public:
 private:
     /// スキルドッジ: 自キャラ（HP 付き）と、自キャラを囲むように敵を置く
     void setupSkillDodge(const CharacterDef& character);
+    /// スキルショット: 自キャラと、自キャラから離れた位置に的を 1 体置く
+    void setupSkillShot(const CharacterDef& character);
 
     const GameData& data_;
     MatchConfig config_;
@@ -75,6 +84,7 @@ private:
     PlayerController player_;
     DummyController dummies_;
     ai::EnemyDirector enemies_;
+    ai::SkillShotTarget target_;
     int sandboxRevision_ = 0;  // 今のダミーを置いた時の GameData::sandboxRevision()
     float elapsed_ = 0.0f;
     bool finished_ = false;

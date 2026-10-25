@@ -243,6 +243,7 @@ void World::finishCastRecord(int castId) {
     if (it == casts_.end()) return;
     const CastRecord record = it->second;
     casts_.erase(it);
+    stats_.settle(castId);  // 自キャラの発動なら、ヒット率の「外れ」もここで確定する
     if (record.team != Team::Enemy) return;
 
     ++dodge_.total;

@@ -15,6 +15,47 @@ const AiLevel& AiConfig::level(int aiLevel) const {
     return levels[static_cast<std::size_t>(i)];
 }
 
+const SkillShotLevel& SkillShotConfig::level(int aiLevel) const {
+    static const SkillShotLevel kFallback;
+    if (levels.empty()) return kFallback;
+    const int i = std::clamp(aiLevel, 1, static_cast<int>(levels.size())) - 1;
+    return levels[static_cast<std::size_t>(i)];
+}
+
+namespace {
+
+/// [最小, 最大] の 2 つの数の配列を読む（無い・形が違う時は何もしない）。最大は最小より小さくしない
+void readRange(const nlohmann::json& item, const char* key, float lowest, float& min, float& max) {
+    const auto it = item.find(key);
+    if (it == item.end() || !it->is_array() || it->size() != 2) return;
+    min = std::max(lowest, (*it)[0].get<float>());
+    max = std::max(min, (*it)[1].get<float>());
+}
+
+/// "skillShot" の部分を読む
+/// @return 読めなかった理由（空なら成功）
+std::string loadSkillShot(const nlohmann::json& j, SkillShotConfig& c) {
+    c.targetRadius = std::clamp(j.value("targetRadius", c.targetRadius), 10.0f, 300.0f);
+    c.targetMoveSpeed = std::clamp(j.value("targetMoveSpeed", c.targetMoveSpeed), 0.0f, 1500.0f);
+    readRange(j, "distance", 100.0f, c.distanceMin, c.distanceMax);
+    c.maxVerticalOffset = std::max(50.0f, j.value("maxVerticalOffset", c.maxVerticalOffset));
+    c.dodgeMargin = std::max(0.0f, j.value("dodgeMargin", c.dodgeMargin));
+    for (const nlohmann::json& item : j.at("levels")) {
+        SkillShotLevel level;
+        level.name = item.value("name", std::format("{}", c.levels.size() + 1));
+        level.reactionTime = std::max(0.0f, item.value("reactionTime", level.reactionTime));
+        level.dodgeChance = std::clamp(item.value("dodgeChance", level.dodgeChance), 0.0f, 1.0f);
+        level.readCast = item.value("readCast", level.readCast);
+        readRange(item, "moveInterval", 0.1f, level.moveIntervalMin, level.moveIntervalMax);
+        level.stopChance = std::clamp(item.value("stopChance", level.stopChance), 0.0f, 1.0f);
+        level.sideRandom = std::clamp(item.value("sideRandom", level.sideRandom), 0.0f, 1.0f);
+        c.levels.push_back(std::move(level));
+    }
+    return c.levels.empty() ? std::string("\"skillShot\" の \"levels\" が空です") : std::string{};
+}
+
+}  // namespace
+
 AiConfigLoadResult loadAiConfig(const std::filesystem::path& file) {
     AiConfigLoadResult result;
     const JsonLoadResult json = loadJsonFile(file);
@@ -35,10 +76,7 @@ AiConfigLoadResult loadAiConfig(const std::filesystem::path& file) {
             AiLevel level;
             level.name = item.value("name", std::format("{}", c.levels.size() + 1));
             level.reactionTime = std::max(0.0f, item.value("reactionTime", level.reactionTime));
-            if (const auto it = item.find("castInterval"); it != item.end() && it->is_array() && it->size() == 2) {
-                level.castIntervalMin = std::max(0.1f, (*it)[0].get<float>());
-                level.castIntervalMax = std::max(level.castIntervalMin, (*it)[1].get<float>());
-            }
+            readRange(item, "castInterval", 0.1f, level.castIntervalMin, level.castIntervalMax);
             level.aimError = std::max(0.0f, item.value("aimError", level.aimError));
             if (const auto it = item.find("predict"); it != item.end() && it->is_object()) {
                 level.predictStay = std::max(0.0f, it->value("stay", 0.0f));
@@ -53,7 +91,12 @@ AiConfigLoadResult loadAiConfig(const std::filesystem::path& file) {
             level.engageRangeRatio = std::clamp(item.value("engageRangeRatio", level.engageRangeRatio), 0.3f, 1.0f);
             c.levels.push_back(std::move(level));
         }
-        if (c.levels.empty()) result.error = std::format("{}: \"levels\" が空です", toUtf8(file.filename()));
+        if (c.levels.empty()) {
+            result.error = std::format("{}: \"levels\" が空です", toUtf8(file.filename()));
+            return result;
+        }
+        if (const std::string error = loadSkillShot(j.at("skillShot"), c.skillShot); !error.empty())
+            result.error = std::format("{}: {}", toUtf8(file.filename()), error);
     } catch (const nlohmann::json::exception& e) {
         result.error = std::format("{}: {}", toUtf8(file.filename()), e.what());
     }

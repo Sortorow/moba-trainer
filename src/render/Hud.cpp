@@ -222,6 +222,26 @@ void drawDodgePanel(ImDrawList* dl, const Match& match) {
                      std::format("ドッジ率 {}　　被弾 {}　　ダウン {}", rate, dodge.hit, player ? player->deaths : 0));
 }
 
+/// スキルショット: 画面上部に残り時間・ヒット率
+void drawShotPanel(ImDrawList* dl, const Match& match) {
+    const HitCount hits = match.world().stats().total();
+    const ImVec2 display = ImGui::GetIO().DisplaySize;
+    const float centerX = display.x * 0.5f;
+
+    dl->AddRectFilled(ImVec2{centerX - px(260.0f), px(34.0f)}, ImVec2{centerX + px(260.0f), px(104.0f)},
+                      IM_COL32(10, 14, 20, 190), px(8.0f));
+
+    const int seconds = static_cast<int>(std::ceil(match.remaining()));
+    drawCenteredText(dl, ImVec2{centerX, px(56.0f)}, 28.0f,
+                     seconds <= 10 ? IM_COL32(255, 140, 120, 255) : IM_COL32(255, 255, 255, 255),
+                     std::format("残り {}:{:02}", seconds / 60, seconds % 60));
+    const std::string rate = hits.casts > 0
+                                 ? std::format("{:.1f}%（{} / {}）", hits.rate() * 100.0f, hits.hits, hits.casts)
+                                 : std::string("-");
+    drawCenteredText(dl, ImVec2{centerX, px(88.0f)}, 16.0f, IM_COL32(220, 230, 240, 255),
+                     std::format("ヒット率 {}", rate));
+}
+
 /// 画面左上の操作説明（今のカメラも出す）
 void drawHelp(ImDrawList* dl, CameraMode cameraMode) {
     const std::string help = std::format(
@@ -244,6 +264,7 @@ void drawHud(const Match& match, const Camera2D& camera, CameraMode cameraMode) 
     drawOffscreenIndicators(dl, world, camera);
     drawSkillBar(dl, world);
     if (match.config().mode == GameMode::SkillDodge) drawDodgePanel(dl, match);
+    if (match.config().mode == GameMode::SkillShot) drawShotPanel(dl, match);
     drawHelp(dl, cameraMode);
 }
 

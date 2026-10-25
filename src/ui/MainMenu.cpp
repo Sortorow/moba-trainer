@@ -48,6 +48,13 @@ void drawCooldownScaleCombo(float& scale, float settingsScale) {
     ImGui::EndCombo();
 }
 
+/// 制限時間（1〜5 分）を選ぶ
+void drawTimeLimitSlider(MatchConfig& config) {
+    int minutes = std::clamp(static_cast<int>(std::lround(config.timeLimitSeconds / 60.0f)), 1, 5);
+    ImGui::SliderInt("制限時間", &minutes, 1, 5, "%d 分");
+    config.timeLimitSeconds = static_cast<float>(minutes) * 60.0f;
+}
+
 /// スキルドッジの設定（敵の数・敵の賢さ・制限時間）と、登場する敵の一覧を表示する
 void drawSkillDodgeOptions(MatchConfig& config, const GameData& data) {
     ImGui::SeparatorText("スキルドッジの設定");
@@ -56,14 +63,24 @@ void drawSkillDodgeOptions(MatchConfig& config, const GameData& data) {
     const std::string levelLabel = std::format("%d（{}）", ai.level(config.aiLevel).name);
     ImGui::SliderInt("敵の賢さ", &config.aiLevel, 1, std::max(1, static_cast<int>(ai.levels.size())),
                      levelLabel.c_str());
-    int minutes = std::clamp(static_cast<int>(std::lround(config.timeLimitSeconds / 60.0f)), 1, 5);
-    ImGui::SliderInt("制限時間", &minutes, 1, 5, "%d 分");
-    config.timeLimitSeconds = static_cast<float>(minutes) * 60.0f;
+    drawTimeLimitSlider(config);
 
     std::string enemies;
     for (const CharacterDef* def : data.enemyCandidates()) enemies += (enemies.empty() ? "" : "、") + def->displayName;
     ImGui::TextDisabled("登場する敵: %s（ランダム）", enemies.empty() ? "なし" : enemies.c_str());
     ImGui::TextDisabled("自キャラはすべてのスキルを使えます（敵に当たってもダメージはありません）");
+}
+
+/// スキルショットの設定（的の賢さ・制限時間）を表示する
+void drawSkillShotOptions(MatchConfig& config, const GameData& data) {
+    ImGui::SeparatorText("スキルショットの設定");
+    const SkillShotConfig& shot = data.ai().skillShot;
+    const std::string levelLabel = std::format("%d（{}）", shot.level(config.targetLevel).name);
+    ImGui::SliderInt("的の賢さ", &config.targetLevel, 1, std::max(1, static_cast<int>(shot.levels.size())),
+                     levelLabel.c_str());
+    drawTimeLimitSlider(config);
+    ImGui::TextDisabled("賢いほど、よく避け、動きを読まれにくくします");
+    ImGui::TextDisabled("ヒット率に数えるのは、方向指定・地点指定の攻撃スキルだけです");
 }
 
 }  // namespace
@@ -106,9 +123,9 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode) {
     if (ImGui::RadioButton("スキルドッジ（敵のスキルを避ける）", config_.mode == GameMode::SkillDodge)) {
         config_.mode = GameMode::SkillDodge;
     }
-    ImGui::BeginDisabled();
-    ImGui::RadioButton("スキルショット（準備中）", false);
-    ImGui::EndDisabled();
+    if (ImGui::RadioButton("スキルショット（動き回る的にスキルを当てる）", config_.mode == GameMode::SkillShot)) {
+        config_.mode = GameMode::SkillShot;
+    }
 
     ImGui::SeparatorText("ステージ");
     const std::vector<const StageDef*> stages = data.stageList();
@@ -128,6 +145,7 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode) {
         ImGui::TextDisabled("練習場の画面右下でも切り替えられます");
     }
     if (config_.mode == GameMode::SkillDodge) drawSkillDodgeOptions(config_, data);
+    if (config_.mode == GameMode::SkillShot) drawSkillShotOptions(config_, data);
 
     ImGui::SeparatorText("スキルのクールダウン");
     if (ImGui::RadioButton("標準", config_.cooldownMode == CooldownMode::Standard)) {

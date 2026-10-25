@@ -231,9 +231,10 @@ MatchConfig App::configFromCommandLine() const {
     config.cooldownScale = data_.settings().cooldownScale;
     if (options_.noCooldown) config.cooldownMode = CooldownMode::None;
     if (options_.mode == "dodge") config.mode = GameMode::SkillDodge;
+    if (options_.mode == "shot") config.mode = GameMode::SkillShot;
     if (options_.stageId) config.stageId = *options_.stageId;
     if (options_.enemyCount) config.enemyCount = *options_.enemyCount;
-    if (options_.aiLevel) config.aiLevel = *options_.aiLevel;
+    if (options_.aiLevel) config.aiLevel = config.targetLevel = *options_.aiLevel;
     if (options_.timeSeconds) config.timeLimitSeconds = *options_.timeSeconds;
     if (options_.seed) config.seed = *options_.seed;
     return config;

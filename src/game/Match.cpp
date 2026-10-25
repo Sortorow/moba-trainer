@@ -16,6 +16,7 @@ namespace {
 constexpr int kPlayerMaxHp = 5;
 constexpr float kEnemySpawnMin = 1000.0f;  // 敵が現れる距離（自キャラから）
 constexpr float kEnemySpawnMax = 1250.0f;
+constexpr Color kTargetColor{255, 170, 70, 255};  // スキルショットの的の色
 
 }  // namespace
 
@@ -34,6 +35,7 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
     if (config_.seed == 0) config_.seed = std::random_device{}() | 1u;
     config_.enemyCount = std::clamp(config_.enemyCount, 1, 5);
     config_.aiLevel = std::clamp(config_.aiLevel, 1, 5);
+    config_.targetLevel = std::clamp(config_.targetLevel, 1, 5);
 
     // ステージ: 見つからなければ一覧の最初のステージ。ステージのファイルが 1 つも無ければ、障害物のない広場
     const StageDef* stage = data_.stage(config_.stageId);
@@ -62,14 +64,20 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
             sandboxRevision_ = data_.sandboxRevision();
             break;
         case GameMode::SkillDodge: setupSkillDodge(*character); break;
+        case GameMode::SkillShot: setupSkillShot(*character); break;
+    }
+    std::string modeSettings;
+    if (config_.mode == GameMode::SkillDodge) {
+        modeSettings = std::format(" 敵 {} 体 賢さ {} 制限時間 {:.0f} 秒 乱数の種 {}", config_.enemyCount,
+                                   config_.aiLevel, config_.timeLimitSeconds, config_.seed);
+    } else if (config_.mode == GameMode::SkillShot) {
+        modeSettings = std::format(" 的の賢さ {} 制限時間 {:.0f} 秒 乱数の種 {}", config_.targetLevel,
+                                   config_.timeLimitSeconds, config_.seed);
     }
     log::info("match", "{}を開始: キャラ={} ステージ={} クールダウン={}（倍率 {:.2f}）{}", displayName(config_.mode),
               character->id, config_.stageId.empty() ? "（なし）" : config_.stageId,
               config_.cooldownMode == CooldownMode::None ? "なし" : "標準", config_.playerCooldownScale(),
-              config_.mode == GameMode::SkillDodge
-                  ? std::format(" 敵 {} 体 賢さ {} 制限時間 {:.0f} 秒 乱数の種 {}", config_.enemyCount, config_.aiLevel,
-                                config_.timeLimitSeconds, config_.seed)
-                  : std::string{});
+              modeSettings);
 }
 
 void Match::setupSkillDodge(const CharacterDef& character) {
@@ -111,19 +119,46 @@ void Match::setupSkillDodge(const CharacterDef& character) {
     }
 }
 
+void Match::setupSkillShot(const CharacterDef& character) {
+    // 自キャラはすべてのスキルを使える（ヒット率に数えるのは countsForHitRate のスキルだけ）。HP は使わない
+    Unit player = makePlayerUnit(character);
+    player.pos = world_->placeable(player.pos, player.radius);
+    world_->addUnit(player);
+
+    // 的は、自キャラから「保つ距離」の真ん中の、ランダムな方向に置く。大きさ・移動速度は ai.jsonc で決める
+    const SkillShotConfig& shot = data_.ai().skillShot;
+    target_.setup(shot, config_.targetLevel, config_.seed);
+
+    Unit target;
+    target.team = Team::Enemy;
+    target.name = "的";
+    target.radius = shot.targetRadius;
+    target.baseMoveSpeed = shot.targetMoveSpeed;
+    target.color = kTargetColor;
+    target.pos = world_->placeable(target_.startPosition(player.pos), target.radius);
+    target.facing = geo::normalizedOr(player.pos - target.pos, Vector2{1.0f, 0.0f});
+    target_.setTarget(world_->addUnit(target));
+}
+
 void Match::update(float dt, const InputFrame& input) {
     if (!world_ || finished_) return;
     elapsed_ += dt;
     player_.update(*world_, input, dt);
     dummies_.update(*world_);
     enemies_.update(*world_, dt);
+    target_.update(*world_, dt);
     world_->update(dt);
 
     if (config_.timed() && elapsed_ >= config_.timeLimitSeconds) {
         finished_ = true;
         const MatchResult r = result();
-        log::info("match", "制限時間になりました: ドッジ率 {:.1f}%（{} / {}）被弾 {} 回 ダウン {} 回",
-                  r.dodge.rate() * 100.0f, r.dodge.dodged, r.dodge.total, r.hitsTaken, r.deaths);
+        if (config_.mode == GameMode::SkillShot) {
+            log::info("match", "制限時間になりました: ヒット率 {:.1f}%（{} / {}）的が避けた回数 {}",
+                      r.playerHits.rate() * 100.0f, r.playerHits.hits, r.playerHits.casts, target_.dodgeCount());
+        } else {
+            log::info("match", "制限時間になりました: ドッジ率 {:.1f}%（{} / {}）被弾 {} 回 ダウン {} 回",
+                      r.dodge.rate() * 100.0f, r.dodge.dodged, r.dodge.total, r.hitsTaken, r.deaths);
+        }
     }
 }
 
@@ -142,11 +177,14 @@ MatchResult Match::result() const {
     if (!world_) return r;
     if (const CharacterDef* def = data_.character(config_.characterId)) r.characterName = def->displayName;
     if (const StageDef* stage = data_.stage(config_.stageId)) r.stageName = stage->displayName;
-    r.aiLevelName = enemies_.level().name;
+    r.aiLevelName = config_.mode == GameMode::SkillShot ? target_.level().name : enemies_.level().name;
     r.dodge = world_->dodge();
     r.hitsTaken = r.dodge.hit;
     if (const Unit* player = world_->player()) r.deaths = player->deaths;
-    r.playerHits = world_->stats().total();
+    r.playerHits = world_->stats().settledTotal();
+    for (const SkillSlot slot : kAllSkillSlots) {
+        r.playerHitsBySlot[static_cast<std::size_t>(index(slot))] = world_->stats().settledSlot(slot);
+    }
     return r;
 }
 
