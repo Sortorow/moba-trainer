@@ -114,6 +114,7 @@ void handleEmmaW(SkillContext& ctx) {
 ///   鳩: エマと鳩の位置が入れ替わる。鳩はエマの元の位置へ飛び、通り道の敵に効果（拘束）。鳩は残り時間を戻して残る
 ///   帽子: エマと帽子の位置が入れ替わる。帽子はエマの元の位置で爆発し、範囲の敵に効果（打ち上げ）。帽子は残り時間を戻して残る
 ///   兎: 兎の位置へ移動し、兎の周りの敵に効果（変身）
+/// R の前の右クリックの移動指示は捨てる（R の後は、新しく右クリックするまで移動先にとどまる）
 /// params: pickRadius, targetKinds, dovePathWidth, doveSpeed, doveOnHit, hatFlightTime, hatRadius, hatOnHit,
 ///         rabbitRadius, rabbitOnHit, color
 void handleEmmaR(SkillContext& ctx) {
@@ -206,8 +207,10 @@ void handleEmmaR(SkillContext& ctx) {
             world.spawnArea(std::move(a));
             break;
         }
-        case PropTargetKind::None: log::error("skill", "[R] 対象の種類が指定されていません"); break;
+        case PropTargetKind::None: log::error("skill", "[R] 対象の種類が指定されていません"); return;
     }
+    // R の前の移動指示は捨てる（R の後に右クリックしなければ、移動先にとどまる）
+    emma.moveTarget.reset();
 }
 
 }  // namespace moba::skills

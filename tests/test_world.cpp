@@ -294,6 +294,24 @@ TEST_CASE("エマ R（帽子）: 入れ替わった帽子は消えずにエマ�
     CHECK(hat->remaining > 5.0f);
 }
 
+TEST_CASE("エマ R: R の前の移動指示は捨て、R の後は右クリックするまで移動先にとどまる") {
+    Fixture f("like_emma");
+    f.cast(SkillSlot::W, {500, 0});
+    f.run(1.0f);
+    REQUIRE(f.findProp(PropKind::Hat) != nullptr);
+
+    casting::orderMove(f.world(), f.player(), {0, 1000});
+    f.run(0.2f);
+    f.cast(SkillSlot::R, {500, 0});
+    CHECK_FALSE(f.player().moveTarget.has_value());
+    f.run(1.0f);
+    CHECK(Vector2Distance(f.player().pos, {500, 0}) < 1.0f);  // R の前の移動先へは向かわない
+
+    casting::orderMove(f.world(), f.player(), {500, 500});  // R の後の右クリックには従う
+    f.run(0.5f);
+    CHECK(f.player().pos.y > 50.0f);
+}
+
 TEST_CASE("エマ Q の溜めの間に R で帽子へ移動すると、移動先からカードが出て、鳩もそこに残る") {
     Fixture f("like_emma");
     f.cast(SkillSlot::W, {500, 0});
