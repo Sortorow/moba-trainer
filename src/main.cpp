@@ -15,8 +15,8 @@ int main(int argc, char** argv) {
     const std::filesystem::path exeDir = platform::executableDirectory();
     const std::optional<AppPaths> paths = locateAppPaths(exeDir);
     if (!paths) {
-        platform::showErrorDialog("MOBA Trainer",
-                                  std::format("data/settings.jsonc が見つかりません。\nexe の場所: {}", toUtf8(exeDir)));
+        platform::showErrorDialog(
+            "MOBA Trainer", std::format("data/settings.jsonc が見つかりません。\nexe の場所: {}", toUtf8(exeDir)));
         return 1;
     }
 

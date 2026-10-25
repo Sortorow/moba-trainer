@@ -21,11 +21,11 @@ namespace moba::log {
 enum class Level { Trace, Debug, Info, Warn, Error, Fatal };
 
 struct Config {
-    std::filesystem::path directory;                    // ログを保存するフォルダ
-    Level minLevel = Level::Debug;                      // これより低いレベルは書き込まない
-    std::uint64_t maxFileBytes = 20ull * 1024 * 1024;   // 1 ファイルの上限
-    int maxDays = 10;                                   // 残す日数
-    std::string filePrefix = "moba_trainer";            // ファイル名の先頭
+    std::filesystem::path directory;                   // ログを保存するフォルダ
+    Level minLevel = Level::Debug;                     // これより低いレベルは書き込まない
+    std::uint64_t maxFileBytes = 20ull * 1024 * 1024;  // 1 ファイルの上限
+    int maxDays = 10;                                  // 残す日数
+    std::string filePrefix = "moba_trainer";           // ファイル名の先頭
 };
 
 void init(const Config& config);

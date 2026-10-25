@@ -62,7 +62,8 @@ void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) 
     for (const Unit& unit : world.units()) {
         const bool enemy = unit.team == Team::Enemy && !unit.characterId.empty();
         const ImVec2 top = toScreen(unit.pos - Vector2{0.0f, unit.radius + 30.0f}, camera);
-        drawCenteredText(dl, top, 16.0f, enemy ? IM_COL32(255, 160, 150, 240) : IM_COL32(255, 255, 255, 230), unit.name);
+        drawCenteredText(dl, top, 16.0f, enemy ? IM_COL32(255, 160, 150, 240) : IM_COL32(255, 255, 255, 230),
+                         unit.name);
 
         ImVec2 below = toScreen(unit.pos + Vector2{0.0f, unit.radius + 20.0f}, camera);
         if (unit.maxHp > 0) below.y = drawHpBar(dl, unit, below) + px(10.0f);
@@ -70,7 +71,8 @@ void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) 
         std::string status;
         for (const StatusEffect& effect : unit.status.list()) {
             if (!status.empty()) status += "  ";
-            const std::string_view name = effect.type == EffectType::Mark ? std::string_view("マーク") : displayName(effect.type);
+            const std::string_view name =
+                effect.type == EffectType::Mark ? std::string_view("マーク") : displayName(effect.type);
             status += std::format("{} {:.1f}", name, effect.remaining);
         }
         if (!status.empty()) drawCenteredText(dl, below, 14.0f, IM_COL32(255, 230, 140, 255), status);
@@ -142,8 +144,8 @@ void drawSkillBar(ImDrawList* dl, const World& world) {
             if (skill) {
                 // このモードでは使えないスキル
                 const float inset = px(8.0f);
-                dl->AddLine(ImVec2{p0.x + inset, p1.y - inset}, ImVec2{p1.x - inset, p0.y + inset}, IM_COL32(200, 80, 80, 200),
-                            px(2.0f));
+                dl->AddLine(ImVec2{p0.x + inset, p1.y - inset}, ImVec2{p1.x - inset, p0.y + inset},
+                            IM_COL32(200, 80, 80, 200), px(2.0f));
                 drawCenteredText(dl, ImVec2{boxCenter.x, nameY}, 13.0f, IM_COL32(120, 120, 130, 255), skill->name);
             }
             continue;
@@ -175,7 +177,8 @@ void drawSkillBar(ImDrawList* dl, const World& world) {
         dl->AddRectFilled(p0, ImVec2{p0.x + width * progress, p1.y}, IM_COL32(120, 190, 255, 255), px(4.0f));
         const SkillDef* skill = def ? def->skill(player->cast.request.slot) : nullptr;
         if (skill) {
-            drawCenteredText(dl, ImVec2{display.x * 0.5f, p0.y - px(10.0f)}, 14.0f, IM_COL32(255, 255, 255, 230), skill->name);
+            drawCenteredText(dl, ImVec2{display.x * 0.5f, p0.y - px(10.0f)}, 14.0f, IM_COL32(255, 255, 255, 230),
+                             skill->name);
         }
     }
 }
@@ -195,14 +198,16 @@ void drawDodgePanel(ImDrawList* dl, const Match& match) {
     drawCenteredText(dl, ImVec2{centerX, px(56.0f)}, 28.0f,
                      seconds <= 10 ? IM_COL32(255, 140, 120, 255) : IM_COL32(255, 255, 255, 255),
                      std::format("残り {}:{:02}", seconds / 60, seconds % 60));
-    const std::string rate = dodge.total > 0 ? std::format("{:.1f}%（{} / {}）", dodge.rate() * 100.0f, dodge.dodged, dodge.total)
-                                             : std::string("-");
+    const std::string rate = dodge.total > 0
+                                 ? std::format("{:.1f}%（{} / {}）", dodge.rate() * 100.0f, dodge.dodged, dodge.total)
+                                 : std::string("-");
     drawCenteredText(dl, ImVec2{centerX, px(88.0f)}, 16.0f, IM_COL32(220, 230, 240, 255),
                      std::format("ドッジ率 {}　　被弾 {}　　ダウン {}", rate, dodge.hit, player ? player->deaths : 0));
 }
 
 void drawHelp(ImDrawList* dl) {
-    const char* help = "右クリック: 移動    Q/W/E/R/D/F: スキル    F1: デバッグ表示    F5: 設定の再読み込み    Esc: メニュー";
+    const char* help =
+        "右クリック: 移動    Q/W/E/R/D/F: スキル    F1: デバッグ表示    F5: 設定の再読み込み    Esc: メニュー";
     const float size = px(15.0f);
     const ImVec2 pos = px(12.0f, 10.0f);
     const float shadow = std::max(1.0f, px(1.0f));

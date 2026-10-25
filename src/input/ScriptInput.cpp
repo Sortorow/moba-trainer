@@ -85,18 +85,10 @@ InputFrame ScriptInput::poll(const InputPollContext& ctx) {
                 cursor_ = command.point;
                 frame.skillPressed[static_cast<std::size_t>(index(command.slot))] = true;
                 break;
-            case Kind::Cursor:
-                cursor_ = command.point;
-                break;
-            case Kind::Screenshot:
-                frame.screenshotRequest = command.text;
-                break;
-            case Kind::ResetCooldowns:
-                frame.resetCooldownsRequested = true;
-                break;
-            case Kind::Exit:
-                frame.exitRequested = true;
-                break;
+            case Kind::Cursor: cursor_ = command.point; break;
+            case Kind::Screenshot: frame.screenshotRequest = command.text; break;
+            case Kind::ResetCooldowns: frame.resetCooldownsRequested = true; break;
+            case Kind::Exit: frame.exitRequested = true; break;
         }
     }
     frame.cursorWorld = cursor_;

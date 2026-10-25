@@ -6,9 +6,9 @@
 namespace moba::ai {
 namespace {
 
-constexpr float kHistorySeconds = 2.0f;     // 位置の履歴を残す長さ
-constexpr float kDodgeCheckDelay = 0.4f;    // 弾を撃ってから、避けた方向を判定するまでの時間
-constexpr float kDodgeThreshold = 40.0f;    // これ以上横に動いたら「避けた」とみなす距離
+constexpr float kHistorySeconds = 2.0f;   // 位置の履歴を残す長さ
+constexpr float kDodgeCheckDelay = 0.4f;  // 弾を撃ってから、避けた方向を判定するまでの時間
+constexpr float kDodgeThreshold = 40.0f;  // これ以上横に動いたら「避けた」とみなす距離
 
 }  // namespace
 

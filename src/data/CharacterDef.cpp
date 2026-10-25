@@ -55,7 +55,8 @@ std::optional<SkillDef> parseSkill(const json& j, const std::string& characterId
         const auto it = std::find_if(kAllSkillSlots.begin(), kAllSkillSlots.end(),
                                      [&](SkillSlot s) { return toString(s) == name; });
         if (it == kAllSkillSlots.end()) {
-            error = std::format("\"usableDuringCast\" の \"{}\" は不明なキーです（Q/W/E/R/D/F で書いてください）", name);
+            error =
+                std::format("\"usableDuringCast\" の \"{}\" は不明なキーです（Q/W/E/R/D/F で書いてください）", name);
             return std::nullopt;
         }
         skill.usableDuringCast.push_back(*it);

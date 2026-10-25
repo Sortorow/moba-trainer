@@ -37,10 +37,10 @@ struct AimModel {
 std::optional<AimModel> aimModelFor(const SkillDef& def);
 
 struct AimTarget {
-    Vector2 pos{};         // AI が認識している位置
-    Vector2 velocity{};    // AI が認識している速度
-    float moveSpeed = 0;   // 最大移動速度
-    float radius = 0;      // 当たり判定の半径
+    Vector2 pos{};        // AI が認識している位置
+    Vector2 velocity{};   // AI が認識している速度
+    float moveSpeed = 0;  // 最大移動速度
+    float radius = 0;     // 当たり判定の半径
 };
 
 // 着弾時に自キャラがいそうな位置の重み

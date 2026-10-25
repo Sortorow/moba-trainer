@@ -18,7 +18,7 @@ enum class DummyBehavior {
 struct DummyBrain {
     EntityId unitId = kInvalidId;
     DummyBehavior behavior = DummyBehavior::Stationary;
-    Vector2 home{};     // 静止する位置 / 往復の一方
+    Vector2 home{};      // 静止する位置 / 往復の一方
     Vector2 patrolTo{};  // 往復のもう一方
     bool headingToPatrolTo = true;
 };

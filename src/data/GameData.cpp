@@ -56,7 +56,8 @@ void GameData::loadAll() {
         }
         const std::string id = result.def->id;
         if (loaded.contains(id)) {
-            const std::string message = std::format("{}: id \"{}\" が他のファイルと重複しています", toUtf8(file.filename()), id);
+            const std::string message =
+                std::format("{}: id \"{}\" が他のファイルと重複しています", toUtf8(file.filename()), id);
             log::error("data", "{}", message);
             errors_.push_back(message);
             continue;
@@ -92,8 +93,9 @@ std::vector<const CharacterDef*> GameData::characterList() const {
 std::vector<const CharacterDef*> GameData::enemyCandidates() const {
     std::vector<const CharacterDef*> list;
     for (const auto& [id, def] : characters_) {
-        const bool usable = std::any_of(def.skills.begin(), def.skills.end(),
-                                        [](const std::optional<SkillDef>& skill) { return skill && skill->usedByEnemy; });
+        const bool usable = std::any_of(def.skills.begin(), def.skills.end(), [](const std::optional<SkillDef>& skill) {
+            return skill && skill->usedByEnemy;
+        });
         if (usable) list.push_back(&def);
     }
     return list;

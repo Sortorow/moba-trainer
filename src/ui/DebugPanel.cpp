@@ -63,8 +63,8 @@ void drawSkillDodgeInfo(const Match& match) {
     const AiLevel& level = match.enemies().level();
     const DodgeCount& dodge = match.world().dodge();
     ImGui::Text("賢さ %d（%s）  乱数の種 %u", match.config().aiLevel, level.name.c_str(), match.config().seed);
-    ImGui::Text("反応 %.2fs  間隔 %.1f〜%.1fs  ぶれ %.0f", level.reactionTime, level.castIntervalMin, level.castIntervalMax,
-                level.aimError);
+    ImGui::Text("反応 %.2fs  間隔 %.1f〜%.1fs  ぶれ %.0f", level.reactionTime, level.castIntervalMin,
+                level.castIntervalMax, level.aimError);
     ImGui::Text("予測: 留まる %.2f / 移動継続 %.2f / 回避 %.2f%s", level.predictStay, level.predictContinue,
                 level.predictDodge, level.adaptive ? "（学習あり）" : "");
     ImGui::Text("ドッジ %d / %d（被弾 %d）", dodge.dodged, dodge.total, dodge.hit);
@@ -131,7 +131,8 @@ DebugPanelResult drawDebugPanel(Match& match, GameData& data) {
             ImGui::Text("位置 %s", geo::str(player->pos).c_str());
             ImGui::Text("移動先 %s", player->moveTarget ? geo::str(*player->moveTarget).c_str() : "-");
             ImGui::Text("移動速度 %.0f", player->moveSpeed());
-            ImGui::Text("詠唱中 %s", player->cast.active ? std::string(toString(player->cast.request.slot)).c_str() : "-");
+            ImGui::Text("詠唱中 %s",
+                        player->cast.active ? std::string(toString(player->cast.request.slot)).c_str() : "-");
         }
     }
 

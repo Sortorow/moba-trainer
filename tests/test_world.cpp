@@ -209,7 +209,7 @@ TEST_CASE("エマ Q: 鳩がどれだけ離れていても、鳩のカードが�
     Fixture f("like_emma");
     f.cast(SkillSlot::Q, {500, 0});
     f.run(f.timeToReach(SkillSlot::Q, f.skill(SkillSlot::Q).range) + 0.1f);  // 1 回目のカードが射程の端で消えるまで待つ
-    REQUIRE(f.findProp(PropKind::Dove) != nullptr);  // (0, 0) に鳩
+    REQUIRE(f.findProp(PropKind::Dove) != nullptr);                          // (0, 0) に鳩
 
     f.player().pos = {2000, 0};  // 鳩から 2000 離れる
     f.resetCooldowns();
@@ -220,7 +220,7 @@ TEST_CASE("エマ Q: 鳩がどれだけ離れていても、鳩のカードが�
     if (!f.skill(SkillSlot::Q).params.contains("doveCardSpeed")) {
         CHECK(f.world().projectiles()[0].speed == doctest::Approx(f.world().projectiles()[1].speed));
     }
-    REQUIRE(f.world().props().size() == 1);      // 古い鳩はカードになり、新しい鳩が 1 羽
+    REQUIRE(f.world().props().size() == 1);  // 古い鳩はカードになり、新しい鳩が 1 羽
     CHECK(f.world().props().front().pos.x == doctest::Approx(2000.0f));
 }
 

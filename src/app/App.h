@@ -30,8 +30,8 @@ private:
     void initWindow();
     void shutdownWindow();
     void fitWindowToScreen(int logicalWidth, int logicalHeight);
-    void applyUiScale();     // 文字・ボタンの倍率（Windows の拡大率 × 設定の uiScale）を反映する
-    void checkDpiChange();   // 別のモニターへの移動などで Windows の拡大率が変わったら追従する
+    void applyUiScale();    // 文字・ボタンの倍率（Windows の拡大率 × 設定の uiScale）を反映する
+    void checkDpiChange();  // 別のモニターへの移動などで Windows の拡大率が変わったら追従する
     void frame();
     void handleGlobalKeys(const InputFrame& input);
     void reloadData(bool force);

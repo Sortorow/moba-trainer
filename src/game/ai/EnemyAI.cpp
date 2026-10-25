@@ -14,8 +14,8 @@
 namespace moba::ai {
 namespace {
 
-constexpr float kStrafeDistance = 300.0f;     // 横移動の幅（strafe = 1 の時）
-constexpr float kMinEngageRange = 350.0f;     // 自キャラに近づく距離の下限
+constexpr float kStrafeDistance = 300.0f;       // 横移動の幅（strafe = 1 の時）
+constexpr float kMinEngageRange = 350.0f;       // 自キャラに近づく距離の下限
 constexpr float kFlankAngle = 70.0f * DEG2RAD;  // 他の敵とこの角度より近いと、離れようとする
 constexpr float kMaxFlankShift = 35.0f * DEG2RAD;
 
@@ -36,9 +36,11 @@ void EnemyDirector::setup(const AiConfig& config, int aiLevel, std::uint32_t see
     rng_.seed(seed);
     observer_.clear();
     brains_.clear();
-    log::info("ai", "敵 AI: 賢さ {}（{}）反応 {:.2f}s 間隔 {:.1f}〜{:.1f}s ぶれ {:.0f} 予測(留まる {:.2f} / 移動継続 {:.2f} / 回避 {:.2f})",
-              aiLevel, level_.name, level_.reactionTime, level_.castIntervalMin, level_.castIntervalMax, level_.aimError,
-              level_.predictStay, level_.predictContinue, level_.predictDodge);
+    log::info("ai",
+              "敵 AI: 賢さ {}（{}）反応 {:.2f}s 間隔 {:.1f}〜{:.1f}s ぶれ {:.0f} 予測(留まる {:.2f} / 移動継続 {:.2f} "
+              "/ 回避 {:.2f})",
+              aiLevel, level_.name, level_.reactionTime, level_.castIntervalMin, level_.castIntervalMax,
+              level_.aimError, level_.predictStay, level_.predictContinue, level_.predictDodge);
 }
 
 void EnemyDirector::addEnemy(EntityId unitId) {
@@ -98,7 +100,8 @@ Vector2 EnemyDirector::spreadDirection(World& world, const Brain& brain, Vector2
         if (!unit || !unit->alive) continue;
         const Vector2 dir = unit->pos - seenPlayer;
         const float diff = wrapAngle(angle - std::atan2(dir.y, dir.x));
-        if (std::fabs(diff) < kFlankAngle) shift += (diff >= 0.0f ? 1.0f : -1.0f) * (kFlankAngle - std::fabs(diff)) * 0.5f;
+        if (std::fabs(diff) < kFlankAngle)
+            shift += (diff >= 0.0f ? 1.0f : -1.0f) * (kFlankAngle - std::fabs(diff)) * 0.5f;
     }
     return fromAngle(angle + std::clamp(shift, -kMaxFlankShift, kMaxFlankShift));
 }
@@ -171,7 +174,8 @@ void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit&
     if (!bestSkill) return;  // 射程外か、すべてクールダウン中
 
     // 命中見込みが低い時は少し待つ（ただし待ちすぎない）
-    if (!punish && bestAim->expectedHit < level_.minHitChance && now < brain.nextCastTime + level_.castIntervalMax) return;
+    if (!punish && bestAim->expectedHit < level_.minHitChance && now < brain.nextCastTime + level_.castIntervalMax)
+        return;
 
     // 狙いのぶれ。直線の弾は横方向にだけぶらす
     Vector2 aimPoint = bestAim->aimPoint;
@@ -190,8 +194,9 @@ void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit&
     if (bestModel->shape == AimShape::Line) {
         observer_.noteShot(now, player.pos, geo::normalizedOr(aimPoint - enemy.pos, enemy.facing));
     }
-    log::debug("ai", "{} が [{}] {} を {} へ（命中見込み {:.0f}%{}）", enemy.name, toString(bestSkill->slot), bestSkill->name,
-               geo::str(aimPoint), bestAim->expectedHit * 100.0f, punish ? "・動けない相手を狙う" : "");
+    log::debug("ai", "{} が [{}] {} を {} へ（命中見込み {:.0f}%{}）", enemy.name, toString(bestSkill->slot),
+               bestSkill->name, geo::str(aimPoint), bestAim->expectedHit * 100.0f,
+               punish ? "・動けない相手を狙う" : "");
 }
 
 }  // namespace moba::ai

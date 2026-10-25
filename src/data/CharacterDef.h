@@ -31,16 +31,16 @@ bool targetingFromString(std::string_view text, Targeting& out);
 struct SkillDef {
     std::string characterId;
     SkillSlot slot = SkillSlot::Q;
-    std::string name;                     // 表示名
-    std::string handler;                  // 処理の種類（skills/SkillRegistry.cpp に登録された名前）
+    std::string name;     // 表示名
+    std::string handler;  // 処理の種類（skills/SkillRegistry.cpp に登録された名前）
     Targeting targeting = Targeting::Direction;
-    float castTime = 0.0f;                // 詠唱時間（秒）。この間は移動できない
-    float cooldown = 0.0f;                // クールダウン（秒）
-    float range = 0.0f;                   // 射程
-    bool countsForHitRate = false;        // スキルヒット率の集計に含めるか
-    bool movementSkill = false;           // 移動系のスキルか（「移動系だけ使える」ルール WorldRules を有効にした時に使う）
-    bool usedByEnemy = false;             // スキルドッジでこのキャラが敵として出た時に使うか
-    float aiPriority = 1.0f;              // 敵 AI がスキルを選ぶ時の重み（大きいほど選ばれやすい）
+    float castTime = 0.0f;          // 詠唱時間（秒）。この間は移動できない
+    float cooldown = 0.0f;          // クールダウン（秒）
+    float range = 0.0f;             // 射程
+    bool countsForHitRate = false;  // スキルヒット率の集計に含めるか
+    bool movementSkill = false;     // 移動系のスキルか（「移動系だけ使える」ルール WorldRules を有効にした時に使う）
+    bool usedByEnemy = false;       // スキルドッジでこのキャラが敵として出た時に使うか
+    float aiPriority = 1.0f;        // 敵 AI がスキルを選ぶ時の重み（大きいほど選ばれやすい）
     // このスキルの詠唱中でも、詠唱を中断せずにすぐ使えるスキル（詠唱時間 0 のものだけ。エマの Q の溜めの間の R など）
     std::vector<SkillSlot> usableDuringCast;
     nlohmann::json params = nlohmann::json::object();  // 処理ごとの個別パラメータ

@@ -91,8 +91,9 @@ std::optional<AimResult> chooseAim(Vector2 shooter, const AimModel& model, const
         }
     }
     if (aims.empty() || totalWeight <= 0.0f) {
-        return AimResult{model.shape == AimShape::Circle ? geo::clampDistance(shooter, target.pos, model.range) : target.pos,
-                         1.0f, t};
+        return AimResult{
+            model.shape == AimShape::Circle ? geo::clampDistance(shooter, target.pos, model.range) : target.pos, 1.0f,
+            t};
     }
 
     AimResult best{aims.front(), -1.0f, t};

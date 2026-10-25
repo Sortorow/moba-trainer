@@ -21,9 +21,9 @@ struct BounceParams {
     std::string label;
     float speed = 1000.0f;
     float radius = 30.0f;
-    float bounceRange = 600.0f;     // 次の対象を探す距離
-    float recentWindow = 1.5f;      // この秒数以内に当たった敵は、跳ね返り先として後回しにする
-    int maxHitsPerTarget = 3;       // 同じ敵に当たる回数の上限
+    float bounceRange = 600.0f;  // 次の対象を探す距離
+    float recentWindow = 1.5f;   // この秒数以内に当たった敵は、跳ね返り先として後回しにする
+    int maxHitsPerTarget = 3;    // 同じ敵に当たる回数の上限
     Color color = WHITE;
     std::vector<EffectSpec> effects;
 };

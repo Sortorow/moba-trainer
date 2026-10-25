@@ -111,8 +111,8 @@ void App::applyUiScale() {
 void App::checkDpiChange() {
     const float dpi = platform::windowDpiScale(GetWindowHandle());
     if (std::fabs(dpi - dpiScale_) < 0.001f) return;
-    log::info("app", "Windows の拡大率が {:.0f}% から {:.0f}% に変わりました（別のモニターへの移動など）", dpiScale_ * 100.0f,
-              dpi * 100.0f);
+    log::info("app", "Windows の拡大率が {:.0f}% から {:.0f}% に変わりました（別のモニターへの移動など）",
+              dpiScale_ * 100.0f, dpi * 100.0f);
     dpiScale_ = dpi;
     applyUiScale();
 }

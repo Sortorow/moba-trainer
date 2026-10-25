@@ -75,18 +75,16 @@ void drawArea(const AreaEffect& area, bool showHitboxes) {
         DrawCircleV(area.center, area.radius, Fade(area.color, 0.10f));
         DrawRing(area.center, area.radius - 3.0f, area.radius, 0.0f, 360.0f, 64, Fade(area.color, 0.55f));
         switch (area.visual) {
-            case AreaVisual::Telegraph:
-                DrawCircleV(area.center, area.radius * t, Fade(area.color, 0.30f));
-                break;
+            case AreaVisual::Telegraph: DrawCircleV(area.center, area.radius * t, Fade(area.color, 0.30f)); break;
             case AreaVisual::ThrownHat:
             case AreaVisual::Caltrops: {
-                const Vector2 flying = Vector2Lerp(area.origin, area.center, t) - Vector2{0.0f, std::sin(t * PI) * 70.0f};
+                const Vector2 flying =
+                    Vector2Lerp(area.origin, area.center, t) - Vector2{0.0f, std::sin(t * PI) * 70.0f};
                 if (area.visual == AreaVisual::ThrownHat) drawHat(flying, 22.0f);
                 else DrawCircleV(flying, 14.0f, area.color);
                 break;
             }
-            case AreaVisual::Explosion:
-                break;
+            case AreaVisual::Explosion: break;
         }
         return;
     }
@@ -136,7 +134,9 @@ void drawUnit(const Unit& unit, float time) {
         // 外周の輪で見分ける: 自キャラ = 白、敵キャラ = 赤（太め）、ダミー = 暗い赤
         // 敵キャラは、自キャラと同じキャラでも見分けやすいように体の色を赤寄りにする
         const bool enemyCharacter = !isPlayer && !unit.characterId.empty();
-        const Color ring = isPlayer ? Color{255, 255, 255, 230} : enemyCharacter ? Color{255, 60, 60, 255} : Color{70, 20, 20, 255};
+        const Color ring = isPlayer         ? Color{255, 255, 255, 230}
+                           : enemyCharacter ? Color{255, 60, 60, 255}
+                                            : Color{70, 20, 20, 255};
         const Color bodyColor = enemyCharacter ? lerpColor(unit.color, Color{200, 50, 50, 255}, 0.4f) : unit.color;
         DrawCircleV(body, unit.radius, bodyColor);
         DrawRing(body, unit.radius - (enemyCharacter ? 9.0f : 4.0f), unit.radius, 0.0f, 360.0f, 48, ring);
@@ -218,8 +218,7 @@ void drawVfx(const Vfx& vfx) {
             DrawRing(vfx.pos, r - 4.0f, r, 0.0f, 360.0f, 32, Fade(vfx.color, alpha));
             break;
         }
-        case VfxKind::Text:
-            break;  // 文字は Hud.cpp で描く
+        case VfxKind::Text: break;  // 文字は Hud.cpp で描く
     }
 }
 

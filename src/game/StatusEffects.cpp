@@ -40,8 +40,8 @@ bool StatusEffects::hasMark(std::string_view tag) const {
 }
 
 bool StatusEffects::consumeMark(std::string_view tag) {
-    const auto removed = std::erase_if(
-        effects_, [tag](const StatusEffect& e) { return e.type == EffectType::Mark && e.tag == tag; });
+    const auto removed =
+        std::erase_if(effects_, [tag](const StatusEffect& e) { return e.type == EffectType::Mark && e.tag == tag; });
     return removed > 0;
 }
 

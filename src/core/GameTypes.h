@@ -16,8 +16,8 @@ enum class Team { Player, Enemy };
 // スキルのキー。配列の添字としても使う
 enum class SkillSlot { Q, W, E, R, D, F, Count };
 inline constexpr int kSkillSlotCount = static_cast<int>(SkillSlot::Count);
-inline constexpr std::array<SkillSlot, kSkillSlotCount> kAllSkillSlots = {
-    SkillSlot::Q, SkillSlot::W, SkillSlot::E, SkillSlot::R, SkillSlot::D, SkillSlot::F};
+inline constexpr std::array<SkillSlot, kSkillSlotCount> kAllSkillSlots = {SkillSlot::Q, SkillSlot::W, SkillSlot::E,
+                                                                          SkillSlot::R, SkillSlot::D, SkillSlot::F};
 
 constexpr int index(SkillSlot slot) { return static_cast<int>(slot); }
 

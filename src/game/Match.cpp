@@ -40,12 +40,8 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
     world_->setCooldownScale(Team::Enemy, data_.ai().enemyCooldownScale);
 
     switch (config_.mode) {
-        case GameMode::Sandbox:
-            setupSandbox(*world_, dummies_, *character);
-            break;
-        case GameMode::SkillDodge:
-            setupSkillDodge(*character);
-            break;
+        case GameMode::Sandbox: setupSandbox(*world_, dummies_, *character); break;
+        case GameMode::SkillDodge: setupSkillDodge(*character); break;
     }
     log::info("match", "{}を開始: キャラ={} クールダウン={}（倍率 {:.2f}）{}", displayName(config_.mode), character->id,
               config_.cooldownMode == CooldownMode::None ? "なし" : "標準", config_.playerCooldownScale(),
@@ -103,14 +99,12 @@ void Match::update(float dt, const InputFrame& input) {
     if (config_.timed() && elapsed_ >= config_.timeLimitSeconds) {
         finished_ = true;
         const MatchResult r = result();
-        log::info("match", "制限時間になりました: ドッジ率 {:.1f}%（{} / {}）被弾 {} 回 ダウン {} 回", r.dodge.rate() * 100.0f,
-                  r.dodge.dodged, r.dodge.total, r.hitsTaken, r.deaths);
+        log::info("match", "制限時間になりました: ドッジ率 {:.1f}%（{} / {}）被弾 {} 回 ダウン {} 回",
+                  r.dodge.rate() * 100.0f, r.dodge.dodged, r.dodge.total, r.hitsTaken, r.deaths);
     }
 }
 
-float Match::remaining() const {
-    return config_.timed() ? std::max(0.0f, config_.timeLimitSeconds - elapsed_) : 0.0f;
-}
+float Match::remaining() const { return config_.timed() ? std::max(0.0f, config_.timeLimitSeconds - elapsed_) : 0.0f; }
 
 MatchResult Match::result() const {
     MatchResult r;

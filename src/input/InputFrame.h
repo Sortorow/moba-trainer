@@ -11,9 +11,9 @@
 namespace moba {
 
 struct InputFrame {
-    Vector2 cursorWorld{};  // カーソルのワールド座標
-    bool rightPressed = false;  // 右クリックした瞬間
-    bool rightDown = false;     // 右クリックを押している間
+    Vector2 cursorWorld{};                             // カーソルのワールド座標
+    bool rightPressed = false;                         // 右クリックした瞬間
+    bool rightDown = false;                            // 右クリックを押している間
     std::array<bool, kSkillSlotCount> skillPressed{};  // Q/W/E/R/D/F を押した瞬間
 
     bool escapePressed = false;
@@ -32,7 +32,8 @@ struct InputFrame {
         cursorWorld = newer.cursorWorld;
         rightDown = newer.rightDown;
         rightPressed = rightPressed || newer.rightPressed;
-        for (std::size_t i = 0; i < skillPressed.size(); ++i) skillPressed[i] = skillPressed[i] || newer.skillPressed[i];
+        for (std::size_t i = 0; i < skillPressed.size(); ++i)
+            skillPressed[i] = skillPressed[i] || newer.skillPressed[i];
     }
 
     // 「押した瞬間」の入力を消す（1 回の更新で使い終わった後）

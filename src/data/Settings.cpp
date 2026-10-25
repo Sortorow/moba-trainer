@@ -21,7 +21,8 @@ SettingsLoadResult loadSettings(const std::filesystem::path& file) {
     try {
         const std::string castMode = j.value("castMode", std::string("quick"));
         if (castMode != "quick") {
-            result.warnings.push_back(std::format("castMode \"{}\" はまだ対応していないため \"quick\" を使います", castMode));
+            result.warnings.push_back(
+                std::format("castMode \"{}\" はまだ対応していないため \"quick\" を使います", castMode));
         }
         const std::string cameraMode = j.value("cameraMode", std::string("locked"));
         if (cameraMode != "locked") {

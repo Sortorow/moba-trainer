@@ -36,7 +36,8 @@ void drawCooldownScaleCombo(float& scale, float settingsScale) {
         if (ImGui::Selectable(preset.label, nearlyEqual(preset.value, scale))) scale = preset.value;
     }
     bool settingsIsPreset = false;
-    for (const ScalePreset& preset : kCooldownPresets) settingsIsPreset = settingsIsPreset || nearlyEqual(preset.value, settingsScale);
+    for (const ScalePreset& preset : kCooldownPresets)
+        settingsIsPreset = settingsIsPreset || nearlyEqual(preset.value, settingsScale);
     if (!settingsIsPreset) {
         const std::string label = std::format("設定ファイルの値（×{:.2f}）", settingsScale);
         if (ImGui::Selectable(label.c_str(), nearlyEqual(settingsScale, scale))) scale = settingsScale;
@@ -49,7 +50,8 @@ void drawSkillDodgeOptions(MatchConfig& config, const GameData& data) {
     ImGui::SliderInt("敵の数", &config.enemyCount, 1, 5, "%d 体");
     const AiConfig& ai = data.ai();
     const std::string levelLabel = std::format("%d（{}）", ai.level(config.aiLevel).name);
-    ImGui::SliderInt("敵の賢さ", &config.aiLevel, 1, std::max(1, static_cast<int>(ai.levels.size())), levelLabel.c_str());
+    ImGui::SliderInt("敵の賢さ", &config.aiLevel, 1, std::max(1, static_cast<int>(ai.levels.size())),
+                     levelLabel.c_str());
     int minutes = std::clamp(static_cast<int>(std::lround(config.timeLimitSeconds / 60.0f)), 1, 5);
     ImGui::SliderInt("制限時間", &minutes, 1, 5, "%d 分");
     config.timeLimitSeconds = static_cast<float>(minutes) * 60.0f;
@@ -75,7 +77,8 @@ MenuAction MainMenu::draw(const GameData& data) {
     }
     MenuAction action;
     const std::vector<const CharacterDef*> characters = data.characterList();
-    if (data.character(config_.characterId) == nullptr && !characters.empty()) config_.characterId = characters.front()->id;
+    if (data.character(config_.characterId) == nullptr && !characters.empty())
+        config_.characterId = characters.front()->id;
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2{0.5f, 0.5f});
@@ -89,7 +92,8 @@ MenuAction MainMenu::draw(const GameData& data) {
         const std::string label = std::format("{}（{} のキャラ風）", def->displayName, def->origin);
         if (ImGui::Selectable(label.c_str(), def->id == config_.characterId)) config_.characterId = def->id;
     }
-    if (characters.empty()) ImGui::TextColored(ImVec4{1.0f, 0.5f, 0.5f, 1.0f}, "キャラクターの設定ファイルがありません");
+    if (characters.empty())
+        ImGui::TextColored(ImVec4{1.0f, 0.5f, 0.5f, 1.0f}, "キャラクターの設定ファイルがありません");
 
     ImGui::SeparatorText("モード");
     if (ImGui::RadioButton("練習場（ダミー相手にスキルを試す）", config_.mode == GameMode::Sandbox)) {

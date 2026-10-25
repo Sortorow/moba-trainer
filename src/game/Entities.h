@@ -36,8 +36,8 @@ struct Projectile {
     float maxDistance = 1000.0f;
     float traveled = 0.0f;
     float age = 0.0f;
-    bool pierce = false;                  // true: 当たっても消えずに進む（地形は常に貫通する）
-    EntityId homingTarget = kInvalidId;   // 追尾する対象（対象指定スキル）
+    bool pierce = false;                 // true: 当たっても消えずに進む（地形は常に貫通する）
+    EntityId homingTarget = kInvalidId;  // 追尾する対象（対象指定スキル）
 
     ProjectileVisual visual = ProjectileVisual::Orb;
     Color color = WHITE;
@@ -81,10 +81,10 @@ struct AreaEffect {
     AreaVisual visual = AreaVisual::Explosion;
     Color color = WHITE;
 
-    std::vector<EntityId> hitUnits;  // 当たった相手（範囲に残る効果では「一度でも入った相手」）
-    std::function<void(World&, AreaEffect&)> onActivate;            // 発動した瞬間に 1 回
-    std::function<void(World&, AreaEffect&, Unit&)> onUnitHit;      // 相手ごとに 1 回
-    std::function<void(World&, AreaEffect&, Unit&)> whileInside;    // 範囲に残る効果で、中にいる間ずっと
+    std::vector<EntityId> hitUnits;                       // 当たった相手（範囲に残る効果では「一度でも入った相手」）
+    std::function<void(World&, AreaEffect&)> onActivate;  // 発動した瞬間に 1 回
+    std::function<void(World&, AreaEffect&, Unit&)> onUnitHit;    // 相手ごとに 1 回
+    std::function<void(World&, AreaEffect&, Unit&)> whileInside;  // 範囲に残る効果で、中にいる間ずっと
     bool alive = true;
 
     bool hasHit(EntityId unit) const { return std::find(hitUnits.begin(), hitUnits.end(), unit) != hitUnits.end(); }

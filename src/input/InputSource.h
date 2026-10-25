@@ -13,9 +13,9 @@ namespace moba {
 
 struct InputPollContext {
     const Camera2D& camera;
-    float simTime = 0.0f;        // ゲーム内の経過時間（入力スクリプトの時刻と比べる）
-    bool uiWantsMouse = false;   // マウスが UI（デバッグパネルなど）の上にある
-    bool uiWantsText = false;    // UI で文字入力中
+    float simTime = 0.0f;       // ゲーム内の経過時間（入力スクリプトの時刻と比べる）
+    bool uiWantsMouse = false;  // マウスが UI（デバッグパネルなど）の上にある
+    bool uiWantsText = false;   // UI で文字入力中
 };
 
 class InputSource {

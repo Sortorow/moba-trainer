@@ -79,7 +79,9 @@ void handleTargetedBlast(SkillContext& ctx) {
     a.radius = ctx.def.num("radius", 300.0f);
     a.visual = AreaVisual::Explosion;
     const std::vector<EffectSpec> effects = ctx.def.effects("onHit");
-    a.onUnitHit = [effects](World& world, AreaEffect& self, Unit& unit) { applyEffects(world, unit, effects, self.owner); };
+    a.onUnitHit = [effects](World& world, AreaEffect& self, Unit& unit) {
+        applyEffects(world, unit, effects, self.owner);
+    };
     ctx.world.addVfx(makeTeleportVfx(ctx.caster.pos, target->pos, a.color));  // 爆風が飛んでいく演出
     ctx.world.spawnArea(std::move(a));
 }

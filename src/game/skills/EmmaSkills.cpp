@@ -68,7 +68,8 @@ void handleEmmaQ(SkillContext& ctx) {
         doveCard.label = def.name + "（鳩のカード）";
         doveCard.onHit = makeOnHit(2);
         world.spawnProjectile(std::move(doveCard));
-        log::debug("skill", "鳩 #{} が {} からカードになって {} へ飛びます", dove.id, geo::str(dove.pos), geo::str(target));
+        log::debug("skill", "鳩 #{} が {} からカードになって {} へ飛びます", dove.id, geo::str(dove.pos),
+                   geo::str(target));
     }
 
     Prop newDove;
@@ -138,7 +139,9 @@ void handleEmmaR(SkillContext& ctx) {
                 path.visual = ProjectileVisual::Dove;
                 path.color = kDoveColor;
                 const std::vector<EffectSpec> effects = def.effects("doveOnHit");
-                path.onHit = [effects](World& w, Projectile& self, Unit& unit) { applyEffects(w, unit, effects, self.owner); };
+                path.onHit = [effects](World& w, Projectile& self, Unit& unit) {
+                    applyEffects(w, unit, effects, self.owner);
+                };
                 world.spawnProjectile(std::move(path));
             }
             // 鳩はエマの元の位置へ移り、残り時間を最初からにして残る（飛んでいる間は表示しない）
@@ -166,7 +169,9 @@ void handleEmmaR(SkillContext& ctx) {
             a.radius = def.num("hatRadius", 250.0f);
             a.visual = AreaVisual::ThrownHat;
             const std::vector<EffectSpec> effects = def.effects("hatOnHit");
-            a.onUnitHit = [effects](World& w, AreaEffect& self, Unit& unit) { applyEffects(w, unit, effects, self.owner); };
+            a.onUnitHit = [effects](World& w, AreaEffect& self, Unit& unit) {
+                applyEffects(w, unit, effects, self.owner);
+            };
             world.spawnArea(std::move(a));
             break;
         }
@@ -184,13 +189,13 @@ void handleEmmaR(SkillContext& ctx) {
             a.radius = def.num("rabbitRadius", 250.0f);
             a.visual = AreaVisual::Explosion;
             const std::vector<EffectSpec> effects = def.effects("rabbitOnHit");
-            a.onUnitHit = [effects](World& w, AreaEffect& self, Unit& unit) { applyEffects(w, unit, effects, self.owner); };
+            a.onUnitHit = [effects](World& w, AreaEffect& self, Unit& unit) {
+                applyEffects(w, unit, effects, self.owner);
+            };
             world.spawnArea(std::move(a));
             break;
         }
-        case PropTargetKind::None:
-            log::error("skill", "[R] 対象の種類が指定されていません");
-            break;
+        case PropTargetKind::None: log::error("skill", "[R] 対象の種類が指定されていません"); break;
     }
 }
 

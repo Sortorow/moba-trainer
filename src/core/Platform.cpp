@@ -5,6 +5,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+// imm.h は windows.h の後に読む必要があるので、空行で分けて並べ替えの対象から外している
+
 #include <imm.h>
 
 #include <cstdint>
@@ -31,8 +33,8 @@ LONG WINAPI onUnhandledException(EXCEPTION_POINTERS* info) {
     const auto address = reinterpret_cast<std::uintptr_t>(record ? record->ExceptionAddress : nullptr);
     const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr));
     log::write(log::Level::Fatal, "crash",
-               std::format("未処理の例外でクラッシュしました code=0x{:08X} address=0x{:X} exe先頭=0x{:X}", code, address,
-                           base));
+               std::format("未処理の例外でクラッシュしました code=0x{:08X} address=0x{:X} exe先頭=0x{:X}", code,
+                           address, base));
     log::shutdown();
     return EXCEPTION_CONTINUE_SEARCH;
 }
@@ -44,8 +46,7 @@ void onTerminate() {
             std::rethrow_exception(current);
         } catch (const std::exception& e) {
             what = e.what();
-        } catch (...) {
-        }
+        } catch (...) {}
     }
     log::write(log::Level::Fatal, "crash", std::format("std::terminate が呼ばれました（{}）", what));
     log::shutdown();

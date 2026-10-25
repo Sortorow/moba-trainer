@@ -38,7 +38,9 @@ void handleEzrealE(SkillContext& ctx) {
     bolt.color = ctx.def.color("color", Color{255, 220, 120, 255});
 
     const std::string detonate = ctx.def.text("boltDetonateMark", "");
-    bolt.onHit = [detonate](World& world, Projectile& self, Unit& hit) { detonateMark(world, hit, detonate, self.color); };
+    bolt.onHit = [detonate](World& world, Projectile& self, Unit& hit) {
+        detonateMark(world, hit, detonate, self.color);
+    };
     ctx.world.spawnProjectile(std::move(bolt));
 }
 

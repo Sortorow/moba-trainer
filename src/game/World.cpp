@@ -351,7 +351,8 @@ void World::hitWithProjectile(Projectile& p, Unit& target) {
 void World::expireProjectile(Projectile& p) {
     if (p.onExpire) p.onExpire(*this, p);
     p.alive = false;
-    if (p.hitUnits.empty()) log::debug("skill", "castId={} [{}] {} は命中せずに射程の端で消滅", p.castId, toString(p.slot), p.label);
+    if (p.hitUnits.empty())
+        log::debug("skill", "castId={} [{}] {} は命中せずに射程の端で消滅", p.castId, toString(p.slot), p.label);
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +370,9 @@ void World::updateAreas(float dt) {
                 // 発動の瞬間だけ判定する範囲
                 for (Unit* unit : enemiesInCircle(a.center, a.radius, a.team)) hitWithArea(a, *unit);
                 addVfx(makeBurstVfx(a.center, a.radius, a.color));
-                if (a.hitUnits.empty()) log::debug("skill", "castId={} [{}] {} は誰にも当たらなかった", a.castId, toString(a.slot), a.label);
+                if (a.hitUnits.empty())
+                    log::debug("skill", "castId={} [{}] {} は誰にも当たらなかった", a.castId, toString(a.slot),
+                               a.label);
                 a.alive = false;
                 continue;
             }

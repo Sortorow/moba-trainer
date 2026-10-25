@@ -1,0 +1,30 @@
+# C++ の書式のルール（clang-format が読む）
+# VSCode の「ドキュメントのフォーマット」（Shift + Alt + F）や、コマンドの clang-format がこのファイルに従う
+
+BasedOnStyle: Google            # Google の書き方を土台にして、下の項目だけ変える
+IndentWidth: 4                  # 字下げは空白 4 個
+ColumnLimit: 120                # 1 行の最大の幅（日本語は 1 文字を 2 として数える）
+AccessModifierOffset: -4        # public: / private: は class と同じ位置
+IndentCaseLabels: true          # case は switch より 1 段下げる
+DerivePointerAlignment: false
+PointerAlignment: Left          # const Unit* unit（* は型の側）
+
+# 短いものは 1 行のままにする
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLoopsOnASingleLine: true
+AllowShortLambdasOnASingleLine: All
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Empty
+
+# #include は、空行で区切ったまとまりごとに名前順に並べる（まとまりは変えない）
+IncludeBlocks: Preserve
+SortIncludes: CaseSensitive
+
+# 行末のコメントは、続いている行どうしで位置をそろえる
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+
+# コメントは折り返さない（日本語のコメントが途中で切れないように）
+ReflowComments: false
