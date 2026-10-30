@@ -35,8 +35,9 @@ std::string_view displayName(EffectType type);
 /// @return 読めたかどうか（知らない表記なら false で、out は変えない）
 bool effectTypeFromString(std::string_view text, EffectType& out);
 
-/// JSON の配列から効果の一覧を作る。おかしな要素は警告ログを出して飛ばす
-/// @param context 警告ログに出す場所の説明（どのキャラのどのスキルか）
+/// JSON の配列から効果の一覧を作る。おかしな要素は警告を出して飛ばす（同じ誤りの警告は、設定ファイルを読み直すまで
+/// 1 回だけ。ログと、設定ファイルのエラーの一覧（DataWarnings.h）に出る）
+/// @param context 警告に出す場所の説明（どのキャラのどのスキルか）
 std::vector<EffectSpec> parseEffects(const nlohmann::json& value, std::string_view context);
 
 }  // namespace moba

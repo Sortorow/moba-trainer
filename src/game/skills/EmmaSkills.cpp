@@ -24,7 +24,7 @@ void cancelAndRefund(SkillContext& ctx, std::string_view reason) {
 
 /// Q: カードを投げ、自分の位置に鳩を残す。
 ///    鳩がいれば（どれだけ離れていても）、その鳩もカードになって狙った地点へ飛ぶ。
-///    エマ本体のカードが当たると、Q のクールダウンが短くなる。両方のカードが同じ敵に当たると追加効果。
+///    エマ本体のカードが当たると、Q のクールダウンが短くなる（何体に当たっても 1 回だけ）。両方のカードが同じ敵に当たると追加効果。
 /// params: speed, width, visual, color, cooldownRefundOnHit（エマのカード）,
 ///         doveLifetime, doveCardSpeed, doveCardRange, doveCardColor（鳩のカード）, doubleHitEffects,
 ///         doveCardDrawOffsetForward, doveCardDrawOffsetSide（溜めの間に R で鳩と入れ替わった時の、鳩のカードの見た目のずれ）
@@ -55,6 +55,8 @@ void handleEmmaQ(SkillContext& ctx) {
     const SkillSlot slot = def.slot;
     card.onHit = [recordHit = makeOnHit(1), refund, slot](World& w, Projectile& self, Unit& unit) {
         recordHit(w, self, unit);
+        // クールダウンの短縮は、何体に当たっても 1 回だけ（W と同じ。貫通するカードにした時も 1 体目だけ）
+        if (self.hitUnits.size() != 1) return;
         if (Unit* owner = w.findUnit(self.owner)) refundCooldown(w, *owner, slot, refund);
     };
     world.spawnProjectile(std::move(card));

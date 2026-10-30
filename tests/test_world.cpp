@@ -2,9 +2,14 @@
 
 #include <doctest/doctest.h>
 
+#include <algorithm>
+#include <filesystem>
 #include <memory>
+#include <regex>
+#include <string>
 #include <vector>
 
+#include "TempDataCopy.h"
 #include "core/Paths.h"
 #include "data/GameData.h"
 #include "game/Sandbox.h"
@@ -20,7 +25,9 @@ namespace {
 class Fixture {
 public:
     /// data フォルダの設定を読み込み、障害物のない World に、指定したキャラの自キャラを (0, 0) に置く
-    explicit Fixture(std::string_view characterId) : data_(makeAppPaths(MOBA_SOURCE_DIR)) {
+    /// @param paths 読む data フォルダ（省略時はソースの data。設定を書き換えて試す時は、一時フォルダに写したもの）
+    explicit Fixture(std::string_view characterId, const AppPaths& paths = makeAppPaths(MOBA_SOURCE_DIR))
+        : data_(paths) {
         data_.loadAll();
         world_ = std::make_unique<World>(data_, kSandboxBounds);
         const CharacterDef* def = data_.character(characterId);
@@ -48,6 +55,8 @@ public:
 
     /// テストで動かす World
     World& world() { return *world_; }
+    /// 読み込んだ設定ファイル
+    GameData& data() { return data_; }
     /// 自キャラ
     Unit& player() { return *world_->findUnit(playerId_); }
     /// 通し番号のキャラ（いることが分かっている時に使う）
@@ -277,6 +286,30 @@ TEST_CASE("エマ Q: エマのカードが当たると、Q のクールダウン
     CHECK(f.cooldown(SkillSlot::Q) == doctest::Approx(cooldown - elapsed - cooldown * 0.3f).epsilon(0.02));
 }
 
+TEST_CASE("エマ Q: 貫通するカードにしても、クールダウンの短縮は 1 回の発動で 1 回だけ（W と同じ）") {
+    // 今の設定ではカードは貫通しないので、一時フォルダに写した設定で Q のカードを貫通にする
+    const test::TempDataCopy copy;
+    REQUIRE(test::TempDataCopy::rewrite(copy.paths().charactersDir / "like_emma.jsonc",
+                                        std::regex(R"re(("visual"\s*:\s*"card",))re"), "$1 \"pierce\": true,") == 1);
+    Fixture f("like_emma", copy.paths());
+    REQUIRE(f.skill(SkillSlot::Q).flagOr("pierce", false));
+    const float refund = f.skill(SkillSlot::Q).numOr("cooldownRefundOnHit", 0.0f);
+    REQUIRE(refund > 0.0f);
+
+    int hits = 0;
+    f.world().setHitObserver([&](int, SkillSlot, const Unit&) { ++hits; });
+    f.addDummy({400, 0});
+    f.addDummy({700, 0});
+    f.cast(SkillSlot::Q, {900, 0});
+    const float elapsed = f.timeToReach(SkillSlot::Q, 700.0f) + 0.1f;  // 2 体目に当たった後まで待つ
+    f.run(elapsed);
+
+    CHECK(hits == 2);  // 貫通して 2 体に当たった
+    // クールダウン - 経過時間 - 短縮分 1 回（2 回短縮されていれば、さらに cooldown × refund だけ短い）
+    const float cooldown = f.skill(SkillSlot::Q).cooldown;
+    CHECK(f.cooldown(SkillSlot::Q) == doctest::Approx(cooldown - elapsed - cooldown * refund).epsilon(0.02));
+}
+
 TEST_CASE("エマ W: 当たるとクールダウンが 30% 分短くなる（複数に当たっても 1 回だけ）") {
     Fixture f("like_emma");
     f.addDummy({450, 0});
@@ -425,4 +458,66 @@ TEST_CASE("エマ D: 範囲に入った敵にスロウがかかり続ける") {
     f.run(1.0f);
     CHECK(f.unit(target).status.has(EffectType::Slow));
     CHECK(f.unit(target).moveSpeed() == doctest::Approx(150.0f));
+}
+
+TEST_CASE("発動の依頼の結果: 詠唱を始めた・予約した・使えなかった・すぐ発動した") {
+    Fixture f("like_ezreal");
+    REQUIRE(f.skill(SkillSlot::Q).castTime > 0.0f);
+    REQUIRE(f.skill(SkillSlot::D).castTime == 0.0f);
+    auto request = [&](SkillSlot slot, Vector2 cursor) {
+        return casting::requestCast(f.world(), f.player(), CastRequest{slot, cursor});
+    };
+
+    CHECK(request(SkillSlot::Q, {600, 0}) == casting::CastOutcome::CastStarted);
+    CHECK(request(SkillSlot::W, {600, 0}) == casting::CastOutcome::Buffered);  // Q の詠唱中
+    CHECK(request(SkillSlot::Q, {600, 0}) == casting::CastOutcome::Rejected);  // Q はクールダウン中
+    f.run(f.skill(SkillSlot::Q).castTime + f.skill(SkillSlot::W).castTime + 0.1f);
+    CHECK(request(SkillSlot::D, {300, 0}) == casting::CastOutcome::Fired);     // 詠唱時間 0 のフラッシュ
+    CHECK(request(SkillSlot::F, {300, 0}) == casting::CastOutcome::Rejected);  // F にはスキルが無い
+}
+
+TEST_CASE("発動の依頼の結果: 対象指定のスキルは、対象がいなければ使えず、射程外なら近づき始める") {
+    Fixture f("like_emma");
+    const float range = f.skill(SkillSlot::E).range;
+    const EntityId target = f.addDummy({range + 800.0f, 0});
+    auto request = [&](Vector2 cursor) {
+        return casting::requestCast(f.world(), f.player(), CastRequest{SkillSlot::E, cursor});
+    };
+
+    CHECK(request({-(range + 800.0f), 0}) == casting::CastOutcome::Rejected);  // カーソルの位置に敵がいない
+    CHECK(request(f.unit(target).pos) == casting::CastOutcome::Approaching);
+}
+
+TEST_CASE("設定ファイルのエラー: スキルを使った時に見つかった誤りも一覧に 1 回だけ出て、読み直すとまた出る") {
+    // エズリアルの W から、必須の params.speed を消し、効果の種類を知らない名前にする
+    const test::TempDataCopy copy;
+    const std::filesystem::path file = copy.paths().charactersDir / "like_ezreal.jsonc";
+    REQUIRE(test::TempDataCopy::rewrite(file, std::regex(R"re("speed": 1700,\s*)re"), "") == 1);
+    REQUIRE(test::TempDataCopy::rewrite(file, std::regex(R"re("type": "mark", "tag": "ezreal_w")re"),
+                                        R"("type": "unknown_mark", "tag": "ezreal_w")") == 1);
+    Fixture f("like_ezreal", copy.paths());
+    REQUIRE(f.data().errors().empty());  // 読み込んだ時点では分からない
+
+    // 一覧の中で、text を含む説明の数
+    auto count = [&](std::string_view text) {
+        const std::vector<std::string> errors = f.data().errors();
+        return std::count_if(errors.begin(), errors.end(),
+                             [&](const std::string& error) { return error.find(text) != std::string::npos; });
+    };
+    auto castW = [&] {
+        f.resetCooldowns();
+        f.cast(SkillSlot::W, {600, 0});
+        f.run(f.skill(SkillSlot::W).castTime + 0.1f);
+    };
+
+    castW();
+    castW();  // 2 回使っても、同じ誤りは 1 回だけ
+    CHECK(count("params.speed") == 1);
+    CHECK(count("unknown_mark") == 1);
+
+    f.data().loadAll();  // 直さずに読み直すと、一度消えて
+    CHECK(count("params.speed") == 0);
+    castW();  // また使うと、もう一度出る
+    CHECK(count("params.speed") == 1);
+    CHECK(count("unknown_mark") == 1);
 }

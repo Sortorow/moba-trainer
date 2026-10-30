@@ -1,9 +1,11 @@
 #include "data/EffectSpec.h"
 
 #include <array>
+#include <format>
 #include <utility>
 
 #include "core/Log.h"
+#include "data/DataWarnings.h"
 
 namespace moba {
 namespace {
@@ -53,19 +55,24 @@ bool effectTypeFromString(std::string_view text, EffectType& out) {
 std::vector<EffectSpec> parseEffects(const nlohmann::json& value, std::string_view context) {
     std::vector<EffectSpec> effects;
     if (value.is_null()) return effects;
+    // 効果はスキルを使うたびに読むので、同じ誤りは設定ファイルを読み直すまで 1 回だけ警告する
+    // （警告ログと、設定ファイルのエラーの一覧の両方に出す）
+    auto warnOnce = [](std::string message) {
+        if (recordDataWarning(message, message)) log::warn("data", "{}", message);
+    };
     if (!value.is_array()) {
-        log::warn("data", "{}: 効果は [ ... ] の配列で書いてください", context);
+        warnOnce(std::format("{}: 効果は [ ... ] の配列で書いてください", context));
         return effects;
     }
     for (const nlohmann::json& item : value) {
         if (!item.is_object()) {
-            log::warn("data", "{}: 効果は {{ \"type\": ... }} の形で書いてください", context);
+            warnOnce(std::format("{}: 効果は {{ \"type\": ... }} の形で書いてください", context));
             continue;
         }
         const std::string type = item.value("type", std::string{});
         EffectSpec spec;
         if (!effectTypeFromString(type, spec.type)) {
-            log::warn("data", "{}: 効果の種類 \"{}\" は不明です", context, type);
+            warnOnce(std::format("{}: 効果の種類 \"{}\" は不明です", context, type));
             continue;
         }
         spec.duration = item.value("duration", 0.0f);

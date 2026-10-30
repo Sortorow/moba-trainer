@@ -151,30 +151,30 @@ void orderMove(World& world, Unit& unit, Vector2 destination) {
     unit.moveTarget = world.clampToBounds(destination, unit.radius);
 }
 
-void requestCast(World& world, Unit& caster, const CastRequest& request) {
+CastOutcome requestCast(World& world, Unit& caster, const CastRequest& request) {
     const SkillDef* def = skillOf(world, caster, request.slot);
     if (!def) {
         log::debug("skill", "[{}] にはスキルがありません", toString(request.slot));
-        return;
+        return CastOutcome::Rejected;
     }
     if (caster.team == Team::Player && world.rules().movementSkillsOnly && !def->movementSkill) {
         log::debug("skill", "[{}] {}: このモードでは移動系のスキルだけ使えます", toString(request.slot), def->name);
-        return;
+        return CastOutcome::Rejected;
     }
     const float cooldown = caster.cooldowns[static_cast<std::size_t>(index(request.slot))];
     if (cooldown > 0.0f) {
         log::debug("skill", "[{}] {} はクールダウン中（残り {:.1f}s）", toString(request.slot), def->name, cooldown);
-        return;
+        return CastOutcome::Rejected;
     }
     if (!caster.status.canCast()) {
         log::debug("skill", "[{}] {} は行動不能のため使えません", toString(request.slot), def->name);
-        return;
+        return CastOutcome::Rejected;
     }
     const bool duringCast = usableDuringCurrentCast(world, caster, *def);
     if (caster.cast.active && !duringCast) {
         caster.bufferedCast = request;
         log::debug("skill", "詠唱中のため [{}] {} を予約しました", toString(request.slot), def->name);
-        return;
+        return CastOutcome::Buffered;
     }
 
     CastRequest resolved = request;
@@ -182,13 +182,13 @@ void requestCast(World& world, Unit& caster, const CastRequest& request) {
         const Unit* target = world.enemyAt(request.cursor, caster.team, kUnitPickTolerance);
         if (!target) {
             log::debug("skill", "[{}] {}: カーソルの位置に敵がいません", toString(request.slot), def->name);
-            return;
+            return CastOutcome::Rejected;
         }
         resolved.targetUnit = target->id;
     } else if (def->targeting == Targeting::Prop) {
         if (!resolvePropTarget(world, caster, *def, resolved)) {
             log::debug("skill", "[{}] {}: カーソルの近くに対象がありません", toString(request.slot), def->name);
-            return;
+            return CastOutcome::Rejected;
         }
     }
 
@@ -198,13 +198,13 @@ void requestCast(World& world, Unit& caster, const CastRequest& request) {
             if (duringCast) {
                 log::debug("skill", "[{}] {}: 詠唱中は、射程外の対象に近づいて使うことはできません",
                            toString(request.slot), def->name);
-                return;
+                return CastOutcome::Rejected;
             }
             caster.pendingCast = resolved;
             caster.moveTarget = *targetPos;
             log::debug("skill", "[{}] {}: 射程外のため、対象に近づいてから発動します", toString(request.slot),
                        def->name);
-            return;
+            return CastOutcome::Approaching;
         }
     }
     if (duringCast) {
@@ -213,10 +213,12 @@ void requestCast(World& world, Unit& caster, const CastRequest& request) {
                    toString(request.slot), def->name);
         caster.cooldowns[static_cast<std::size_t>(index(def->slot))] = def->cooldown * world.cooldownScaleFor(caster);
         runSkill(world, caster, *def, resolved);
-        return;
+        return CastOutcome::Fired;
     }
     caster.pendingCast.reset();
     beginCast(world, caster, *def, resolved);
+    // 詠唱時間が 0 なら、beginCast の中で発動まで済んでいる
+    return def->castTime > 0.0f ? CastOutcome::CastStarted : CastOutcome::Fired;
 }
 
 void update(World& world, Unit& caster, float dt) {

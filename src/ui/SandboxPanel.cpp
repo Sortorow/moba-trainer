@@ -7,6 +7,7 @@
 
 #include "data/GameData.h"
 #include "imgui.h"
+#include "ui/HudLayout.h"
 #include "ui/UiScale.h"
 
 namespace moba {
@@ -59,11 +60,10 @@ void drawSandboxPresetSelector(GameData& data, bool showLabel) {
 
 void drawSandboxPanel(GameData& data) {
     // ダミーは自キャラの右側（画面の右上〜中央）に置くことが多いので、空いている右下に出す。
-    // 小さいウィンドウでもスキルバー（画面下の中央。高さは Hud.cpp の drawSkillBar）に重ならないよう、その上にそろえる
-    constexpr float kSkillBarHeight = 58.0f + 44.0f;
+    // 小さいウィンドウでもスキルバー（画面下の中央。Hud.cpp の drawSkillBar）に重ならないよう、その上にそろえる
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 corner{viewport->WorkPos.x + viewport->WorkSize.x - ui::px(12.0f),
-                        viewport->WorkPos.y + viewport->WorkSize.y - ui::px(kSkillBarHeight + 12.0f)};
+                        viewport->WorkPos.y + viewport->WorkSize.y - ui::px(ui::kSkillBarHeight + 12.0f)};
     ImGui::SetNextWindowPos(corner, ImGuiCond_Always, ImVec2{1.0f, 1.0f});
     ImGui::SetNextWindowSize(ImVec2{ui::px(260.0f), 0.0f}, ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.85f);

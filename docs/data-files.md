@@ -105,6 +105,7 @@ data/
 |---|---|---|---|
 | `enemyCooldownScale` | `0.5` | 敵のスキルのクールダウン倍率（キャラ設定の値 × この倍率） | `src/game/Match.cpp` → `src/game/World.cpp`（敵のクールダウン倍率として保持） |
 | `firstCastDelay` | `1.5` | 開始してから、敵が最初にスキルを撃つまでの時間（秒） | `src/game/ai/EnemyAI.cpp` |
+| `punishMinInterval` | `1.0` | `punishCC` で、動けない自キャラへ間隔を待たずに撃つ時も、最低限空ける間隔（秒。0 以上）。クールダウンの無いスキルで撃ち続けないように | `src/game/ai/EnemyAI.cpp` |
 | `maxEngageRange` | `1000` | 敵が自キャラと取ろうとする距離の上限（200 以上） | `src/game/ai/EnemyAI.cpp` |
 | `playerReactionTime` | `0.25` | AI が想定する「プレイヤーが弾を見てから避け始めるまでの時間」（秒） | `src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp` |
 | `levels` | （必須） | 賢さ 1〜5 の設定。上から順に 1, 2, 3, 4, 5 | 下の表と、表の後の説明を参照 |
@@ -125,7 +126,7 @@ data/
 | `minHitChance` | 命中見込みがこれ未満の時は、撃つのを少し待つ（待ちすぎない） | 0〜1 |
 | `strafe` | 横移動の多さ | 0〜1 |
 | `flank` | 他の敵と離れて、囲むように動く | `true` / `false` |
-| `punishCC` | 自キャラが動けない時（拘束・スタン・打ち上げ）は、間隔を待たずにすぐ撃つ | `true` / `false` |
+| `punishCC` | 自キャラが動けない時（拘束・スタン・打ち上げ）は、間隔を待たずにすぐ撃つ（ただし `punishMinInterval` 秒は空ける） | `true` / `false` |
 | `engageRangeRatio` | 自キャラとの距離を「使うスキルの最短の射程 × この値」に保とうとする | 0.3〜1.0 |
 
 `predict` の 3 つは割合なので、合計が 1 でなくてもかまいません（重みの比で扱います）。狙いの計算方法は `src/game/ai/Aim.h` の先頭に書いてあります。
@@ -201,7 +202,7 @@ data/
 練習場に置くダミー（的）の組み合わせを、**プリセット**として複数書いておくファイルです。読み込みは `src/data/SandboxConfig.cpp` です。
 
 - プリセットは、メニュー（モードで「練習場」を選んだ時）と、練習場の画面右下の「練習場のダミー」で選べます。
-- 選ぶとすぐにダミーが置き直され、選んだプリセットの名前がこのファイルの `"preset"` に書き戻されます（次に起動した時も、そのプリセットで始まります）。書き戻すのは `"preset"` の値だけで、コメントや他の行はそのまま残ります。
+- 選ぶとすぐにダミーが置き直され、選んだプリセットの名前がこのファイルの `"preset"` に書き戻されます（次に起動した時も、そのプリセットで始まります）。書き戻すのは一番外側の `"preset"` の値だけで、コメントや他の行はそのまま残ります（コメント・文字列・`presets` の中にある `"preset"` は書き換えません）。
 - 練習場で遊んでいる途中にこのファイルを保存すると、中身が変わっていればダミーが置き直されます。
 - デバッグパネル（`F1`）の「ダミー」で、ダミーごとの動き方・移動速度を一時的に変えることもできます（ファイルには保存されません）。
 
@@ -512,9 +513,10 @@ data/
 | `Settings.cpp` / `Settings.h` | `settings.jsonc` を読み、値の範囲をチェックする | settings |
 | `AiConfig.cpp` / `AiConfig.h` | `ai.jsonc` を読む | ai |
 | `StageDef.cpp` / `StageDef.h` | ステージのファイルを読む（広さ・障害物・ブッシュ） | stages |
-| `SandboxConfig.cpp` / `SandboxConfig.h` | `sandbox.jsonc` を読む。選んだプリセットの名前を `"preset"` に書き戻す（コメントや他の行は変えない） | sandbox |
-| `CharacterDef.cpp` / `CharacterDef.h` | キャラのファイルを読む。`params` から値を取り出す関数（`num` / `numOr` / `flagOr` / `text` / `color` / `effects`）もここ | characters |
-| `EffectSpec.cpp` / `EffectSpec.h` | 効果の配列を読む | characters |
+| `SandboxConfig.cpp` / `SandboxConfig.h` | `sandbox.jsonc` を読む。選んだプリセットの名前を、一番外側の `"preset"` に書き戻す（コメントや他の行は変えない） | sandbox |
+| `CharacterDef.cpp` / `CharacterDef.h` | キャラのファイルを読む。`params` から値を取り出す関数（`num` / `numOr` / `flagOr` / `text` / `color` / `effects`）もここ。必須の params の書き忘れを `DataWarnings.cpp` に記録する | characters |
+| `EffectSpec.cpp` / `EffectSpec.h` | 効果の配列を読む。書き方の誤りを `DataWarnings.cpp` に記録する | characters |
+| `DataWarnings.cpp` / `DataWarnings.h` | スキルを使う時に見つかった誤り（params の書き忘れ・効果の書き方の誤り）を集め、`GameData.cpp` の「設定ファイルのエラー」に加える。設定ファイルを読み直すと消える | characters |
 
 ### src/game/
 
@@ -583,17 +585,20 @@ data/
 | `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名・ステージ名・敵 AI（スキルショットでは的）の賢さの名前・的の大きさの名前を表示する（値は `Match.cpp` から受け取る） |
 | `PauseDialog.cpp` / `PauseDialog.h` | 使わない（スキルドッジ・スキルショットで Esc を押した時の確認ダイアログ） | — |
 | `RecordsPanel.cpp` / `RecordsPanel.h` | 使わない（直近 10 回の順位表と、メニューから開く記録の画面） | — |
-| `StatsDashboard.cpp` / `StatsDashboard.h` | 統計の画面。絞り込みの選択肢に、キャラ・ステージの一覧、敵・的の賢さの名前、的の大きさ・移動速度の選択肢を使う | ai、stages、characters | ai、stages、characters |
+| `StatsDashboard.cpp` / `StatsDashboard.h` | 統計の画面。絞り込みの選択肢に、キャラ・ステージの一覧、敵・的の賢さの名前、的の大きさ・移動速度の選択肢を使う | ai、stages、characters |
 | `UiScale.cpp` / `UiScale.h` | `uiScale` とウィンドウの大きさから、画面に出す大きさを計算する（値は `App.cpp` から受け取る） | settings |
 | `Fonts.cpp` / `Fonts.h` | 使わない | — |
+| `RecordFormat.cpp` / `RecordFormat.h` | 使わない（記録の表・リザルト画面・統計の画面に共通の表示の書き方） | — |
+| `HudLayout.h` | 使わない（スキルバーの大きさの定数。`render/Hud.cpp` と `SandboxPanel.cpp` が使う） | — |
 
 ### tests/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
 | `test_character_data.cpp` | 設定ファイルがすべて読み込めること、handler が実在することを確認するテスト | すべて |
-| `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する | characters |
-| `test_dodge.cpp` | スキルドッジのテスト。設定ファイルを読み込み、`src/game/Match.cpp` を通してキャラと敵 AI の設定を使う | ai、characters |
+| `TempDataCopy.h` | テスト用の部品。data フォルダを一時フォルダへ写し、設定ファイルの一部を書き換えて試せるようにする（本物は書き換えない） | すべて |
+| `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する。一部のテストは、キャラのファイルの写しを書き換えて試す（エマの Q を貫通にする・エズリアルの W の params を消す） | characters |
+| `test_dodge.cpp` | スキルドッジのテスト。設定ファイルを読み込み、`src/game/Match.cpp` を通してキャラと敵 AI の設定を使う。一部のテストは、写しの `castTime` と `enemyCooldownScale` を 0 に書き換えて試す | ai、characters |
 | `test_results.cpp` | 使わない（リザルトの保存のテスト。一時フォルダを使う） | — |
 | `test_stats.cpp` | 使わない（統計の計算のテスト） | — |
 | `test_shot.cpp` | スキルショットのテスト。的の置き方（`sizes`・`moveSpeeds`・`minDistance`・`maxDistance`）、`reactionTime` の下限（ai.jsonc の写しを一時フォルダに作って読む）、動き方のパターン（往復・リズムを崩す・接近）、的の回避（`skillShot.levels` を書き換えて確かめる）、賢さとヒット率、飛んでいる途中の発動を数えないこと | ai、stages、characters |

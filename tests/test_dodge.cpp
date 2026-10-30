@@ -4,19 +4,27 @@
 
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
 #include <format>
 #include <iterator>
 #include <map>
 #include <memory>
+#include <optional>
 #include <random>
+#include <regex>
+#include <string>
 
+#include "TempDataCopy.h"
 #include "core/Paths.h"
 #include "data/GameData.h"
+#include "data/StageDef.h"
 #include "game/Match.h"
 #include "game/Sandbox.h"
 #include "game/SkillCasting.h"
+#include "game/Terrain.h"
 #include "game/World.h"
 #include "game/ai/Aim.h"
+#include "game/ai/EnemyAI.h"
 #include "raymath.h"
 
 using namespace moba;
@@ -326,4 +334,139 @@ TEST_CASE("スキルドッジを制限時間まで遊ぶと、敵がスキルを
     CHECK(result.dodge.total > 0);
     CHECK(result.hitsTaken > 0);  // 動かない相手には当たる
     CHECK(result.dodge.dodged + result.dodge.hit == result.dodge.total);
+}
+
+namespace {
+
+/// data フォルダを一時フォルダへ写し、すべてのスキルの詠唱時間と、敵のクールダウン倍率を 0 にする
+/// （詠唱もクールダウンも無いスキルを敵が撃つ状態を作るため。本物の data フォルダは書き換えない）
+class NoCastTimeData {
+public:
+    /// data フォルダを一時フォルダへ丸ごと写し、キャラの "castTime" と ai.jsonc の "enemyCooldownScale" を 0 に書き換える
+    NoCastTimeData() {
+        const AppPaths copied = copy_.paths();
+        for (const auto& entry : std::filesystem::directory_iterator(copied.charactersDir)) {
+            test::TempDataCopy::rewrite(entry.path(), std::regex(R"re(("castTime"\s*:\s*)[0-9.]+)re"), "$1 0");
+        }
+        test::TempDataCopy::rewrite(copied.aiFile, std::regex(R"re(("enemyCooldownScale"\s*:\s*)[0-9.]+)re"), "$1 0");
+    }
+    /// 写した data フォルダの各ファイルの場所
+    AppPaths paths() const { return copy_.paths(); }
+
+private:
+    test::TempDataCopy copy_;
+};
+
+}  // namespace
+
+TEST_CASE("詠唱時間もクールダウンも 0 のスキルでも、敵は撃つ間隔（castInterval）を守る") {
+    const NoCastTimeData temp;
+    GameData data(temp.paths());
+    data.loadAll();
+    REQUIRE(data.errors().empty());
+    REQUIRE(data.ai().enemyCooldownScale == 0.0f);
+    for (const CharacterDef* def : data.enemyCandidates()) {
+        for (const auto& skill : def->skills) {
+            if (skill && skill->usedByEnemy) REQUIRE(skill->castTime == 0.0f);
+        }
+    }
+
+    // 賢さ 1 は punishCC（自キャラが動けない時は間隔を待たずに撃つ）が無いので、間隔だけで撃つ回数が決まる
+    MatchConfig config;
+    config.mode = GameMode::SkillDodge;
+    config.characterId = "like_ezreal";
+    config.enemyCount = 1;
+    config.aiLevel = 1;
+    config.timeLimitSeconds = 60.0f;
+    config.seed = 42;
+    Match match(data, config);
+    REQUIRE(match.valid());
+
+    constexpr float kSeconds = 8.0f;
+    const InputFrame noInput;
+    for (int i = 0; i < static_cast<int>(kSeconds * 120.0f); ++i) match.update(1.0f / 120.0f, noInput);
+
+    // 撃てるのは、最初の 1 回（firstCastDelay の後）と、その後は castInterval の最小ごとに 1 回まで
+    const AiLevel& level = data.ai().level(config.aiLevel);
+    const int maxCasts = 1 + static_cast<int>(std::ceil((kSeconds - data.ai().firstCastDelay) / level.castIntervalMin));
+    const int casts = match.world().dodge().total;  // 結果が確定した敵の発動の数
+    MESSAGE(std::format("{:.0f} 秒間に敵が撃った回数: {}（上限 {}）", kSeconds, casts, maxCasts));
+    CHECK(casts >= 1);
+    CHECK(casts <= maxCasts);
+}
+
+TEST_CASE("punishCC の敵は、動けない自キャラにも punishMinInterval の間隔を空けて撃つ（クールダウン 0 でも）") {
+    const NoCastTimeData temp;
+    GameData data(temp.paths());
+    data.loadAll();
+    REQUIRE(data.errors().empty());
+    REQUIRE(data.ai().punishMinInterval > 0.0f);
+
+    MatchConfig config;
+    config.mode = GameMode::SkillDodge;
+    config.characterId = "like_ezreal";
+    config.stageId = "open";  // ブッシュに隠れて見えなくならないように、障害物のないステージ
+    config.enemyCount = 1;
+    config.aiLevel = 3;
+    config.timeLimitSeconds = 60.0f;
+    config.seed = 42;
+    REQUIRE(data.ai().level(config.aiLevel).punishCC);
+    Match match(data, config);
+    REQUIRE(match.valid());
+    // 自キャラは最初から最後まで動けない（敵は間隔を待たずに撃とうとする）
+    match.world().player()->status.apply(EffectSpec{EffectType::Stun, 100.0f, 0.0f, ""}, kInvalidId);
+
+    constexpr float kSeconds = 8.0f;
+    const InputFrame noInput;
+    for (int i = 0; i < static_cast<int>(kSeconds * 120.0f); ++i) match.update(1.0f / 120.0f, noInput);
+
+    // 撃てるのは、punishMinInterval ごとに 1 回まで
+    const int maxCasts = 1 + static_cast<int>(std::ceil(kSeconds / data.ai().punishMinInterval));
+    const int casts = match.world().dodge().total;
+    MESSAGE(std::format("{:.0f} 秒間に、動けない自キャラへ敵が撃った回数: {}（上限 {}）", kSeconds, casts, maxCasts));
+    CHECK(casts >= 2);
+    CHECK(casts <= maxCasts);
+}
+
+TEST_CASE("敵 AI: 自キャラが最初からブッシュに隠れていて一度も見えていなければ、(0, 0) ではなく今の位置を基準に動く") {
+    GameData data(makeAppPaths(MOBA_SOURCE_DIR));
+    data.loadAll();
+    const CharacterDef* def = data.character("like_ezreal");
+    REQUIRE(def != nullptr);
+
+    // (1500, 0) にブッシュがあるステージ。自キャラはその中から始まる
+    StageDef stage;
+    stage.id = "bush_test";
+    stage.bounds = kSandboxBounds;
+    Shape bush;
+    bush.kind = Shape::Kind::Circle;
+    bush.center = Vector2{1500.0f, 0.0f};
+    bush.radius = 250.0f;
+    stage.bushes.push_back(bush);
+    World world(data, Terrain(stage));
+    Unit player = makePlayerUnit(*def);
+    player.pos = bush.center;
+    world.addUnit(player);
+
+    // 敵は自キャラの向こう側（原点から見て、自キャラより遠い所）
+    Unit enemy;
+    enemy.team = Team::Enemy;
+    enemy.name = "敵";
+    enemy.characterId = def->id;
+    enemy.radius = def->hitboxRadius;
+    enemy.baseMoveSpeed = def->moveSpeed;
+    enemy.pos = Vector2{2200.0f, 0.0f};
+    const EntityId enemyId = world.addUnit(enemy);
+    REQUIRE_FALSE(world.canSee(Team::Enemy, *world.player()));
+
+    ai::EnemyDirector director;
+    director.setup(data.ai(), 1, 42);
+    director.addEnemy(enemyId);
+    director.update(world, 1.0f / 120.0f);
+
+    // 自キャラから見て敵のいる側（+X）に、保つ距離だけ離れた所へ向かう。
+    // (0, 0) を自キャラの位置と思っていると、原点から敵の方へ保つ距離だけの所（自キャラより手前）になる
+    const std::optional<Vector2> target = world.findUnit(enemyId)->moveTarget;
+    REQUIRE(target.has_value());
+    CHECK(target->x > bush.center.x);
 }

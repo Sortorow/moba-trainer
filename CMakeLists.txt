@@ -73,6 +73,7 @@ add_library(moba_lib STATIC
   src/core/Platform.cpp
   src/core/JsonFile.cpp
   src/data/Settings.cpp
+  src/data/DataWarnings.cpp
   src/data/EffectSpec.cpp
   src/data/CharacterDef.cpp
   src/data/AiConfig.cpp
@@ -108,6 +109,7 @@ add_library(moba_lib STATIC
   src/render/CameraControl.cpp
   src/ui/Fonts.cpp
   src/ui/UiScale.cpp
+  src/ui/RecordFormat.cpp
   src/ui/MainMenu.cpp
   src/ui/SandboxPanel.cpp
   src/ui/DebugPanel.cpp

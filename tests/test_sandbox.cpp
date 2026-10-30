@@ -5,39 +5,19 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
-#include <random>
 #include <string>
 
+#include "TempDataCopy.h"
 #include "core/Paths.h"
 #include "data/GameData.h"
 #include "data/SandboxConfig.h"
 #include "game/Match.h"
 
 using namespace moba;
+// プリセットを選ぶと sandbox.jsonc に書き込むので、data フォルダを一時フォルダへ写して使う
+using test::TempDataCopy;
 
 namespace {
-
-/// data フォルダを一時フォルダへ写して使う（プリセットを選ぶと sandbox.jsonc に書き込むため、本物を書き換えないように）
-class TempDataCopy {
-public:
-    /// data フォルダを、一時フォルダの中の新しいフォルダへ丸ごと写す
-    TempDataCopy() {
-        root_ = std::filesystem::temp_directory_path() / std::format("moba_tests_sandbox_{}", std::random_device{}());
-        std::filesystem::create_directories(root_);
-        std::filesystem::copy(std::filesystem::path(MOBA_SOURCE_DIR) / "data", root_ / "data",
-                              std::filesystem::copy_options::recursive);
-    }
-    /// 写した一時フォルダを消す
-    ~TempDataCopy() {
-        std::error_code ec;
-        std::filesystem::remove_all(root_, ec);
-    }
-    /// 写した data フォルダの各ファイルの場所
-    AppPaths paths() const { return makeAppPaths(root_); }
-
-private:
-    std::filesystem::path root_;
-};
 
 /// ファイルの中身をそのまま（文字コードや改行を変えずに）読む
 std::string readText(const std::filesystem::path& file) {
@@ -89,6 +69,43 @@ TEST_CASE("sandbox.jsonc: プリセットを選ぶと \"preset\" だけが書き
     const SandboxConfigLoadResult reloaded = loadSandboxConfig(paths.sandboxFile);
     REQUIRE(reloaded.error.empty());
     CHECK(reloaded.config.selectedPreset == next);
+}
+
+TEST_CASE(
+    "sandbox.jsonc: コメント・文字列・内側のオブジェクトの \"preset\" は書き換えず、一番外側の値だけを書き換える") {
+    TempDataCopy copy;
+    const std::filesystem::path file = copy.paths().sandboxFile;
+    // 本物の "preset" の値が name のファイル。それ以外の "preset" は、すべてコメント・文字列・内側のオブジェクトの中
+    auto content = [](const std::string& name) {
+        return "/* \"preset\": \"ブロックコメント\" */\n"
+               "{\n"
+               "  \"a\": 1,  // \"preset\": \"行の途中のコメント\"\n"
+               "  \"text\": \"文字列の中の \\\"preset\\\": \\\"x\\\"\",\n"
+               "  \"presets\": [ { \"name\": \"標準\", \"preset\": \"内側\", \"dummies\": [] },\n"
+               "               { \"name\": \"小さい的\", \"dummies\": [] } ],\n"
+               "  /* 複数行の\n"
+               "     \"preset\": \"ブロックコメント 2\" */\n"
+               "  \"preset\" : \"" +
+               name + "\"  // 本物\n" + "}\n";
+    };
+    std::ofstream(file, std::ios::binary | std::ios::trunc) << content("標準");
+
+    REQUIRE(saveSelectedSandboxPreset(file, "小さい的").empty());
+    CHECK(readText(file) == content("小さい的"));
+    const SandboxConfigLoadResult reloaded = loadSandboxConfig(file);
+    REQUIRE(reloaded.error.empty());
+    CHECK(reloaded.config.selectedPreset == "小さい的");
+}
+
+TEST_CASE("sandbox.jsonc: 一番外側に \"preset\" が無ければ保存できない（コメントの中にあっても）") {
+    TempDataCopy copy;
+    const std::filesystem::path file = copy.paths().sandboxFile;
+    const std::string text =
+        "{\n  // \"preset\": \"標準\"\n  \"presets\": [ { \"name\": \"標準\", \"preset\": \"x\" } ]\n}\n";
+    std::ofstream(file, std::ios::binary | std::ios::trunc) << text;
+
+    CHECK_FALSE(saveSelectedSandboxPreset(file, "標準").empty());
+    CHECK(readText(file) == text);  // ファイルは変えない
 }
 
 TEST_CASE("練習場: 選んだプリセットのダミーが置かれ、プレイの途中で切り替えると置き直される") {

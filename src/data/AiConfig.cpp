@@ -93,6 +93,7 @@ AiConfigLoadResult loadAiConfig(const std::filesystem::path& file) {
     try {
         c.enemyCooldownScale = std::max(0.0f, j.value("enemyCooldownScale", c.enemyCooldownScale));
         c.firstCastDelay = std::max(0.0f, j.value("firstCastDelay", c.firstCastDelay));
+        c.punishMinInterval = std::max(0.0f, j.value("punishMinInterval", c.punishMinInterval));
         c.maxEngageRange = std::max(200.0f, j.value("maxEngageRange", c.maxEngageRange));
         c.playerReactionTime = std::max(0.0f, j.value("playerReactionTime", c.playerReactionTime));
 

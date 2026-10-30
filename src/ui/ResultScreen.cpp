@@ -5,6 +5,7 @@
 #include <string>
 
 #include "imgui.h"
+#include "ui/RecordFormat.h"
 #include "ui/RecordsPanel.h"
 #include "ui/UiScale.h"
 
@@ -18,33 +19,27 @@ void textCentered(const std::string& text) {
     ImGui::TextUnformatted(text.c_str());
 }
 
-/// プレイのクールダウンの設定の表示（「なし」や「標準（×0.25）」など）
-std::string cooldownLabel(const MatchConfig& config) {
-    if (config.cooldownMode == CooldownMode::None) return "なし";
-    return std::format("標準（×{:.2f}）", config.cooldownScale);
-}
-
 /// 「52.0%」のような割合の大きな表示と、その下の「13 / 25」の表示
-void drawRate(const char* title, float rate, int count, int total) {
+void drawRate(const char* title, const ResultScore& score) {
     textCentered(title);
     ImGui::PushFont(nullptr, 52.0f);
-    textCentered(total > 0 ? std::format("{:.1f}%", rate * 100.0f) : std::string("-"));
+    textCentered(ui::percentText(score));
     ImGui::PopFont();
     ImGui::PushFont(nullptr, 24.0f);
-    textCentered(std::format("{} / {}", count, total));
+    textCentered(std::format("{} / {}", score.count, score.total));
     ImGui::PopFont();
 }
 
 /// スキルドッジの結果（ドッジ率・被弾・ダウン）
 void drawDodgeResult(const MatchResult& result) {
-    drawRate("スキルドッジ率", result.dodge.rate(), result.dodge.dodged, result.dodge.total);
+    drawRate("スキルドッジ率", ResultScore{result.dodge.dodged, result.dodge.total});
     ImGui::Spacing();
     textCentered(std::format("被弾 {} 回　　ダウン {} 回", result.hitsTaken, result.deaths));
 }
 
 /// スキルショットの結果（ヒット率と、キーごとの命中）
 void drawShotResult(const MatchResult& result) {
-    drawRate("スキルヒット率", result.playerHits.rate(), result.playerHits.hits, result.playerHits.casts);
+    drawRate("スキルヒット率", ResultScore{result.playerHits.hits, result.playerHits.casts});
     ImGui::Spacing();
     std::string bySlot;
     for (const SkillSlot slot : kAllSkillSlots) {
@@ -80,10 +75,11 @@ ResultAction drawResultScreen(const MatchResult& result, const std::vector<Saved
         ImGui::TextDisabled("的の賢さ %s ／ 大きさ %s ／ 移動速度 %.0f", result.aiLevelName.c_str(), size.c_str(),
                             config.targetMoveSpeed);
         ImGui::TextDisabled("制限時間 %.0f 秒 ／ クールダウン %s", config.timeLimitSeconds,
-                            cooldownLabel(config).c_str());
+                            ui::cooldownLabel(config, ui::CooldownLabelStyle::WithMode).c_str());
     } else {
         ImGui::TextDisabled("敵 %d 体 ／ 賢さ %s ／ 制限時間 %.0f 秒 ／ クールダウン %s", config.enemyCount,
-                            result.aiLevelName.c_str(), config.timeLimitSeconds, cooldownLabel(config).c_str());
+                            result.aiLevelName.c_str(), config.timeLimitSeconds,
+                            ui::cooldownLabel(config, ui::CooldownLabelStyle::WithMode).c_str());
     }
     ImGui::Separator();
     ImGui::Spacing();

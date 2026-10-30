@@ -1,38 +1,12 @@
 #include "ui/RecordsPanel.h"
 
 #include <algorithm>
-#include <format>
 
 #include "imgui.h"
+#include "ui/RecordFormat.h"
 #include "ui/UiScale.h"
 
 namespace moba {
-namespace {
-
-/// 順位の文字の色（1〜3 位は金・銀・銅、それ以外は白）
-ImVec4 rankColor(int rank) {
-    switch (rank) {
-        case 1: return ImVec4{1.0f, 0.82f, 0.25f, 1.0f};
-        case 2: return ImVec4{0.80f, 0.84f, 0.90f, 1.0f};
-        case 3: return ImVec4{0.85f, 0.58f, 0.35f, 1.0f};
-        default: return ImVec4{0.92f, 0.94f, 0.96f, 1.0f};
-    }
-}
-
-/// 難易度の表示（スキルドッジ:「敵 3 体・ふつう」、スキルショット:「ふつう・標準・340」）
-std::string difficultyLabel(const MatchResult& r) {
-    const MatchConfig& c = r.config;
-    if (c.mode == GameMode::SkillDodge) return std::format("敵 {} 体・{}", c.enemyCount, r.aiLevelName);
-    const std::string size = r.targetSizeName.empty() ? std::format("{:.0f}", c.targetRadius) : r.targetSizeName;
-    return std::format("{}・{}・{:.0f}", r.aiLevelName, size, c.targetMoveSpeed);
-}
-
-/// クールダウンの設定の短い表示（「なし」/「×0.25」）
-std::string cooldownShortLabel(const MatchConfig& c) {
-    return c.cooldownMode == CooldownMode::None ? std::string("なし") : std::format("×{:.2f}", c.cooldownScale);
-}
-
-}  // namespace
 
 int rankOf(const std::vector<SavedResult>& recent, const std::string& playedAt) {
     std::vector<SavedResult> ranked = recent;
@@ -84,10 +58,9 @@ void drawRecordTable(GameMode mode, const std::vector<SavedResult>& recent, cons
         ImGui::TableNextRow();
         if (highlight) ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg1, IM_COL32(60, 110, 170, 140));
         ImGui::TableNextColumn();
-        ImGui::TextColored(rankColor(rank), "%d 位", rank);
+        ImGui::TextColored(ui::rankColor(rank), "%d 位", rank);
         ImGui::TableNextColumn();
-        const std::string rate = score.total > 0 ? std::format("{:.1f}%", score.rate() * 100.0f) : std::string("-");
-        ImGui::TextColored(rankColor(rank), "%s", rate.c_str());
+        ImGui::TextColored(ui::rankColor(rank), "%s", ui::percentText(score).c_str());
         ImGui::TableNextColumn();
         ImGui::Text("%d / %d", score.count, score.total);
         ImGui::TableNextColumn();
@@ -95,13 +68,11 @@ void drawRecordTable(GameMode mode, const std::vector<SavedResult>& recent, cons
         ImGui::TableNextColumn();
         ImGui::TextUnformatted(r.stageName.c_str());
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(difficultyLabel(r).c_str());
+        ImGui::TextUnformatted(ui::difficultyLabel(r).c_str());
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(cooldownShortLabel(r.config).c_str());
+        ImGui::TextUnformatted(ui::cooldownLabel(r.config, ui::CooldownLabelStyle::Short).c_str());
         ImGui::TableNextColumn();
-        // 「2026-10-25 22:40:12」→「10-25 22:40」
-        const std::string when = saved.playedAt.size() >= 16 ? saved.playedAt.substr(5, 11) : saved.playedAt;
-        ImGui::Text("%s%s", when.c_str(), highlight ? "  今回" : "");
+        ImGui::Text("%s%s", ui::shortTime(saved.playedAt).c_str(), highlight ? "  今回" : "");
     }
     ImGui::EndTable();
 }

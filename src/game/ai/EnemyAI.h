@@ -7,6 +7,7 @@
 // 賢さごとの数値は data/ai.jsonc で調整できる。
 
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <vector>
 
@@ -44,9 +45,11 @@ private:
     struct Brain {
         EntityId unitId = kInvalidId;
         float nextCastTime = 0.0f;  // 次にスキルを撃ってよい時刻
-        float replanTimer = 0.0f;   // 次に移動先を決め直すまでの時間
-        float strafeTimer = 0.0f;   // 横移動の向きを変えるまでの時間
-        float strafeSign = 1.0f;    // 横移動の向き（+1 / -1）
+        // 最後にスキルを撃った時刻（punishCC の最低限の間隔に使う。まだ撃っていなければ、十分に昔）
+        float lastCastTime = -std::numeric_limits<float>::infinity();
+        float replanTimer = 0.0f;  // 次に移動先を決め直すまでの時間
+        float strafeTimer = 0.0f;  // 横移動の向きを変えるまでの時間
+        float strafeSign = 1.0f;   // 横移動の向き（+1 / -1）
     };
 
     /// 敵の移動先を決める（スキルの射程に応じた距離を保ち、賢さに応じて横移動・他の敵と離れる動きを加える）
@@ -64,6 +67,9 @@ private:
     /// 着弾時に自キャラがいそうな位置の重み（賢さの設定から作る）
     /// @param playerStuck 自キャラが動けないか（動けないなら、今の位置だけを狙う）
     AimWeights aimWeights(bool playerStuck) const;
+    /// AI が認識している自キャラの位置（反応の遅れの分だけ前の、見えていた位置）。
+    /// 一度も見えていない時（最初からブッシュに隠れている時）は、位置の記録が無いので今の位置
+    Vector2 seenPlayerPosition(const Unit& player, float now) const;
     /// min 以上 max 未満の乱数（max が min 以下なら min）
     float uniform(float min, float max);
 

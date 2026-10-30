@@ -66,7 +66,7 @@ void EnemyDirector::update(World& world, float dt) {
     if (playerVisible) observer_.record(now, player->pos);
     observer_.update(now);
 
-    const Vector2 seenPlayer = observer_.positionAt(now - level_.reactionTime);
+    const Vector2 seenPlayer = seenPlayerPosition(*player, now);
     for (Brain& brain : brains_) {
         Unit* enemy = world.findUnit(brain.unitId);
         if (!enemy || !enemy->alive) continue;
@@ -125,6 +125,12 @@ void EnemyDirector::planMovement(World& world, Brain& brain, Unit& enemy, Vector
     enemy.moveTarget = world.clampToBounds(desired, enemy.radius);
 }
 
+Vector2 EnemyDirector::seenPlayerPosition(const Unit& player, float now) const {
+    // 一度も見えていなければ、位置の記録が無い（positionAt は (0, 0) を返してしまう）ので、今の位置を使う
+    if (!observer_.hasSamples()) return player.pos;
+    return observer_.positionAt(now - level_.reactionTime);
+}
+
 AimWeights EnemyDirector::aimWeights(bool playerStuck) const {
     if (playerStuck) return AimWeights{1.0f, 0.0f, 0.0f, 0.0f};  // 動けない相手は、今の位置を狙えば当たる
     AimWeights w;
@@ -143,13 +149,15 @@ void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit&
     const bool playerStuck = playerVisible && !player.status.canMove();
     const bool punish = level_.punishCC && playerStuck;
     if (!punish && now < brain.nextCastTime) return;
+    // 動けない相手にも、最低限の間隔は空ける（クールダウンの無いスキルで撃ち続けないように）
+    if (punish && now < brain.lastCastTime + config_.punishMinInterval) return;
 
     const CharacterDef* def = world.characterOf(enemy);
     if (!def) return;
 
     // AI が認識している自キャラ（反応の遅れの分だけ前の位置・速度）
     AimTarget target;
-    target.pos = observer_.positionAt(now - level_.reactionTime);
+    target.pos = seenPlayerPosition(player, now);
     target.velocity = playerStuck ? Vector2{} : observer_.velocityAt(now - level_.reactionTime);
     target.moveSpeed = player.moveSpeed();
     target.radius = player.radius;
@@ -191,9 +199,11 @@ void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit&
         aimPoint = aimPoint + fromAngle(uniform(-PI, PI)) * error;
     }
 
-    casting::requestCast(world, enemy, CastRequest{bestSkill->slot, aimPoint});
-    if (!enemy.cast.active && enemy.cooldowns[static_cast<std::size_t>(index(bestSkill->slot))] <= 0.0f) return;
+    // 使えなかった時だけ、次の刻みで撃ち直す（詠唱時間 0・クールダウン 0 のスキルも、撃てたら間隔を空ける）
+    const casting::CastOutcome outcome = casting::requestCast(world, enemy, CastRequest{bestSkill->slot, aimPoint});
+    if (outcome == casting::CastOutcome::Rejected) return;
 
+    brain.lastCastTime = now;
     brain.nextCastTime = now + uniform(level_.castIntervalMin, level_.castIntervalMax);
     // 避けた方向の学習は、撃った時に見えていた場合だけ
     if (bestModel->shape == AimShape::Line && playerVisible) {

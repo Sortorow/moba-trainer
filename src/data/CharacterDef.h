@@ -51,10 +51,11 @@ struct SkillDef {
     nlohmann::json params = nlohmann::json::object();  // 処理ごとの個別パラメータ
 
     // params から値を読む関数。
-    // num は必須項目用で、書かれていない場合は警告ログを 1 回だけ出して fallback を返す。
+    // num は必須項目用で、書かれていない場合は警告を 1 回だけ出して fallback を返す
+    // （警告はログと、設定ファイルのエラーの一覧（DataWarnings.h）に出る。設定ファイルを読み直すと、また 1 回出る）。
     // numOr / flagOr / text / color / effects は任意項目用で、書かれていなくても警告しない。
 
-    /// params の数値（必須項目用）。書かれていなければ警告ログを 1 回だけ出して fallback を返す
+    /// params の数値（必須項目用）。書かれていなければ警告を 1 回だけ出して（ログと設定ファイルのエラーの一覧）fallback を返す
     float num(std::string_view key, float fallback) const;
     /// params の数値（任意項目用）。書かれていなければ警告せずに fallback を返す
     float numOr(std::string_view key, float fallback) const;

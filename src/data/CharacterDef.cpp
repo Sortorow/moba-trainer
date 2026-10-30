@@ -2,25 +2,24 @@
 
 #include <algorithm>
 #include <format>
-#include <set>
 
 #include "core/JsonFile.h"
 #include "core/Log.h"
 #include "core/Paths.h"
+#include "data/DataWarnings.h"
 
 namespace moba {
 namespace {
 
 using nlohmann::json;
 
-/// 必須の params が書かれていないことを警告ログに出す。同じキャラ・スキル・項目の警告は 1 回だけ
+/// 必須の params が書かれていないことを、警告ログと設定ファイルのエラーの一覧（DataWarnings）に出す。
+/// 同じキャラ・スキル・項目の警告は、設定ファイルを読み直すまで 1 回だけ
 void warnMissingOnce(const SkillDef& skill, std::string_view key) {
-    static std::set<std::string> warned;
     const std::string id = std::format("{}.{}.{}", skill.characterId, toString(skill.slot), key);
-    if (warned.insert(id).second) {
-        log::warn("data", "{} の {} に params.{} がありません。既定値を使います", skill.characterId,
-                  toString(skill.slot), key);
-    }
+    std::string message = std::format("{} の {} に params.{} がありません。既定値を使います", skill.characterId,
+                                      toString(skill.slot), key);
+    if (recordDataWarning(id, message)) log::warn("data", "{}", message);
 }
 
 /// params の中から key の値を探す。無ければ nullptr

@@ -56,8 +56,9 @@ struct SandboxConfigLoadResult {
 /// @return 読み込んだ設定。読めない・"presets" が空の時は error に理由が入る
 SandboxConfigLoadResult loadSandboxConfig(const std::filesystem::path& file);
 
-/// sandbox.jsonc の "preset" の値だけを書き換える（コメントや他の行はそのまま残す）
-/// @return エラーの説明（空なら成功）
+/// sandbox.jsonc の一番外側の "preset" の値だけを書き換える（コメントや他の行はそのまま残す）。
+/// コメント・文字列・内側のオブジェクトの中にある "preset" は、書き換えない
+/// @return エラーの説明（空なら成功。一番外側に "preset" が無ければ、ファイルを変えずにエラー）
 std::string saveSelectedSandboxPreset(const std::filesystem::path& file, std::string_view presetName);
 
 }  // namespace moba

@@ -1,10 +1,10 @@
 #include "data/SandboxConfig.h"
 
 #include <algorithm>
+#include <cctype>
 #include <format>
 #include <fstream>
 #include <iterator>
-#include <regex>
 #include <set>
 
 #include "core/JsonFile.h"
@@ -15,6 +15,69 @@ namespace moba {
 namespace {
 
 using nlohmann::json;
+
+/// 文字列の中の範囲 [begin, end)
+struct TextRange {
+    std::size_t begin = 0;
+    std::size_t end = 0;
+};
+
+/// pos から、空白とコメント（// の行コメント・/* */ のブロックコメント）を読み飛ばした位置
+std::size_t skipSpaceAndComments(const std::string& text, std::size_t pos) {
+    while (pos < text.size()) {
+        if (std::isspace(static_cast<unsigned char>(text[pos]))) {
+            ++pos;
+        } else if (text.compare(pos, 2, "//") == 0) {
+            pos = text.find('\n', pos);
+            if (pos == std::string::npos) return text.size();
+        } else if (text.compare(pos, 2, "/*") == 0) {
+            pos = text.find("*/", pos + 2);
+            if (pos == std::string::npos) return text.size();
+            pos += 2;
+        } else {
+            break;
+        }
+    }
+    return pos;
+}
+
+/// pos の " から始まる JSON の文字列の終わり（閉じる " の次の位置。\" などのエスケープも読む）
+std::size_t stringEnd(const std::string& text, std::size_t pos) {
+    for (++pos; pos < text.size(); ++pos) {
+        if (text[pos] == '\\') ++pos;
+        else if (text[pos] == '"') return pos + 1;
+    }
+    return text.size();
+}
+
+/// コメント付き JSON の text の中で、一番外側のオブジェクトの key の値（文字列）の位置を探す。
+/// 文字列・行コメント・ブロックコメントを区別しながら読むので、それらの中にある同じ文字は無視する
+/// @return 値の文字列の範囲（両端の " を含む）。見つからなければ nullopt
+std::optional<TextRange> findTopLevelStringValue(const std::string& text, std::string_view key) {
+    int depth = 0;  // { と [ の深さ（一番外側のオブジェクトの中が 1）
+    std::size_t pos = 0;
+    while ((pos = skipSpaceAndComments(text, pos)) < text.size()) {
+        const char c = text[pos];
+        if (c != '"') {
+            if (c == '{' || c == '[') ++depth;
+            if (c == '}' || c == ']') --depth;
+            ++pos;
+            continue;
+        }
+        const std::size_t end = stringEnd(text, pos);
+        const std::string_view token = std::string_view(text).substr(pos + 1, end - pos - 2);  // 両端の " を除く
+        if (depth == 1 && token == key) {
+            // key の後に : と文字列が続けば、それが値
+            std::size_t next = skipSpaceAndComments(text, end);
+            if (next < text.size() && text[next] == ':') {
+                next = skipSpaceAndComments(text, next + 1);
+                if (next < text.size() && text[next] == '"') return TextRange{next, stringEnd(text, next)};
+            }
+        }
+        pos = end;
+    }
+    return std::nullopt;
+}
 
 /// j[key] の [x, y] を座標として読む。書かれていない・2 つの数でなければ nullopt
 std::optional<Vector2> pointFromJson(const json& j, std::string_view key) {
@@ -136,28 +199,16 @@ std::string saveSelectedSandboxPreset(const std::filesystem::path& file, std::st
         text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
     }
 
-    // コメントの行（// で始まる行）を除いて、最初の "preset": "..." の値を書き換える
-    static const std::regex kPresetValue(R"re(("preset"\s*:\s*)"(?:[^"\\]|\\.)*")re");
+    // 一番外側の "preset": "..." の値だけを書き換える（コメント・文字列・内側のオブジェクトの中は対象外）
+    const std::optional<TextRange> value = findTopLevelStringValue(text, "preset");
+    if (!value) return std::format("{} に \"preset\" の項目がないため、保存できません", toUtf8(file.filename()));
     const std::string quoted = json(std::string(presetName)).dump();  // " や \ を含む名前もエスケープする
-    std::size_t lineStart = 0;
-    while (lineStart < text.size()) {
-        std::size_t lineEnd = text.find('\n', lineStart);
-        if (lineEnd == std::string::npos) lineEnd = text.size();
-        const std::string line = text.substr(lineStart, lineEnd - lineStart);
-        const std::size_t firstChar = line.find_first_not_of(" \t");
-        const bool comment = firstChar != std::string::npos && line.compare(firstChar, 2, "//") == 0;
-        std::smatch match;
-        if (!comment && std::regex_search(line, match, kPresetValue)) {
-            const std::size_t begin = lineStart + static_cast<std::size_t>(match.position(0));
-            text.replace(begin, static_cast<std::size_t>(match.length(0)), match[1].str() + quoted);
-            std::ofstream out(file, std::ios::binary | std::ios::trunc);
-            if (!out) return std::format("{} に書き込めません", toUtf8(file));
-            out << text;
-            return out ? std::string{} : std::format("{} に書き込めません", toUtf8(file));
-        }
-        lineStart = lineEnd + 1;
-    }
-    return std::format("{} に \"preset\" の行がないため、保存できません", toUtf8(file.filename()));
+    text.replace(value->begin, value->end - value->begin, quoted);
+
+    std::ofstream out(file, std::ios::binary | std::ios::trunc);
+    if (!out) return std::format("{} に書き込めません", toUtf8(file));
+    out << text;
+    return out ? std::string{} : std::format("{} に書き込めません", toUtf8(file));
 }
 
 }  // namespace moba

@@ -1,5 +1,5 @@
 #pragma once
-// ステージの準備: 練習場（障害物のないステージに、自キャラと操作確認用のダミーを置く）
+// 自キャラの作り方と、練習場の準備（選んだステージに、自キャラと操作確認用のダミーを置く）
 
 #include "game/Unit.h"
 #include "raylib.h"
@@ -11,7 +11,7 @@ class DummyController;
 struct CharacterDef;
 struct SandboxPreset;
 
-// ステージの広さ（ゲーム内単位）
+// ステージのファイルが 1 つも無い時（と自動テスト）に使う、障害物のないステージの広さ（ゲーム内単位）
 inline constexpr Rectangle kSandboxBounds{-2500.0f, -1600.0f, 5000.0f, 3200.0f};
 
 /// 自キャラを作る（キャラの設定から大きさ・移動速度・色を写し、ステージの中央 (0, 0) に置く。World にはまだ加えない）

@@ -71,7 +71,7 @@ enum class AreaVisual {
     ThrownHat,  // 帽子が飛んでいく
     Caltrops,   // 鉄菱が飛んでいき、着地後は範囲に残る
 };
-/// 設定ファイルの "visual"（"explosion" / "telegraph" / "thrownHat" / "caltrops"）を範囲の見た目にする。
+/// 設定ファイルの "visual"（"explosion" / "telegraph" / "hat" / "caltrops"）を範囲の見た目にする。
 /// 知らない表記なら Explosion
 AreaVisual areaVisualFromString(std::string_view text);
 

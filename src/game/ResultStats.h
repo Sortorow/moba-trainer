@@ -56,7 +56,9 @@ StatsSummary summarize(const std::vector<const SavedResult*>& results, int today
 /// values の移動平均（それまでの最大 window 回の平均。最初の方は、ある分だけで平均する）
 std::vector<float> movingAverage(const std::vector<float>& values, std::size_t window);
 
-/// 自己ベストを更新したプレイの番号（results の中の位置）。総数が kMinTotalForBest 未満のプレイは数えない
+/// 自己ベストを更新したプレイの番号（results の中の位置）。総数が kMinTotalForBest 未満のプレイは数えない。
+/// 自己ベスト（summarize の best・topResults の 1 位）と同じ rankedHigher の順で比べるので、
+/// 割合が同じでも総数が多ければ更新になり、最後の更新が必ず今の自己ベストになる
 /// @param results 古い順
 std::vector<std::size_t> personalBestUpdates(const std::vector<const SavedResult*>& results);
 

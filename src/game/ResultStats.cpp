@@ -81,12 +81,12 @@ std::vector<float> movingAverage(const std::vector<float>& values, std::size_t w
 
 std::vector<std::size_t> personalBestUpdates(const std::vector<const SavedResult*>& results) {
     std::vector<std::size_t> updates;
-    float best = -1.0f;
+    const SavedResult* best = nullptr;
     for (std::size_t i = 0; i < results.size(); ++i) {
         if (!countsForBest(*results[i])) continue;
-        const float rate = scoreOf(results[i]->result).rate();
-        if (rate > best) {
-            best = rate;
+        // 自己ベストと同じ決まり（rankedHigher）で、それまでの自己ベストより上なら更新
+        if (!best || rankedHigher(*results[i], *best)) {
+            best = results[i];
             updates.push_back(i);
         }
     }

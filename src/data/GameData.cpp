@@ -4,6 +4,7 @@
 #include <format>
 
 #include "core/Log.h"
+#include "data/DataWarnings.h"
 
 namespace moba {
 
@@ -11,6 +12,7 @@ GameData::GameData(AppPaths paths) : paths_(std::move(paths)) {}
 
 void GameData::loadAll() {
     errors_.clear();
+    clearDataWarnings();  // スキルを使った時の誤りも、読み直したら一度消す（直っていなければ、次に使った時にまた出る）
 
     // --- 設定 ---
     SettingsLoadResult settings = loadSettings(paths_.settingsFile);
@@ -176,6 +178,13 @@ bool GameData::selectSandboxPreset(std::string_view name) {
 }
 
 void GameData::addError(std::string message) { errors_.push_back(std::move(message)); }
+
+std::vector<std::string> GameData::errors() const {
+    std::vector<std::string> all = errors_;
+    const std::vector<std::string>& warnings = dataWarnings();
+    all.insert(all.end(), warnings.begin(), warnings.end());
+    return all;
+}
 
 std::map<std::filesystem::path, std::filesystem::file_time_type> GameData::scanFileTimes() const {
     std::map<std::filesystem::path, std::filesystem::file_time_type> times;

@@ -16,7 +16,10 @@ public:
     void clear();
     /// 自キャラの位置を記録する（自キャラが見えている間、毎刻み呼ぶ。2 秒より古い記録は捨てる）
     void record(float time, Vector2 pos);
-    /// ある時刻の位置（記録の間は補間する。記録より前・後なら最初・最後の位置）
+    /// 位置の記録が 1 つでもあるか（自キャラが一度も見えていなければ false）
+    bool hasSamples() const { return !samples_.empty(); }
+    /// ある時刻の位置（記録の間は補間する。記録より前・後なら最初・最後の位置）。
+    /// 記録が無ければ (0, 0) なので、先に hasSamples() で確かめる
     Vector2 positionAt(float time) const;
     /// ある時刻の速度（0.1 秒前の位置との差から）
     Vector2 velocityAt(float time) const;

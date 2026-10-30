@@ -29,8 +29,7 @@ struct AiLevel {
     float engageRangeRatio = 0.85f;  // 自キャラとの距離を「スキルの射程 × この値」に保とうとする
 };
 
-/// スキルショットの的の、賢さ 1 段階分の設定
-// 的の反応の遅れの下限（秒）。人が見てから反応できる速さの限界と言われる 0.15 秒より速くは反応させない
+/// 的の反応の遅れの下限（秒）。人が見てから反応できる速さの限界と言われる 0.15 秒より速くは反応させない
 inline constexpr float kMinTargetReactionTime = 0.15f;
 
 /// スキルショットの的の、賢さ 1 段階分の設定。避け方（反応・確率）と、動き方のパターンの混ぜ方の 2 つの軸がある
@@ -82,6 +81,7 @@ struct SkillShotConfig {
 struct AiConfig {
     float enemyCooldownScale = 0.5f;   // 敵のスキルのクールダウン倍率
     float firstCastDelay = 1.5f;       // 開始から最初にスキルを撃つまでの時間
+    float punishMinInterval = 1.0f;    // punishCC で動けない自キャラへ撃つ時も、最低限空ける間隔（秒）
     float maxEngageRange = 1000.0f;    // 自キャラと取る距離の上限
     float playerReactionTime = 0.25f;  // AI が想定する、プレイヤーが弾を見て避け始めるまでの時間
     std::vector<AiLevel> levels;       // 賢さ 1〜5

@@ -59,8 +59,9 @@ public:
     /// ステージの一覧。menuOrder の順（同じなら id の順）。最初のステージがメニューの初期値になる
     std::vector<const StageDef*> stageList() const;
 
-    /// 直近の読み込みで起きたエラー（メニューとデバッグパネルに赤字で表示する）
-    const std::vector<std::string>& errors() const { return errors_; }
+    /// 設定ファイルのエラー（メニューとデバッグパネルに赤字で表示する）。直近の読み込みで起きたエラーと、
+    /// その後にスキルを使った時に見つかった誤り（params の書き忘れなど。DataWarnings.h）を、この順に並べる
+    std::vector<std::string> errors() const;
     /// エラーを足す（読み込んだ後の確認で見つかった誤り。handler が実在しない など）
     void addError(std::string message);
 

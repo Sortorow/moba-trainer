@@ -10,6 +10,7 @@
 #include "data/CharacterDef.h"
 #include "game/Match.h"
 #include "imgui.h"
+#include "ui/HudLayout.h"
 #include "ui/UiScale.h"
 
 // 画面に出すピクセル単位の大きさ（文字の大きさ・枠・余白など）は、すべて ui::px() で倍率を掛ける。
@@ -136,13 +137,13 @@ void drawSkillBar(ImDrawList* dl, const World& world) {
     const float cooldownScale = world.cooldownScaleFor(*player);
     const bool movementOnly = world.rules().movementSkillsOnly;
 
-    const float box = px(58.0f);
+    const float box = px(ui::kSkillBarBoxSize);
     const float gap = px(10.0f);
     const float rounding = px(6.0f);
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     const float totalWidth = box * kSkillSlotCount + gap * (kSkillSlotCount - 1);
     const float left = (display.x - totalWidth) * 0.5f;
-    const float top = display.y - box - px(44.0f);
+    const float top = display.y - box - px(ui::kSkillBarBottomMargin);
     const float nameY = top + box + px(14.0f);
 
     for (SkillSlot slot : kAllSkillSlots) {

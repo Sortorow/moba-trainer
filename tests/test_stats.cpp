@@ -110,15 +110,35 @@ TEST_CASE("自己ベストの更新と TOP 3: 総数の少ないプレイは数�
         makeResult(GameMode::SkillShot, 20261002, 4, 10),   // 40%
         makeResult(GameMode::SkillShot, 20261003, 3, 3),    // 100% だが総数が少ない
         makeResult(GameMode::SkillShot, 20261004, 7, 10),   // 70%（更新）
-        makeResult(GameMode::SkillShot, 20261005, 14, 20),  // 70%（同じ割合なので更新ではない）
+        makeResult(GameMode::SkillShot, 20261005, 14, 20),  // 70%（同じ割合だが総数が多いので更新）
         makeResult(GameMode::SkillShot, 20261006, 9, 10),   // 90%（更新）
     };
-    CHECK(personalBestUpdates(pointers(all)) == std::vector<std::size_t>{0, 3, 5});
+    CHECK(personalBestUpdates(pointers(all)) == std::vector<std::size_t>{0, 3, 4, 5});
     const std::vector<const SavedResult*> top = topResults(pointers(all), 3);
     REQUIRE(top.size() == 3);
     CHECK(top[0]->date == 20261006);
     CHECK(top[1]->date == 20261005);  // 同じ 70% なら総数が多い方が上
     CHECK(top[2]->date == 20261004);
+}
+
+TEST_CASE("自己ベスト: 数字の欄・TOP 3 の 1 位・グラフの最後の「更新」は、必ず同じプレイを指す") {
+    // 割合が同じプレイが並ぶ時に、どれを自己ベストとするかが食い違わないことを確かめる
+    const std::vector<SavedResult> all{
+        makeResult(GameMode::SkillDodge, 20261001, 8, 10),   // 80%（最初の自己ベスト）
+        makeResult(GameMode::SkillDodge, 20261002, 16, 20),  // 80%・総数が多い（更新）
+        makeResult(GameMode::SkillDodge, 20261003, 8, 10),   // 80%・総数が少ない（更新ではない）
+        makeResult(GameMode::SkillDodge, 20261004, 5, 10),   // 50%
+    };
+    const std::vector<const SavedResult*> results = pointers(all);
+    const std::vector<std::size_t> updates = personalBestUpdates(results);
+    CHECK(updates == std::vector<std::size_t>{0, 1});
+
+    const StatsSummary s = summarize(results, 20261025);
+    const std::vector<const SavedResult*> top = topResults(results, 3);
+    REQUIRE(s.best != nullptr);
+    REQUIRE_FALSE(top.empty());
+    CHECK(s.best == results[updates.back()]);
+    CHECK(top.front() == results[updates.back()]);
 }
 
 TEST_CASE("日ごと・賢さごと・キーごとの集計") {

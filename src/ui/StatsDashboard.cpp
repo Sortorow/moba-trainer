@@ -10,6 +10,7 @@
 #include "data/GameData.h"
 #include "imgui.h"
 #include "implot.h"
+#include "ui/RecordFormat.h"
 #include "ui/UiScale.h"
 
 namespace moba {
@@ -33,21 +34,10 @@ constexpr ImPlotAxisFlags kAxisFlags = ImPlotAxisFlags_Lock | ImPlotAxisFlags_No
 /// 成績の名前（「ドッジ率」/「ヒット率」）
 const char* scoreName(GameMode mode) { return mode == GameMode::SkillDodge ? "ドッジ率" : "ヒット率"; }
 
-/// 割合の表示（総数が 0 なら「-」）
-std::string percent(const ResultScore& score) {
-    return score.total > 0 ? std::format("{:.1f}%", score.rate() * 100.0f) : std::string("-");
-}
-
-/// 難易度の表示（スキルドッジ:「敵 3 体・ふつう」、スキルショット:「ふつう・標準・340」）
-std::string difficultyLabel(const MatchResult& r) {
-    const MatchConfig& c = r.config;
-    if (c.mode == GameMode::SkillDodge) return std::format("敵 {} 体・{}", c.enemyCount, r.aiLevelName);
-    const std::string size = r.targetSizeName.empty() ? std::format("{:.0f}", c.targetRadius) : r.targetSizeName;
-    return std::format("{}・{}・{:.0f}", r.aiLevelName, size, c.targetMoveSpeed);
-}
-
-/// 「2026-10-25 22:40:12」→「10-25 22:40」
-std::string shortTime(const std::string& playedAt) { return playedAt.size() >= 16 ? playedAt.substr(5, 11) : playedAt; }
+// 記録の表・リザルト画面と共通の表示（ui/RecordFormat.h）
+using ui::difficultyLabel;
+using ui::percentText;
+using ui::shortTime;
 
 /// YYYYMMDD →「10/25」
 std::string shortDate(int date) { return std::format("{}/{}", date / 100 % 100, date % 100); }
@@ -146,12 +136,12 @@ void drawTiles(const StatsSummary& s, GameMode mode) {
     const int minutes = static_cast<int>(std::lround(s.playedSeconds / 60.0f));
     drawTile("plays", "プレイ回数", std::format("{} 回", s.plays), std::format("合計 {} 分", minutes), width);
     ImGui::SameLine();
-    drawTile("average", std::format("平均の{}", scoreName(mode)).c_str(), percent(s.total),
+    drawTile("average", std::format("平均の{}", scoreName(mode)).c_str(), percentText(s.total),
              std::format("{} / {}", s.total.count, s.total.total), width);
     ImGui::SameLine();
     if (s.best) {
         const ResultScore best = scoreOf(s.best->result);
-        drawTile("best", "自己ベスト", percent(best),
+        drawTile("best", "自己ベスト", percentText(best),
                  std::format("{} / {}・{}", best.count, best.total, shortTime(s.best->playedAt)), width);
     } else {
         drawTile("best", "自己ベスト", "-", std::format("総数 {} 以上のプレイがまだありません", kMinTotalForBest),
@@ -164,10 +154,10 @@ void drawTiles(const StatsSummary& s, GameMode mode) {
         const bool up = diff >= 0.0f;
         const std::string note =
             std::format("{} 前の 7 日より {}{:.1f} ポイント", up ? "▲" : "▼", up ? "+" : "-", std::fabs(diff));
-        drawTile("recent", std::format("直近 7 日の{}", scoreName(mode)).c_str(), percent(s.recent), note, width,
+        drawTile("recent", std::format("直近 7 日の{}", scoreName(mode)).c_str(), percentText(s.recent), note, width,
                  up ? &kGood : &kCritical);
     } else {
-        drawTile("recent", std::format("直近 7 日の{}", scoreName(mode)).c_str(), percent(s.recent),
+        drawTile("recent", std::format("直近 7 日の{}", scoreName(mode)).c_str(), percentText(s.recent),
                  s.recentPlays > 0 ? "前の 7 日の記録がありません" : "直近 7 日の記録がありません", width);
     }
 }
@@ -177,7 +167,7 @@ void resultTooltip(const SavedResult& saved, const char* heading) {
     const ResultScore score = scoreOf(saved.result);
     ImGui::BeginTooltip();
     ImGui::TextUnformatted(heading);
-    ImGui::Text("%s  %s（%d / %d）", saved.playedAt.c_str(), percent(score).c_str(), score.count, score.total);
+    ImGui::Text("%s  %s（%d / %d）", saved.playedAt.c_str(), percentText(score).c_str(), score.count, score.total);
     ImGui::TextColored(kInkSecondary, "%s ／ %s ／ %s", saved.result.characterName.c_str(),
                        saved.result.stageName.c_str(), difficultyLabel(saved.result).c_str());
     ImGui::EndTooltip();
@@ -320,8 +310,6 @@ void drawBarPlot(const char* title, const std::vector<std::string>& labels, cons
 
 /// 自己ベスト TOP 3（ハイライト）。1〜3 位は金・銀・銅の色の順位で示す
 void drawTopResults(const std::vector<const SavedResult*>& top, GameMode mode, ImVec2 size) {
-    static const ImVec4 kRankColors[] = {
-        {1.0f, 0.82f, 0.25f, 1.0f}, {0.80f, 0.84f, 0.90f, 1.0f}, {0.85f, 0.58f, 0.35f, 1.0f}};
     ImGui::BeginChild("top", size, ImGuiChildFlags_Borders);
     ImGui::Text("自己ベスト TOP 3（%s）", scoreName(mode));
     ImGui::TextColored(kInkMuted, "総数 %d 以上のプレイから選びます", kMinTotalForBest);
@@ -330,10 +318,11 @@ void drawTopResults(const std::vector<const SavedResult*>& top, GameMode mode, I
     for (std::size_t i = 0; i < top.size(); ++i) {
         const SavedResult& saved = *top[i];
         const ResultScore score = scoreOf(saved.result);
-        ImGui::TextColored(kRankColors[i], "%zu 位", i + 1);
+        const ImVec4 color = ui::rankColor(static_cast<int>(i) + 1);
+        ImGui::TextColored(color, "%zu 位", i + 1);
         ImGui::SameLine();
         ImGui::PushFont(nullptr, 26.0f);
-        ImGui::TextColored(kRankColors[i], "%s", percent(score).c_str());
+        ImGui::TextColored(color, "%s", percentText(score).c_str());
         ImGui::PopFont();
         ImGui::SameLine();
         ImGui::Text("%d / %d", score.count, score.total);
@@ -369,7 +358,7 @@ void drawResultTable(const std::vector<const SavedResult*>& results, GameMode mo
         ImGui::TableNextColumn();
         ImGui::TextUnformatted(saved.playedAt.c_str());
         ImGui::TableNextColumn();
-        ImGui::TextUnformatted(percent(score).c_str());
+        ImGui::TextUnformatted(percentText(score).c_str());
         ImGui::TableNextColumn();
         ImGui::Text("%d / %d", score.count, score.total);
         ImGui::TableNextColumn();
@@ -435,7 +424,7 @@ void StatsDashboard::drawMode(StatsFilter& filter, const ResultStore& store, con
     drawBarPlot("日ごとのプレイ回数", dayLabels, dayPlays, std::ceil(maxPlays * 1.15), "%.0f",
                 ImVec2{ImGui::GetContentRegionAvail().x, chartHeight}, [&](std::size_t i) {
                     return std::format("{}  {} 回\n{}: {}（{} / {}）", shortDate(days[i].date), days[i].plays,
-                                       scoreName(filter.mode), percent(days[i].score), days[i].score.count,
+                                       scoreName(filter.mode), percentText(days[i].score), days[i].score.count,
                                        days[i].score.total);
                 });
 
@@ -455,7 +444,7 @@ void StatsDashboard::drawMode(StatsFilter& filter, const ResultStore& store, con
     drawBarPlot(levelTitle.c_str(), levelLabels, levelRates, 100.0, "%.0f%%", ImVec2{columnWidth, chartHeight},
                 [&](std::size_t i) {
                     return std::format("賢さ {}（{}）  {} 回\n{}: {}（{} / {}）", levels[i].level, levels[i].name,
-                                       levels[i].plays, scoreName(filter.mode), percent(levels[i].score),
+                                       levels[i].plays, scoreName(filter.mode), percentText(levels[i].score),
                                        levels[i].score.count, levels[i].score.total);
                 });
 
