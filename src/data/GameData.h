@@ -23,7 +23,12 @@ public:
     /// ファイルの場所だけを覚える（読み込みは loadAll() で行う）
     explicit GameData(AppPaths paths);
 
-    /// すべてのファイルを読み込み直す。読み込みに失敗したファイルは、前回の内容をそのまま使う
+    /// キャラのファイルを読むたびに、各スキルの params を確かめる関数を決める（App が skills::checkSkillParams を渡す）。
+    /// エラーがあったキャラのファイルは、読めなかったファイルと同じく使わない。決めなければ確かめない（自動テストの多く）
+    void setSkillValidator(SkillValidator validator) { skillValidator_ = std::move(validator); }
+
+    /// すべてのファイルを読み込み直す。読み込みに失敗したファイル（params の確認で通らなかったキャラも含む）は、
+    /// 前回の内容をそのまま使う
     void loadAll();
 
     /// 前回の読み込みからファイルが更新されていれば loadAll() する（1 秒ごとに App から呼ばれる）
@@ -62,8 +67,6 @@ public:
     /// 設定ファイルのエラー（メニューとデバッグパネルに赤字で表示する）。直近の読み込みで起きたエラーと、
     /// その後にスキルを使った時に見つかった誤り（params の書き忘れなど。DataWarnings.h）を、この順に並べる
     std::vector<std::string> errors() const;
-    /// エラーを足す（読み込んだ後の確認で見つかった誤り。handler が実在しない など）
-    void addError(std::string message);
 
     /// 読み込みのたびに増える番号
     int generation() const { return generation_; }
@@ -73,6 +76,9 @@ private:
     std::map<std::filesystem::path, std::filesystem::file_time_type> scanFileTimes() const;
     /// フォルダの中の .jsonc ファイル（名前順）。フォルダが無ければ空
     static std::vector<std::filesystem::path> jsoncFilesIn(const std::filesystem::path& dir);
+    /// 読み込んだキャラの各スキルの params を確かめる。警告はエラーの一覧に足す
+    /// @return 通らなかった理由（空なら通った）
+    std::vector<std::string> checkCharacter(const CharacterDef& def);
 
     AppPaths paths_;
     Settings settings_;
@@ -84,6 +90,7 @@ private:
     std::map<std::filesystem::path, std::filesystem::file_time_type> fileTimes_;
     std::vector<std::string> errors_;
     int generation_ = 0;
+    SkillValidator skillValidator_;  // スキルの params を確かめる関数（空なら確かめない）
 };
 
 }  // namespace moba

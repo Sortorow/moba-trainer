@@ -98,6 +98,7 @@ add_library(moba_lib STATIC
   src/game/ai/SkillShotTarget.cpp
   src/game/skills/SkillRegistry.cpp
   src/game/skills/SkillHelpers.cpp
+  src/game/skills/SkillParams.cpp
   src/game/skills/CommonSkills.cpp
   src/game/skills/EzrealSkills.cpp
   src/game/skills/EmmaSkills.cpp
@@ -124,7 +125,7 @@ target_link_libraries(moba_lib PUBLIC raylib thirdparty_ui nlohmann_json::nlohma
 target_compile_definitions(moba_lib PUBLIC MOBA_VERSION="${PROJECT_VERSION}")
 if(MSVC)
   target_compile_options(moba_lib PUBLIC /utf-8 /W4 /permissive-)
-  target_link_libraries(moba_lib PUBLIC imm32)
+  target_link_libraries(moba_lib PUBLIC imm32 shell32)
 endif()
 
 add_executable(moba_trainer src/main.cpp)
@@ -143,6 +144,7 @@ add_executable(moba_tests
   tests/test_main.cpp
   tests/test_geometry.cpp
   tests/test_log_retention.cpp
+  tests/test_command_line.cpp
   tests/test_character_data.cpp
   tests/test_world.cpp
   tests/test_dodge.cpp
@@ -150,6 +152,7 @@ add_executable(moba_tests
   tests/test_results.cpp
   tests/test_stats.cpp
   tests/test_ui_scale.cpp
+  tests/test_ui_text.cpp
   tests/test_camera.cpp
   tests/test_sandbox.cpp
   tests/test_stage.cpp)

@@ -2,12 +2,19 @@
 // Windows 固有の処理（windows.h は raylib と名前がぶつかるため、このファイルの .cpp だけで使う）
 
 #include <filesystem>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace moba::platform {
 
 /// 実行中の exe があるフォルダ
 std::filesystem::path executableDirectory();
+
+/// コマンドライン引数（exe の名前を除く）を UTF-8 の文字列で返す。取得できなければ空（ERROR のログを出す）。
+/// main の argv は日本語の Windows では Shift_JIS に変換された文字列で、Shift_JIS で書けない文字（「𠮷」や韓国語など）は
+/// 「?」に置き換わってしまうため、Windows から UTF-16 のまま受け取って UTF-8 にする
+std::vector<std::string> commandLineArgs();
 
 /// クラッシュ時（未処理の例外・std::terminate）に、原因をログへ記録する仕組みを入れる。起動時に 1 回呼ぶ
 void installCrashHandler();

@@ -111,6 +111,9 @@
 　　・Windowsの拡大率（例：150%）に合わせて、文字・ボタン・ウィンドウを大きく描く。data/settings.jsonc の uiScale で、さらに大きく・小さくできる。詳しくは docs/dpi-scaling.md（確認済み）
 　設定・調整：
 　　・数値はファイルで調整できるようにする。キャラとスキルは data/characters/*.jsonc、敵AIは data/ai.jsonc、全体の設定は data/settings.jsonc。ゲームの起動中に保存すると、自動で再読み込みされる（確認済み）
+　　・キャラのファイルを読み込む時に、各スキルの params を handler ごとのルール（必ず書く項目・値の範囲・型）で確かめ、通った場合にのみ各スキルに渡す。通らなかった時は、そのキャラのファイル全体を使わない（前回読めた内容を使い続け、メニューに赤字で、どのスキルのどの項目がなぜ駄目かを出す。初めての読み込みで通らなかった場合は、そのキャラは選べない）。ルールに無い項目名は警告だけにする（その項目は使わず、既定値で動く）（2026/10/31、確認済み）
+　　・数の params は 0 より大きい値を基本とし、0 を許すのは 0 に意味がある項目だけにする（cooldownRefundOnHit、delay・flightTime・hatFlightTime、slowAmount・lingerTime、bounces、recentWindow、効果の amount）。doveCardDrawOffsetForward・doveCardDrawOffsetSide（見た目のずれ）は 0 も負の値も許す。詳しくは docs/data-files.md の「params の値の決まり」（2026/10/31、確認済み）
+　　・設定ファイルの名前（賢さの名前など）に % を書いても、そのまま表示する（表示する側で % を %% にしてから ImGui の書式に入れる）（2026/10/31、確認済み）
 
 その他、注意点や要望：
 　・ゲームのソースコードについて

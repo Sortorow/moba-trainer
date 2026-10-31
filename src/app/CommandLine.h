@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace moba {
 
@@ -42,7 +43,8 @@ struct CommandLineOptions {
 };
 
 /// コマンドライン引数を読む（使える引数は、このファイルの先頭の一覧）。
-/// 解釈できない引数があれば nullopt を返し、error に理由を入れる
-std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::string& error);
+/// 解釈できない引数があれば nullopt を返し、error に理由（UTF-8）を入れる
+/// @param args exe の名前を除いた引数。UTF-8 の文字列（platform::commandLineArgs() の戻り値）
+std::optional<CommandLineOptions> parseCommandLine(const std::vector<std::string>& args, std::string& error);
 
 }  // namespace moba

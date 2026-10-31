@@ -40,7 +40,8 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | [test_main.cpp](../../tests/test_main.cpp) | — | doctest の `main`（`DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN`） |
 | [test_geometry.cpp](../../tests/test_geometry.cpp) | `core/Geometry.h` | 点と線分の距離・動く円の当たり判定・射程の制限 |
 | [test_log_retention.cpp](../../tests/test_log_retention.cpp) | `core/LogRetention` | ファイル名から日付を読む・11 日目で最も古い日を消す・「ログがある日」で数える |
-| [test_character_data.cpp](../../tests/test_character_data.cpp) | `data/` | data フォルダがすべて読める・キャラの並び順・すべての handler が実在する・設定値が読めている |
+| [test_command_line.cpp](../../tests/test_command_line.cpp) | `app/CommandLine`・`pathFromUtf8` | 引数の読み込みとエラー・日本語や Shift_JIS で書けない文字を含むパスがそのままのパスになる・エラーの文が文字化けしない・`pathFromUtf8` と `toUtf8` が互いに逆で、そのパスでファイルを作れる |
+| [test_character_data.cpp](../../tests/test_character_data.cpp) | `data/` | data フォルダがすべて読める（params の確認も通る）・キャラの並び順・すべての handler が実在し params が決まりを満たす（警告も無い）・決まりの細かい判定（0 を許す項目・型違い・選択肢・書き忘れ・効果・整数・負の値・知らない項目名は警告）・決まりを満たさないキャラのファイルは使わない（読み直しなら前回の内容、初めてなら選べない）・警告だけなら使えて一覧に出る・設定値が読めている |
 | [test_world.cpp](../../tests/test_world.cpp) | `World`・`casting`・各キャラのスキル | 移動・詠唱と予約・硬直・各スキルの命中・印の起爆・エマの Q / W / R の細かい仕様・クールダウンの短縮・クールダウン「なし」・発動の依頼の結果（`CastOutcome`）・貫通するエマの Q でも短縮は 1 回・スキルを使った時に見つかった設定の誤りがエラーの一覧に出る |
 | [test_dodge.cpp](../../tests/test_dodge.cpp) | スキルドッジ・`ai::Aim`・ブランドの R | 被弾と HP・回避の確定・ダウン・予告の間に避ける・移動系だけのルール・偏差撃ち・射程外・ブランド R の跳ね返り・賢さとドッジ率・制限時間まで遊ぶ・詠唱時間もクールダウンも 0 のスキルでも撃つ間隔を守る・動けない自キャラにも `punishMinInterval` を空ける・一度も見えていない自キャラは今の位置を基準にする |
 | [test_shot.cpp](../../tests/test_shot.cpp) | スキルショット・`ai::SkillShotTarget` | 的の置き方・反応の下限・往復と接近のパターン・弾や範囲の回避・詠唱を見て避ける・飛んでいる途中の発動を数えない・賢さとヒット率 |
@@ -50,6 +51,7 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | [test_stats.cpp](../../tests/test_stats.cpp) | `ResultStats` | 絞り込み・平均と自己ベスト・直近 7 日の比較・移動平均・自己ベストの更新と TOP 3・自己ベストの数字 / TOP 3 / グラフの更新の印が同じプレイを指す・日ごと / 賢さごと / キーごと |
 | [test_camera.cpp](../../tests/test_camera.cpp) | `render/CameraControl` | 固定・固定しない・画面の端・ステージの外まで動かない・Space・UI の上 |
 | [test_ui_scale.cpp](../../tests/test_ui_scale.cpp) | `ui::fitWindowSize` | 拡大率を掛けて画面の 85% に収める |
+| [test_ui_text.cpp](../../tests/test_ui_text.cpp) | `ui::escapeFormat` | `%` が `%%` になり、書式に入れても元の文字のまま出る |
 
 `TEST_CASE` の名前は「何を・どうすると・どうなる」の文になっています。名前を上から読むと、仕様の一覧になります。
 
@@ -78,6 +80,7 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | `NoCastTimeData` | test_dodge.cpp | `TempDataCopy` で data を写し、すべてのスキルの `castTime` と ai.jsonc の `enemyCooldownScale` を 0 に書き換える（今の設定ファイルには無い「詠唱もクールダウンも無いスキル」を作るため） |
 | `readText`・`dummyUnits` | test_sandbox.cpp | ファイルの中身をそのまま読む・練習場のダミーの一覧 |
 | `TempDir`・`dodgeResult`・`shotResult`・`at` | test_results.cpp | 一時フォルダと、テスト用の結果・日時 |
+| `containsText`・`realSkill` | test_character_data.cpp | 文の一覧に、ある文字列を含む文があるか・本物の設定ファイルのスキル定義の写し（params を書き換えて決まりの判定を試す） |
 | `makeResult`・`pointers` | test_stats.cpp | テスト用の保存した結果 |
 | `inputAt` | test_camera.cpp | カーソルの位置だけを決めた `CameraControlInput` |
 | `makeFiles`・`contains` | test_log_retention.cpp | テスト用のログファイルの一覧 |

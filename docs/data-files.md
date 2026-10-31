@@ -71,7 +71,8 @@ data/
 
 - **ゲームの起動中にファイルを保存すると、1 秒以内に自動で再読み込みされます**（`F5` でもすぐに再読み込みできます）。担当は `GameData::reloadIfChanged()`（`src/data/GameData.cpp`）で、1 秒ごとに `src/app/App.cpp` から呼ばれます。
 - 書き方の誤りなどで読み込めなかったファイルは、**前回読み込めた内容を使い続けます**。エラーの内容は、メニュー画面とデバッグパネル（`F1`）に赤字で表示され、ログにも記録されます。
-- 必須の項目（下の表で「必須」と書いたもの）が無い時は、既定値を使ってログに警告を 1 回出します。
+- キャラのファイルは、読み込む時に、各スキルの `params` が [8 章の決まり](#params-の値の決まり)を満たすかを確かめます（必ず書く項目があるか・値の範囲・型）。1 つでも満たさなければ、**そのキャラのファイル全体を使いません**（前回読み込めた内容があればそれを使い、初めての読み込みなら、そのキャラはメニューで選べません）。理由は、ほかのエラーと同じく赤字で表示されます。
+- `params` に 8 章の表に無い項目名を書いた時は、エラーにはせず「警告:」で始まる文を赤字の一覧に出すだけです（その項目は使われません。書き間違いに気付けるように出しています）。
 
 ---
 
@@ -303,7 +304,7 @@ data/
 | 項目 | 既定値 | 意味 | 使うコード |
 |---|---|---|---|
 | `name` | キー名 | 表示名（スキルバー・ログ） | `src/render/Hud.cpp`（スキルバー・詠唱バー）<br>`src/game/SkillCasting.cpp`（ログ）<br>`src/game/skills/`：`BrandSkills.cpp`、`CommonSkills.cpp`、`EmmaSkills.cpp`、`EzrealSkills.cpp`、`SkillHelpers.cpp`（弾・範囲の名前、ログ）<br>`src/game/ai/EnemyAI.cpp`（ログ） |
-| `handler` | （必須） | スキルの処理の種類（[8 章](#8-handler-ごとの-params-一覧)）。存在しない名前はエラー | `src/game/skills/SkillRegistry.cpp`（名前から処理を探す）<br>`src/game/SkillCasting.cpp`（処理の呼び出し）<br>`src/app/App.cpp`（読み込み時に、存在する名前かを確認） |
+| `handler` | （必須） | スキルの処理の種類（[8 章](#8-handler-ごとの-params-一覧)）。存在しない名前はエラー（そのキャラのファイルを使わない） | `src/game/skills/SkillRegistry.cpp`（名前から処理を探す）<br>`src/game/SkillCasting.cpp`（処理の呼び出し）<br>`src/game/skills/SkillParams.cpp`（読み込み時に、存在する名前か・`params` が決まりを満たすかを確認。`src/data/GameData.cpp` から呼ばれる） |
 | `targeting` | `"direction"` | 対象の取り方（下の表） | `src/game/SkillCasting.cpp`（対象の選択・射程の確認）<br>`src/game/ai/Aim.cpp`（直線か円かの判断） |
 | `castTime` | `0` | 詠唱時間（秒）。キーを押してからスキルが出るまでの時間 | `src/game/SkillCasting.cpp`（→ `src/render/Hud.cpp` が詠唱バーを表示）<br>`src/game/ai/Aim.cpp`（着弾までの時間の計算） |
 | `lockMovement` | `true` | 硬直。`true` なら詠唱時間の間は移動できない。`false` なら詠唱中も移動できる（エマの W など） | `src/game/SkillCasting.cpp`（詠唱の状態に写す）→ `src/game/World.cpp`（詠唱中に移動させるか） |
@@ -330,7 +331,27 @@ data/
 
 ## 8. handler ごとの params 一覧
 
-スキルの `handler` によって、`params` に書ける項目が変わります。表の「必須」は、書かないと既定値を使ってログに警告を出す項目です。処理は `src/game/skills/` のファイルにあります。
+スキルの `handler` によって、`params` に書ける項目が変わります。表の「必須」は、書かないと**そのキャラのファイルを使わない**項目です（[2 章](#再読み込みとエラー)）。処理は `src/game/skills/` のファイルにあります。
+
+### params の値の決まり
+
+読み込む時に、次の決まりで確かめます（`src/game/skills/SkillParams.cpp` と、各 handler のファイルの `...Rules` 関数）。満たさない時はエラーです。省略できる項目は、書いた時だけ確かめます。
+
+| 値の決まり | 項目 |
+|---|---|
+| 0 より大きい数 | 弾速（`speed` / `doveSpeed` / `doveCardSpeed` / `boltSpeed`）、幅・半径（`width` / `radius` / `hatRadius` / `rabbitRadius` / `dovePathWidth` / `boltWidth`）、残る時間（`ground_zone` の `duration` / `doveLifetime` / `hatLifetime`）、距離（`bounceRange` / `boltSearchRange` / `pickRadius` / `doveCardRange`） |
+| 0 以上の数（0 は「すぐ」「無し」） | 待ち時間（`delay` / `flightTime` / `hatFlightTime`）、`lingerTime`、`recentWindow` |
+| 0 以上 1 以下の数 | `cooldownRefundOnHit`、`slowAmount` |
+| 0 以上の整数 | `bounces`（0 なら跳ね返らない） |
+| 1 以上の整数 | `maxHitsPerTarget` |
+| どんな数でもよい（負も可） | `doveCardDrawOffsetForward` / `doveCardDrawOffsetSide` |
+| `true` / `false` | `pierce`、`boltEnabled` |
+| 文字列 | `detonateMark`、`boltPreferMark`、`boltDetonateMark` |
+| 決まった値のどれか | `visual`（[見た目の値](#見た目の値)の表）、`targetKinds`（`"dove"` / `"hat"` / `"rabbit"` の配列） |
+| 色 | `color` などの色: `[R, G, B]` か `[R, G, B, A]`（各 0〜255 の整数） |
+| 効果の配列 | `onHit` などの効果: [9 章](#9-効果onhit-などの書き方)の決まり |
+
+スキル共通の項目（`castTime` / `cooldown` / `range` / `aiPriority`）は、これまでどおり、負の値を書くと 0 として読みます（エラーにはしません）。
 
 ### 汎用（どのキャラでも使える）
 
@@ -446,10 +467,10 @@ data/
 
 ### 新しい handler を作る時
 
-1. `src/game/skills/` に処理を書く
-2. `src/game/skills/Skill.h` に宣言を追加する
-3. `src/game/skills/SkillRegistry.cpp` の対応表に、名前と処理を追加する
-4. この資料の 8 章に、params の表を追加する
+1. `src/game/skills/` に処理と、params の決まりを返す `...Rules` 関数を書く
+2. `src/game/skills/Skill.h` に、2 つの宣言を追加する
+3. `src/game/skills/SkillRegistry.cpp` の対応表に、名前と処理と決まりを追加する
+4. この資料の 8 章に、params の表と[値の決まり](#params-の値の決まり)を追加する
 
 ---
 
@@ -473,6 +494,14 @@ data/
 | `"polymorph"` | 兎に変身。移動以外の行動ができない | `amount`（移動速度の低下率）、`duration` |
 | `"mark"` | 印。他のスキルで起爆する（`detonateMark`） | `tag`（印の名前）、`duration` |
 
+読み込む時に、次の決まりを確かめます（満たさなければ、そのキャラのファイルを使いません）。
+
+- `type` は上の表のどれか
+- `duration` は必ず書く。0 より大きい数
+- `amount` は 0 以上 1 以下の数（省略できる。`slow` / `polymorph` 以外では使わない）
+- `mark` は `tag`（空でない文字列）を必ず書く
+- 上の 4 つ以外の項目名は警告だけ出して、無視する
+
 ---
 
 ## 10. 参照しているソースコードの一覧
@@ -490,7 +519,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `App.cpp` / `App.h` | ウィンドウの大きさ・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。読み込み時に handler が実在するかを確認する。コマンドラインで指定したキャラとステージ（`--stage`）を使う。練習場では、ダミーのプリセットを選ぶパネル（`src/ui/SandboxPanel.cpp`）を出し、選び直されたり sandbox.jsonc が書き換えられたりしたらダミーを置き直させる。カメラが動ける範囲として、ステージの範囲を渡す | settings、sandbox、stages、characters |
+| `App.cpp` / `App.h` | ウィンドウの大きさ・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。起動時に、スキルの params を確かめる関数（`src/game/skills/SkillParams.cpp`）を `GameData` に渡す。コマンドラインで指定したキャラとステージ（`--stage`）を使う。練習場では、ダミーのプリセットを選ぶパネル（`src/ui/SandboxPanel.cpp`）を出し、選び直されたり sandbox.jsonc が書き換えられたりしたらダミーを置き直させる。カメラが動ける範囲として、ステージの範囲を渡す | settings、sandbox、stages、characters |
 | `CommandLine.cpp` / `CommandLine.h` | 使わない | — |
 
 ### src/core/
@@ -509,7 +538,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `GameData.cpp` / `GameData.h` | 5 種類のファイルをまとめて読み込み、変更を検知して再読み込みする。キャラの一覧と、敵として出られるキャラの一覧と、ステージの一覧を作る（どれも `menuOrder` の順）。練習場のダミーのプリセットを選び直して保存する | すべて |
+| `GameData.cpp` / `GameData.h` | 5 種類のファイルをまとめて読み込み、変更を検知して再読み込みする。キャラのファイルは、渡された関数でスキルの params を確かめ、誤りがあればそのファイルを使わない。キャラの一覧と、敵として出られるキャラの一覧と、ステージの一覧を作る（どれも `menuOrder` の順）。練習場のダミーのプリセットを選び直して保存する | すべて |
 | `Settings.cpp` / `Settings.h` | `settings.jsonc` を読み、値の範囲をチェックする | settings |
 | `AiConfig.cpp` / `AiConfig.h` | `ai.jsonc` を読む | ai |
 | `StageDef.cpp` / `StageDef.h` | ステージのファイルを読む（広さ・障害物・ブッシュ） | stages |
@@ -550,13 +579,14 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `SkillRegistry.cpp` | handler の名前から処理を探す | characters |
+| `SkillRegistry.cpp` | handler の名前から、処理と params の決まりを探す | characters |
+| `SkillParams.cpp` / `SkillParams.h` | 読み込む時に、スキルの `params` が handler ごとの決まり（必ず書く項目・値の範囲・型・知らない項目名）を満たすか確かめる | characters |
 | `Skill.h` | handler の宣言。スキルの設定を処理に渡す入れ物 | characters |
-| `SkillHelpers.cpp` | 弾・範囲・ワープなど、handler で共通の処理。`params` の値と、射程・クールダウン短縮・キャラの色を使う。ワープ先が建物などの中なら、近くの立てる位置にする | stages、characters |
-| `CommonSkills.cpp` | どのキャラでも使える handler の処理。`params` の値と射程を使う | characters |
-| `EzrealSkills.cpp` | like ezreal の handler の処理。`params` の値を使う | characters |
-| `EmmaSkills.cpp` | like emma の handler の処理。`params` の値と射程を使う | characters |
-| `BrandSkills.cpp` | like brand の handler の処理。`params` の値を使う | characters |
+| `SkillHelpers.cpp` | 弾・範囲・ワープなど、handler で共通の処理と、共通の params の決まり。`params` の値と、射程・クールダウン短縮・キャラの色を使う。ワープ先が建物などの中なら、近くの立てる位置にする | stages、characters |
+| `CommonSkills.cpp` | どのキャラでも使える handler の処理と params の決まり。`params` の値と射程を使う | characters |
+| `EzrealSkills.cpp` | like ezreal の handler の処理と params の決まり。`params` の値を使う | characters |
+| `EmmaSkills.cpp` | like emma の handler の処理と params の決まり。`params` の値と射程を使う | characters |
+| `BrandSkills.cpp` | like brand の handler の処理と params の決まり。`params` の値を使う | characters |
 
 ### src/input/
 
@@ -579,7 +609,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前、スキルショットの的の賢さの名前・大きさ・移動速度の選択肢、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ。練習場を選んでいる時は、ダミーのプリセットを選ぶ（`SandboxPanel.cpp` を使う）。ステージの一覧を表示して選ぶ | settings、ai、sandbox、stages、characters |
+| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前（`%` を書いても、そのまま表示する）、スキルショットの的の賢さの名前・大きさ・移動速度の選択肢、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ。練習場を選んでいる時は、ダミーのプリセットを選ぶ（`SandboxPanel.cpp` を使う）。ステージの一覧を表示して選ぶ | settings、ai、sandbox、stages、characters |
 | `SandboxPanel.cpp` / `SandboxPanel.h` | 練習場のダミーのプリセットを選ぶ UI（メニューと、練習場の画面右下のパネル）。プリセットの名前・説明・体数・半径を表示する | sandbox |
 | `DebugPanel.cpp` / `DebugPanel.h` | 視点の広さ・当たり判定の円の表示を一時的に変える。キャラの選択、敵 AI の賢さの名前、スキルショットの的の設定、移動速度の表示 | settings、ai、characters |
 | `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名・ステージ名・敵 AI（スキルショットでは的）の賢さの名前・的の大きさの名前を表示する（値は `Match.cpp` から受け取る） |
@@ -590,12 +620,13 @@ data/
 | `Fonts.cpp` / `Fonts.h` | 使わない | — |
 | `RecordFormat.cpp` / `RecordFormat.h` | 使わない（記録の表・リザルト画面・統計の画面に共通の表示の書き方） | — |
 | `HudLayout.h` | 使わない（スキルバーの大きさの定数。`render/Hud.cpp` と `SandboxPanel.cpp` が使う） | — |
+| `ImGuiText.h` | 使わない（Dear ImGui の書式に文字列を入れる時に `%` を `%%` にする部品。`MainMenu.cpp` が賢さの名前に使う） | — |
 
 ### tests/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `test_character_data.cpp` | 設定ファイルがすべて読み込めること、handler が実在することを確認するテスト | すべて |
+| `test_character_data.cpp` | 設定ファイルがすべて読み込めること、handler が実在し params が決まりを満たすことを確認するテスト。決まりを満たさない params を書いた写しで、そのファイルを使わないことも確かめる | すべて |
 | `TempDataCopy.h` | テスト用の部品。data フォルダを一時フォルダへ写し、設定ファイルの一部を書き換えて試せるようにする（本物は書き換えない） | すべて |
 | `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する。一部のテストは、キャラのファイルの写しを書き換えて試す（エマの Q を貫通にする・エズリアルの W の params を消す） | characters |
 | `test_dodge.cpp` | スキルドッジのテスト。設定ファイルを読み込み、`src/game/Match.cpp` を通してキャラと敵 AI の設定を使う。一部のテストは、写しの `castTime` と `enemyCooldownScale` を 0 に書き換えて試す | ai、characters |

@@ -42,11 +42,12 @@ void raylibLogCallback(int logLevel, const char* text, va_list args) {
 App::App(AppPaths paths, CommandLineOptions options)
     : data_(paths), options_(std::move(options)), results_(options_.resultsDir.value_or(paths.resultsDir)) {
     debugPanelVisible_ = !options_.hideDebugPanel;
+    // キャラのファイルを読むたびに、スキルの params を handler ごとのルールで確かめる（通らないキャラは使わない）
+    data_.setSkillValidator(skills::checkSkillParams);
 }
 
 int App::run() {
     data_.loadAll();
-    validateData();
     log::setMinLevel(data_.settings().logLevel);
     cameraMode_ = settingsCameraMode_ = data_.settings().cameraMode;
     results_.load(localNow().date);
@@ -212,7 +213,6 @@ void App::reloadData(bool force) {
     } else if (!data_.reloadIfChanged()) {
         return;
     }
-    validateData();
     log::setMinLevel(data_.settings().logLevel);
     applyUiScale();  // uiScale が変わっているかもしれないので反映し直す
     // カメラは、設定ファイルの cameraMode が書き換えられた時だけ反映する（Y キーで切り替えた状態を、別の項目の保存で戻さないように）
@@ -223,20 +223,6 @@ void App::reloadData(bool force) {
     if (match_) {
         match_->world().refreshUnitsFromData();
         match_->refreshDummiesIfChanged();  // sandbox.jsonc が書き換えられていれば、ダミーを置き直す
-    }
-}
-
-// 設定ファイルの handler 名が実在するかを確認する
-void App::validateData() {
-    for (const CharacterDef* def : data_.characterList()) {
-        for (const auto& skill : def->skills) {
-            if (skill && !skills::handlerExists(skill->handler)) {
-                const std::string message = std::format("{} の {}: handler \"{}\" は存在しません", def->id,
-                                                        toString(skill->slot), skill->handler);
-                log::error("data", "{}", message);
-                data_.addError(message);
-            }
-        }
     }
 }
 

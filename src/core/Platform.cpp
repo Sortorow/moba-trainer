@@ -8,6 +8,7 @@
 // imm.h は windows.h の後に読む必要があるので、空行で分けて並べ替えの対象から外している
 
 #include <imm.h>
+#include <shellapi.h>
 
 #include <cstdint>
 #include <cstdlib>
@@ -26,6 +27,16 @@ std::wstring widen(std::string_view utf8) {
     const int length = MultiByteToWideChar(CP_UTF8, 0, utf8.data(), size, nullptr, 0);
     std::wstring result(static_cast<std::size_t>(length), L'\0');
     MultiByteToWideChar(CP_UTF8, 0, utf8.data(), size, result.data(), length);
+    return result;
+}
+
+/// Windows の API から受け取った UTF-16 の文字列を、UTF-8 の文字列にする
+std::string narrow(std::wstring_view utf16) {
+    if (utf16.empty()) return {};
+    const int size = static_cast<int>(utf16.size());
+    const int length = WideCharToMultiByte(CP_UTF8, 0, utf16.data(), size, nullptr, 0, nullptr, nullptr);
+    std::string result(static_cast<std::size_t>(length), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, utf16.data(), size, result.data(), length, nullptr, nullptr);
     return result;
 }
 
@@ -64,6 +75,19 @@ std::filesystem::path executableDirectory() {
     std::vector<wchar_t> buffer(32768);
     const DWORD length = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
     return std::filesystem::path(std::wstring(buffer.data(), length)).parent_path();
+}
+
+std::vector<std::string> commandLineArgs() {
+    int count = 0;
+    wchar_t** args = CommandLineToArgvW(GetCommandLineW(), &count);
+    if (!args) {
+        log::error("platform", "コマンドライン引数を取得できませんでした（GetLastError={}）", GetLastError());
+        return {};
+    }
+    std::vector<std::string> result;
+    for (int i = 1; i < count; ++i) result.push_back(narrow(args[i]));  // 0 番目は exe の名前なので除く
+    LocalFree(args);
+    return result;
 }
 
 void installCrashHandler() {

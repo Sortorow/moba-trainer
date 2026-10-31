@@ -24,6 +24,8 @@ enum class ProjectileVisual { Orb, Ring, Crescent, Card, Beam, Bolt, Dove };
 /// 設定ファイルの "visual"（"orb" / "ring" / "crescent" / "card" / "beam" / "bolt" / "dove"）を弾の見た目にする。
 /// 知らない表記なら Orb（球）
 ProjectileVisual projectileVisualFromString(std::string_view text);
+/// 弾の "visual" に書ける表記の一覧（params のチェックに使う。projectileVisualFromString と同じ表から作る）
+std::vector<std::string_view> projectileVisualNames();
 
 /// 飛んでいる弾 1 つ。まっすぐ飛ぶ弾と、対象を追尾する弾がある
 struct Projectile {
@@ -74,6 +76,8 @@ enum class AreaVisual {
 /// 設定ファイルの "visual"（"explosion" / "telegraph" / "hat" / "caltrops"）を範囲の見た目にする。
 /// 知らない表記なら Explosion
 AreaVisual areaVisualFromString(std::string_view text);
+/// 範囲の "visual" に書ける表記の一覧（params のチェックに使う。areaVisualFromString と同じ表から作る）
+std::vector<std::string_view> areaVisualNames();
 
 /// 地面の範囲効果 1 つ。delay 秒後に発動し、duration が 0 なら発動の瞬間だけ、0 より大きければその間ずっと判定する
 struct AreaEffect {

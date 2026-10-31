@@ -24,7 +24,7 @@
 ## 2. `main`（src/main.cpp）
 
 ```cpp
-int main(int argc, char** argv);
+int main();
 ```
 
 **役割**: プログラムの入口。次の順に準備してから `App::run()` を呼びます。
@@ -33,7 +33,7 @@ int main(int argc, char** argv);
 2. `locateAppPaths()` で、exe のフォルダから親へ最大 5 段さかのぼって `data/settings.jsonc` を探す。見つからなければエラーのダイアログを出して終了コード 1
 3. `log::init()` でログを始める（`logs/` フォルダ）
 4. `platform::installCrashHandler()` でクラッシュ時にログへ記録する仕組みを入れる
-5. `parseCommandLine()` で引数を読む。読めなければログとダイアログに出して終了コード 1
+5. `platform::commandLineArgs()` で引数を UTF-8 で受け取り、`parseCommandLine()` で読む。読めなければログとダイアログに出して終了コード 1
 6. `App` を作り、`run()` の戻り値を終了コードにする
 7. `log::shutdown()` でログを閉じる
 
@@ -42,6 +42,7 @@ int main(int argc, char** argv);
 **注意事項**:
 
 - ログを始める前（手順 2）のエラーはログに残せないので、ダイアログだけで知らせます。
+- 引数は `main` の `argv` から読みません。日本語の Windows の `argv` は Shift_JIS に変換された文字列で、Shift_JIS で書けない文字（「𠮷」や韓国語など）が `?` になるためです（根拠: 報告ファイルの B5。`--script` に「한글𠮷」のフォルダを渡すと `????` になり開けなかった）。
 - Release ビルドは `/SUBSYSTEM:WINDOWS` ですが、`/ENTRY:mainCRTStartup` を指定しているので、入口は `WinMain` ではなく `main` のままです（[CMakeLists.txt](../../CMakeLists.txt)）。
 
 **背景**（根拠: `Paths.h` のコメント）: ビルドフォルダ（`build/release`）の exe からでもソースの `data/` を使えるよう、data フォルダを親へさかのぼって探します。
@@ -75,19 +76,20 @@ int main(int argc, char** argv);
 ### 3.2 `parseCommandLine`
 
 ```cpp
-std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::string& error);
+std::optional<CommandLineOptions> parseCommandLine(const std::vector<std::string>& args, std::string& error);
 ```
 
 | 引数・戻り値 | 説明 |
 |---|---|
-| `argc` / `argv` | `main` の引数そのまま |
-| `error` | 失敗した時の理由（「--enemies の値が読めません: 9」「不明な引数です: --foo」） |
+| `args` | exe の名前を除いた引数。**UTF-8 の文字列**（`platform::commandLineArgs()` の戻り値。テストでは直接並べて渡す） |
+| `error` | 失敗した時の理由（UTF-8。「--enemies の値が読めません: 9」「不明な引数です: --foo」） |
 | 戻り値 | 読めた内容。1 つでも解釈できない引数があれば `nullopt` |
 
 **注意事項**:
 
 - 値を取る引数が最後にあって値が無い時（例: 末尾の `--character`）は、「不明な引数です」になります（`hasValue` が `false` なので、どの分岐にも当たらないため）。
-- `argv` は `main` が受け取った文字列（Windows のコードページの文字列）をそのまま使います。
+- パスの引数（`--script`・`--results-dir`）は `pathFromUtf8` でパスにします。`std::filesystem::path(std::string)` は文字列をコードページ（Shift_JIS）として読むので、UTF-8 の引数には使えません。
+- 引数が UTF-8 なので、エラーの文に入れた値も文字化けしません（以前は Shift_JIS の値が UTF-8 の文に混ざり、`--mode 練習` がログで `���K` になっていた）。
 
 ### 3.3 `parseNumber`（CommandLine.cpp の中だけ）
 
@@ -175,7 +177,7 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 
 #### `App(AppPaths paths, CommandLineOptions options)`
 
-設定ファイルの場所と引数を覚えるだけで、ファイルの読み込みやウィンドウの作成はしません。`results_` の保存先は `options.resultsDir` があればそれ、無ければ `paths.resultsDir` です。`--no-debug-panel` ならデバッグパネルを閉じた状態にします。
+設定ファイルの場所と引数を覚え、`data_.setSkillValidator(skills::checkSkillParams)` でスキルの params を確かめる関数を渡します（[12-data.md](12-data.md)・[15-game-skills.md](15-game-skills.md)）。ファイルの読み込みやウィンドウの作成はしません。`results_` の保存先は `options.resultsDir` があればそれ、無ければ `paths.resultsDir` です。`--no-debug-panel` ならデバッグパネルを閉じた状態にします。
 
 #### `int run()`
 
@@ -186,7 +188,7 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 
 処理の順番:
 
-1. `data_.loadAll()` → `validateData()`（handler の名前の確認）→ ログのレベルとカメラを設定ファイルに合わせる
+1. `data_.loadAll()`（handler の名前と params の確認も、この中で行う）→ ログのレベルとカメラを設定ファイルに合わせる
 2. `results_.load(今日)`（保存したリザルトを読み、180 日より前を消す）
 3. `--script` があれば `ScriptInput::load`、無ければ `LiveInput`
 4. `initWindow()`
@@ -207,7 +209,6 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 | `void recordPerf(double frameStart, double updateEnd, double drawEnd)` | 1 フレームの処理時間を集計し、5 秒たったら DEBUG のログに出して集計をやり直す |
 | `void handleGlobalKeys(const InputFrame& input)` | 画面に関係なく効くキーを処理する。F1 = デバッグパネル、F5 = 設定ファイルの再読み込み、Alt + Enter = ボーダーレスの全画面（`ToggleBorderlessWindowed`）、Esc = 画面ごとの処理（下の表）、Y = カメラの切り替え（プレイ中だけ）。入力スクリプトの `resetcd`（自キャラのクールダウンを 0 にする）もここで行う |
 | `void reloadData(bool force)` | 設定ファイルを読み直す。`force` が `true`（F5）なら必ず、`false` なら変更があった時だけ。読み直した後、ログのレベル・文字の倍率・カメラ（設定ファイルの `cameraMode` が変わった時だけ）・プレイ中のキャラ（`World::refreshUnitsFromData`）・練習場のダミー（`Match::refreshDummiesIfChanged`）に反映する |
-| `void validateData()` | すべてのキャラのすべてのスキルについて、`handler` の名前が実在するか確かめ、無ければエラーとして `GameData` に足す（メニューに赤字で出る） |
 | `MatchConfig configFromCommandLine() const` | 引数からプレイの設定を作る。キャラが無ければ一覧の最初のキャラ。クールダウンの倍率は設定ファイルの値 |
 | `void startMatch(const MatchConfig& config)` | `Match` を作り、作れなければ（キャラが 1 体も無い）メニューのまま。作れたら結果・入力・時間をリセットし、メニューの初期値を今回の設定にし、カメラを自キャラに合わせて `Playing` にする |
 | `void backToMenu()` | `Match` と結果を捨てて `Menu` にする |

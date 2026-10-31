@@ -7,6 +7,7 @@
 
 #include "data/GameData.h"
 #include "imgui.h"
+#include "ui/ImGuiText.h"
 #include "ui/RecordsPanel.h"
 #include "ui/SandboxPanel.h"
 #include "ui/UiScale.h"
@@ -61,7 +62,8 @@ void drawSkillDodgeOptions(MatchConfig& config, const GameData& data) {
     ImGui::SeparatorText("スキルドッジの設定");
     ImGui::SliderInt("敵の数", &config.enemyCount, 1, 5, "%d 体");
     const AiConfig& ai = data.ai();
-    const std::string levelLabel = std::format("%d（{}）", ai.level(config.aiLevel).name);
+    // スライダーの書式。賢さの名前に % があっても書式として読まれないように、%% にしてから入れる
+    const std::string levelLabel = std::format("%d（{}）", ui::escapeFormat(ai.level(config.aiLevel).name));
     ImGui::SliderInt("敵の賢さ", &config.aiLevel, 1, std::max(1, static_cast<int>(ai.levels.size())),
                      levelLabel.c_str());
     drawTimeLimitSlider(config);
@@ -76,7 +78,7 @@ void drawSkillDodgeOptions(MatchConfig& config, const GameData& data) {
 void drawSkillShotOptions(MatchConfig& config, const GameData& data) {
     ImGui::SeparatorText("スキルショットの設定");
     const SkillShotConfig& shot = data.ai().skillShot;
-    const std::string levelLabel = std::format("%d（{}）", shot.level(config.targetLevel).name);
+    const std::string levelLabel = std::format("%d（{}）", ui::escapeFormat(shot.level(config.targetLevel).name));
     ImGui::SliderInt("的の賢さ", &config.targetLevel, 1, std::max(1, static_cast<int>(shot.levels.size())),
                      levelLabel.c_str());
 

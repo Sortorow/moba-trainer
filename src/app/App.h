@@ -50,8 +50,6 @@ private:
     /// 設定ファイルを読み直す。読み直したら、ログの詳しさ・文字の倍率・カメラ・キャラ・ダミーにも反映する
     /// @param force true なら変更が無くても読み直す（F5）。false なら変更があった時だけ
     void reloadData(bool force);
-    /// 読み込んだ設定ファイルの誤り（存在しない handler の名前など）を確かめ、エラーとして残す
-    void validateData();
     /// コマンドライン引数から、メニューを飛ばして始める時のプレイの設定を作る
     MatchConfig configFromCommandLine() const;
     /// プレイを始める（始められなければメニューのまま）。カメラは自キャラを映す

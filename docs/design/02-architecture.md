@@ -84,7 +84,7 @@ MSVC のランタイムは静的リンク（`MultiThreaded`）で、exe 1 つで
 | `src/data/` | `moba` | 設定ファイルの読み込み（JSON → C++ の構造体）。値を範囲に収め、誤りをエラー・警告として残す | `GameData`、`CharacterDef`、`StageDef`、`AiConfig`、`SandboxConfig`、`Settings`、`EffectSpec` |
 | `src/input/` | `moba` | 入力の取得。実際のマウス・キーボードと、入力スクリプトを同じ形（`InputFrame`）にする | `InputSource`、`LiveInput`、`ScriptInput` |
 | `src/game/` | `moba`、`moba::casting` | ゲームのルール。キャラ・弾・範囲・地形・状態異常・スキルの発動の流れ・1 回のプレイ・集計・リザルトの保存 | `World`、`Unit`、`Entities`、`Terrain`、`SkillCasting`、`Match`、`ResultStore`、`ResultStats` |
-| `src/game/skills/` | `moba::skills` | スキルの処理（handler）。設定ファイルの `"handler"` の名前で選ばれる | `Skill.h`、`SkillRegistry.cpp`、`*Skills.cpp` |
+| `src/game/skills/` | `moba::skills` | スキルの処理（handler）。設定ファイルの `"handler"` の名前で選ばれる。handler ごとの params の決まりと、読み込む時のチェックも持つ | `Skill.h`、`SkillRegistry.cpp`、`SkillParams`、`*Skills.cpp` |
 | `src/game/ai/` | `moba::ai` | 敵 AI（スキルドッジ）と的の AI（スキルショット） | `EnemyAI`、`SkillShotTarget`、`Aim`、`PlayerObserver` |
 | `src/render/` | `moba` | ゲーム画面の描画（raylib の図形）と HUD（Dear ImGui の文字）、カメラの計算 | `Renderer`、`Hud`、`CameraControl` |
 | `src/ui/` | `moba`、`moba::ui` | 画面の部品（Dear ImGui）。メニュー・ポーズ・リザルト・記録・統計・デバッグパネル・フォント・文字の倍率 | `MainMenu`、`StatsDashboard`、`DebugPanel`、`UiScale` |
@@ -140,6 +140,7 @@ flowchart TD
     app --> render
     app --> game
     app --> input
+    app -->|checkSkillParams だけ| skills
     ui --> game
     render --> game
     render -->|UiScale・HudLayout だけ| ui
@@ -159,6 +160,7 @@ flowchart TD
 補足:
 
 - `game` と `game/skills`・`game/ai` は互いに使い合います（`SkillCasting.cpp` が `skills::findHandler` を呼び、`skills/*.cpp` が `World` を使う。`Match` が `ai::EnemyDirector` を持ち、`EnemyAI.cpp` が `World` と `casting::requestCast` を使う）。3 つで 1 つの「ゲームのルール」のまとまりと考えてください。
+- **`data` は `game/skills` を使いません**。キャラのファイルを読む時の params の確認は、`App` が `skills::checkSkillParams` を `GameData::setSkillValidator` で渡し（`std::function`）、`GameData::loadAll` がそれを呼ぶ形です。決まりは handler のすぐ近く（`skills/`）に置きたいが、`data` → `game` の向きの依存は作らない、という 2 つを両立するためです。
 - `game` が `input` に依存するのは、`Match::update` と `PlayerController::update` が `InputFrame`（1 フレームの入力のデータ）を受け取るためだけです。入力の取得元（`InputSource`）は知りません。
 - `render/Hud.cpp` が `ui/` を使うのは、文字・枠の大きさに倍率（`ui::px`。`UiScale.h`）を掛けるためと、スキルバーの大きさ（`HudLayout.h`。練習場のパネルと共通の定数）のためだけです。逆向き（`ui` → `render`）の依存はありません。
 - **`game` は raylib の型（`Vector2`・`Color`・`Rectangle`）を使っています**。raylib の関数のうち `game` が使うのは、数学（`raymath.h`）と当たり判定（`CheckCollisionPointRec` など）だけで、ウィンドウや描画の関数は使いません。そのため、テストではウィンドウを開かずに動かせます。

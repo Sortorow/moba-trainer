@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace moba {
 
@@ -31,5 +32,10 @@ std::optional<AppPaths> locateAppPaths(const std::filesystem::path& startDir, in
 
 /// パスを UTF-8 の文字列にする（ログ・画面表示用。日本語のフォルダ名も文字化けしない）
 std::string toUtf8(const std::filesystem::path& path);
+
+/// UTF-8 の文字列をパスにする（toUtf8 の逆）。
+/// std::filesystem::path(std::string) は、文字列を Windows のコードページ（日本語なら Shift_JIS）として読むので、
+/// UTF-8 の文字列（コマンドライン引数など）からパスを作る時はこれを使う
+std::filesystem::path pathFromUtf8(std::string_view text);
 
 }  // namespace moba

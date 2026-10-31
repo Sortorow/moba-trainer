@@ -3,6 +3,7 @@
 
 #include <array>
 #include <filesystem>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -99,5 +100,14 @@ CharacterLoadResult loadCharacterFile(const std::filesystem::path& file);
 
 /// [R, G, B] または [R, G, B, A] の配列（各 0〜255）を色にする。配列でなければ fallback
 Color colorFromJson(const nlohmann::json& value, Color fallback);
+
+/// スキル 1 つの params を確かめた結果（GameData::setSkillValidator に渡す関数が返す）
+struct SkillCheck {
+    std::vector<std::string> errors;    // 通らなかった理由。1 つでもあれば、そのキャラのファイルを使わない
+    std::vector<std::string> warnings;  // 使えるが、知らせたいこと（ルールに無い項目名など）
+};
+
+/// スキル 1 つの params を確かめる関数。ルールは handler ごとに game/skills が持つので、data の外から渡す
+using SkillValidator = std::function<SkillCheck(const SkillDef&)>;
 
 }  // namespace moba

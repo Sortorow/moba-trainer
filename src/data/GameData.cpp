@@ -55,6 +55,21 @@ void GameData::loadAll() {
     std::map<std::string, CharacterDef, std::less<>> loaded;
     for (const std::filesystem::path& file : jsoncFilesIn(paths_.charactersDir)) {
         CharacterLoadResult result = loadCharacterFile(file);
+        // スキルの params がルールを満たさなければ、読めなかったファイルと同じく使わない
+        if (result.def) {
+            const std::vector<std::string> problems = checkCharacter(*result.def);
+            for (const std::string& problem : problems) {
+                log::error("data", "{}", problem);
+                errors_.push_back(problem);
+            }
+            if (!problems.empty()) {
+                result.error = std::format(
+                    "{}: スキルの params に誤りがあるため、このファイルを使いません"
+                    "（前回読めた内容があれば、それを使います）",
+                    toUtf8(file.filename()));
+                result.def.reset();
+            }
+        }
         if (!result.def) {
             log::error("data", "{}", result.error);
             errors_.push_back(result.error);
@@ -177,7 +192,20 @@ bool GameData::selectSandboxPreset(std::string_view name) {
     return true;
 }
 
-void GameData::addError(std::string message) { errors_.push_back(std::move(message)); }
+std::vector<std::string> GameData::checkCharacter(const CharacterDef& def) {
+    std::vector<std::string> problems;
+    if (!skillValidator_) return problems;
+    for (const auto& skill : def.skills) {
+        if (!skill) continue;
+        const SkillCheck check = skillValidator_(*skill);
+        for (const std::string& warning : check.warnings) {
+            log::warn("data", "{}", warning);
+            errors_.push_back("警告: " + warning);
+        }
+        problems.insert(problems.end(), check.errors.begin(), check.errors.end());
+    }
+    return problems;
+}
 
 std::vector<std::string> GameData::errors() const {
     std::vector<std::string> all = errors_;

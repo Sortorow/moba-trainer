@@ -29,7 +29,8 @@
 | `AiLevel`、`SkillShotLevel`、`TargetSize`、`SkillShotConfig`、`AiConfig`、`AiConfigLoadResult` | 構造体 | AiConfig.h |
 | `DummyDef`、`SandboxPreset`、`SandboxConfig`、`SandboxConfigLoadResult` | 構造体 | SandboxConfig.h |
 | `Targeting` | 列挙型 | CharacterDef.h |
-| `SkillDef`、`CharacterDef`、`CharacterLoadResult` | 構造体 | CharacterDef.h |
+| `SkillDef`、`CharacterDef`、`CharacterLoadResult`、`SkillCheck` | 構造体 | CharacterDef.h |
+| `SkillValidator` | 型の別名（`std::function<SkillCheck(const SkillDef&)>`） | CharacterDef.h |
 | `EffectType` | 列挙型 | EffectSpec.h |
 | `EffectSpec` | 構造体 | EffectSpec.h |
 | `Shape`、`Shape::Kind`、`ObstacleKind`、`Obstacle`、`StageDef`、`StageLoadResult` | 構造体・列挙型 | StageDef.h |
@@ -56,7 +57,7 @@ flowchart LR
 
 **背景**（根拠: 指示書「数値はファイルで調整できるようにする」「ゲームの起動中に保存すると、自動で再読み込みされる」、`d771af6`）: ゲームを止めずに数値を調整できるようにするためです。保存の途中など、書きかけのファイルを読んで失敗しても、遊んでいるプレイが壊れないように、前回の内容を使い続けます。
 
-**注意事項**: 型が違う値（数のはずが文字列など）は、nlohmann/json の例外になり、**そのファイル全体**が `error` になります。範囲外の数は `error` にならず、範囲に収められます。
+**注意事項**: 型が違う値（数のはずが文字列など）は、nlohmann/json の例外になり、**そのファイル全体**が `error` になります。範囲外の数は `error` にならず、範囲に収められます。ただし、**キャラのスキルの `params` だけは例外**で、範囲に収めずに決まりで確かめ、満たさなければそのファイル全体を使いません（[3.3](#33-注意事項)）。
 
 ---
 
@@ -80,12 +81,14 @@ flowchart LR
 | `fileTimes_` | `map<path, file_time_type>` | 前回読んだ時の、各ファイルの更新日時 |
 | `errors_` | `vector<string>` | 直近の読み込みで起きたエラー・警告 |
 | `generation_` | `int` | 読み込みのたびに増える番号 |
+| `skillValidator_` | `SkillValidator` | スキルの params を確かめる関数。空なら確かめない |
 
 ### 3.2 メンバ関数
 
 | 関数 | 説明 |
 |---|---|
 | `explicit GameData(AppPaths paths)` | 場所を覚えるだけ。読み込みは `loadAll()` |
+| `void setSkillValidator(SkillValidator validator)` | キャラのファイルを読むたびに、各スキルの params を確かめる関数を決める（`App` が `skills::checkSkillParams` を渡す）。決めなければ確かめない |
 | `void loadAll()` | すべてのファイルを読み直す。エラーの一覧を空にしてから、settings → ai → sandbox → キャラ → ステージの順に読む。最後に更新日時を覚え直し、`generation_` を増やす |
 | `bool reloadIfChanged()` | 更新日時が前回と違えば `loadAll()` して `true`。`App` が 1 秒ごとに呼ぶ |
 | `const AppPaths& paths() const` | 各ファイルの場所 |
@@ -101,15 +104,18 @@ flowchart LR
 | `const StageDef* stage(std::string_view id) const` | id でステージを探す |
 | `vector<const StageDef*> stageList() const` | ステージの一覧（`menuOrder` の順） |
 | `vector<string> errors() const` | 設定ファイルのエラー（メニューとデバッグパネルに赤字で出す）。直近の読み込みで起きたエラー（`errors_`）と、その後にスキルを使った時に見つかった誤り（`dataWarnings()`）を、この順に並べて**値で**返す |
-| `void addError(std::string message)` | 読み込んだ後の確認で見つかった誤りを足す（`App::validateData` が使う） |
 | `int generation() const` | 読み込みの回数 |
 | `map<path, file_time_type> scanFileTimes() const`（private） | 監視するすべてのファイルの更新日時を取る |
 | `static vector<path> jsoncFilesIn(const path& dir)`（private） | フォルダの中の .jsonc（名前順）。フォルダが無ければ空 |
+| `vector<string> checkCharacter(const CharacterDef& def)`（private） | 各スキルを `skillValidator_` で確かめる。警告は「警告: 」を付けて `errors_` に足し（WARN のログ）、エラーの文の一覧を返す（空なら通った） |
 
 ### 3.3 注意事項
 
 - **`characters_` と `stages_` は読み直すたびに作り直します**。そのため、`character()` などで得たポインタは、次の `loadAll()` の後は使えません。`World` や `Match` は、ポインタを覚えずに**毎回 id で引き直す**作りになっています（`World::characterOf`）。新しいコードでも、`CharacterDef*` をメンバとして覚えないでください。
 - 読めなかったキャラのファイルは、前回そのファイルから読めたキャラ（`sourceFile` が同じもの）を使い続けます。
+- **params の確認で通らなかったキャラのファイルも、読めなかったファイルと同じ扱い**です（`checkCharacter` がエラーを返したら、読んだ内容を捨てる）。理由の文に加えて「（ファイル名）: スキルの params に誤りがあるため、このファイルを使いません」をエラーに足します。初めての読み込みで通らなければ、そのキャラは一覧に出ません。
+  - **背景**（根拠: claude_improve_and_answer.txt の「JSONCの扱いに関して」、2026/10/31）: 0 で割るなど、ありえない値で handler が動くのを防ぐため、決まりを満たした params だけを handler に渡します。通らなかった時は、キャラのファイル全体を使わない（前回の内容を使う）と決められています。
+  - `data` は `game/skills` を知らない（依存の向き）ので、決まりを持つ関数を `setSkillValidator` で外から受け取ります。
 - id が他のファイルと重複したキャラ・ステージは、後に読んだ方（ファイル名の順で後）を使わず、エラーにします。
 - `sandboxRevision_` は、sandbox.jsonc の**中身が変わった時だけ**増えます（`sameSandboxConfig` で比べる）。キャラのファイルを保存しただけで、練習場のダミーが置き直されないように（根拠: GameData.cpp のコメント）。
 - 監視するのは「ファイルの更新日時」で、中身は比べません。ファイルを足した・消した時も、日時の一覧が変わるので読み直します。
@@ -264,8 +270,8 @@ handler は、`params` を直接触らずに次の関数で読みます。
 **注意事項**:
 
 - `num` の「1 回だけ」は、キャラ・キー・項目の組ごとに、**設定ファイルを読み直すまで**覚えています（`DataWarnings`）。直さずに読み直すと、次にそのスキルを使った時にもう一度出ます。
-- params は handler がスキルを使う時に読むので、書き忘れは**そのスキルを初めて使った時**に見つかります（読み込みの時点では分かりません）。
-- params の値は**範囲に収めません**。0 や負の値もそのまま handler に渡ります。
+- 確かめる関数を決めていない時（自動テストの多く）は、書き忘れは**そのスキルを初めて使った時**に見つかります。
+- params の値は**範囲に収めません**。代わりに、`GameData::setSkillValidator` で決めた関数（ゲームでは `skills::checkSkillParams`、[15-game-skills.md](15-game-skills.md)）が読み込みの時に確かめ、満たさなければそのキャラのファイルを使いません。必須の項目の書き忘れも、そこでエラーになるので、ゲームでは `num` の警告は普通は出ません（確かめない使い方のための残りです）。
 - `num` と `numOr` の使い分けは handler を書く人が決めます。設定ファイルに書き忘れると困る値は `num` にします。
 
 ### 6.3 `CharacterDef`（構造体）
@@ -295,7 +301,18 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `warnMissingOnce`（.cpp の中だけ） | 必須の params が無い警告を、組ごとに 1 回だけ出す（`recordDataWarning` が初めての誤りと判断した時だけ、ログにも出す） |
 | `findParam`（.cpp の中だけ） | `params` から値を探す |
 
-**注意事項**: `handler` の名前が**実在するか**は、ここでは確かめません（`data` は `game/skills` を知らないため）。`App::validateData` が読み込んだ後に確かめて、エラーに足します。
+**注意事項**: `handler` の名前が**実在するか**と params の値は、ここでは確かめません（`data` は `game/skills` を知らないため）。`GameData::loadAll` が、`setSkillValidator` で受け取った関数で確かめます。
+
+### 6.5 `SkillCheck`（構造体）と `SkillValidator`
+
+スキル 1 つの params を確かめた結果と、確かめる関数の型です。
+
+| メンバ | 型 | 説明 |
+|---|---|---|
+| `errors` | `vector<string>` | 通らなかった理由。1 つでもあれば、そのキャラのファイルを使わない |
+| `warnings` | `vector<string>` | 使えるが、知らせたいこと（決まりに無い項目名など） |
+
+`using SkillValidator = std::function<SkillCheck(const SkillDef&)>;` 決まりは handler ごとに `game/skills` が持つので、`data` の外から渡します。
 
 ---
 

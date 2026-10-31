@@ -44,4 +44,13 @@ void handleEzrealE(SkillContext& ctx) {
     ctx.world.spawnProjectile(std::move(bolt));
 }
 
+ParamRules ezrealERules() {
+    return {
+        optionalParam("boltEnabled", ParamKind::Flag),    requiredParam("boltSearchRange", ParamKind::Positive),
+        requiredParam("boltSpeed", ParamKind::Positive),  requiredParam("boltWidth", ParamKind::Positive),
+        optionalParam("boltPreferMark", ParamKind::Text), optionalParam("boltDetonateMark", ParamKind::Text),
+        optionalParam("color", ParamKind::Color),
+    };
+}
+
 }  // namespace moba::skills

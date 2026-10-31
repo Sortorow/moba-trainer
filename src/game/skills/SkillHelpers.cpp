@@ -34,6 +34,14 @@ Projectile makeProjectile(const SkillContext& ctx, Vector2 origin, Vector2 dir, 
     return p;
 }
 
+ParamRules projectileBaseRules() {
+    return {
+        requiredParam("speed", ParamKind::Positive), requiredParam("width", ParamKind::Positive),
+        optionalParam("pierce", ParamKind::Flag),    choiceParam("visual", ParamKind::Choice, projectileVisualNames()),
+        optionalParam("color", ParamKind::Color),
+    };
+}
+
 AreaEffect makeArea(const SkillContext& ctx, Vector2 center) {
     AreaEffect a;
     a.owner = ctx.caster.id;
@@ -63,6 +71,16 @@ AreaEffect makeGroundBlast(const SkillContext& ctx, Vector2 center) {
         }
     };
     return a;
+}
+
+ParamRules groundBlastBaseRules() {
+    return {
+        requiredParam("delay", ParamKind::NonNegative),  // 0 = 詠唱が終わったらすぐ爆発
+        requiredParam("radius", ParamKind::Positive),
+        optionalParam("onHit", ParamKind::Effects),
+        optionalParam("cooldownRefundOnHit", ParamKind::Ratio),  // 0 = 短縮しない
+        optionalParam("color", ParamKind::Color),
+    };
 }
 
 void applyEffects(World& world, Unit& target, const std::vector<EffectSpec>& effects, EntityId source) {

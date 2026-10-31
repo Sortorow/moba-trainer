@@ -4,6 +4,8 @@
 #include <format>
 #include <string_view>
 
+#include "core/Paths.h"
+
 namespace moba {
 namespace {
 
@@ -17,17 +19,17 @@ bool parseNumber(std::string_view text, T& out) {
 
 }  // namespace
 
-std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::string& error) {
+std::optional<CommandLineOptions> parseCommandLine(const std::vector<std::string>& args, std::string& error) {
     CommandLineOptions options;
     auto fail = [&](std::string_view arg, std::string_view value) {
         error = std::format("{} の値が読めません: {}", arg, value);
         return std::nullopt;
     };
 
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view arg = argv[i];
-        const bool hasValue = i + 1 < argc;
-        const std::string_view value = hasValue ? std::string_view(argv[i + 1]) : std::string_view{};
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const std::string_view arg = args[i];
+        const bool hasValue = i + 1 < args.size();
+        const std::string_view value = hasValue ? std::string_view(args[i + 1]) : std::string_view{};
         if (arg == "--character" && hasValue) {
             options.characterId = std::string(value);
             ++i;
@@ -61,7 +63,7 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::s
         } else if (arg == "--no-cooldown") {
             options.noCooldown = true;
         } else if (arg == "--script" && hasValue) {
-            options.scriptFile = std::filesystem::path(value);
+            options.scriptFile = pathFromUtf8(value);
             ++i;
         } else if (arg == "--window" && hasValue) {
             const std::size_t x = value.find('x');
@@ -81,7 +83,7 @@ std::optional<CommandLineOptions> parseCommandLine(int argc, char** argv, std::s
             options.screen = std::string(value);
             ++i;
         } else if (arg == "--results-dir" && hasValue) {
-            options.resultsDir = std::filesystem::path(value);
+            options.resultsDir = pathFromUtf8(value);
             ++i;
         } else {
             error = std::format("不明な引数です: {}", arg);

@@ -91,6 +91,21 @@ void handleEmmaQ(SkillContext& ctx) {
     world.spawnProp(newDove);
 }
 
+ParamRules emmaQRules() {
+    return joinRules(projectileBaseRules(),
+                     {
+                         optionalParam("cooldownRefundOnHit", ParamKind::Ratio),  // 0 = 短縮しない
+                         requiredParam("doveLifetime", ParamKind::Positive),
+                         optionalParam("doveCardSpeed", ParamKind::Positive),
+                         optionalParam("doveCardRange", ParamKind::Positive),
+                         optionalParam("doveCardColor", ParamKind::Color),
+                         optionalParam("doubleHitEffects", ParamKind::Effects),
+                         // 見た目だけのずれ（0 = ずらさない。負の値は後ろ・左）
+                         optionalParam("doveCardDrawOffsetForward", ParamKind::AnyNumber),
+                         optionalParam("doveCardDrawOffsetSide", ParamKind::AnyNumber),
+                     });
+}
+
 /// W: 指定した地点が少し遅れて爆発し（ブランドの W のように予告円が出る）、その場に帽子が残る（R の対象）。
 ///    敵に当たると、W のクールダウンが短くなる。
 /// params: delay（爆発までの時間）, radius, hatLifetime, color, onHit, cooldownRefundOnHit
@@ -110,6 +125,10 @@ void handleEmmaW(SkillContext& ctx) {
         world.spawnProp(hat);
     };
     ctx.world.spawnArea(std::move(a));
+}
+
+ParamRules emmaWRules() {
+    return joinRules(groundBlastBaseRules(), {requiredParam("hatLifetime", ParamKind::Positive)});
 }
 
 /// R: 鳩・帽子・兎（変身させた敵）のいずれかを指定して、その位置へ瞬間移動し、対象ごとの追加効果を出す
@@ -213,6 +232,24 @@ void handleEmmaR(SkillContext& ctx) {
     }
     // R の前の移動指示は捨てる（R の後に右クリックしなければ、移動先にとどまる）
     emma.moveTarget.reset();
+}
+
+ParamRules emmaRRules() {
+    return {
+        // pickRadius と targetKinds は、発動の流れ（SkillCasting.cpp）が対象を選ぶ時に読む
+        optionalParam("pickRadius", ParamKind::Positive),
+        choiceParam("targetKinds", ParamKind::ChoiceList,
+                    {toString(PropTargetKind::Dove), toString(PropTargetKind::Hat), toString(PropTargetKind::Rabbit)}),
+        requiredParam("dovePathWidth", ParamKind::Positive),
+        requiredParam("doveSpeed", ParamKind::Positive),  // 鳩が飛ぶ時間（距離 / 速さ）の計算で割る
+        optionalParam("doveOnHit", ParamKind::Effects),
+        optionalParam("hatFlightTime", ParamKind::NonNegative),  // 0 = 帽子がすぐ爆発する
+        requiredParam("hatRadius", ParamKind::Positive),
+        optionalParam("hatOnHit", ParamKind::Effects),
+        requiredParam("rabbitRadius", ParamKind::Positive),
+        optionalParam("rabbitOnHit", ParamKind::Effects),
+        optionalParam("color", ParamKind::Color),
+    };
 }
 
 }  // namespace moba::skills

@@ -202,9 +202,11 @@ void drawTrendPlot(const std::vector<const SavedResult*>& results, GameMode mode
     if (!ImPlot::BeginPlot(title.c_str(), size, kPlotFlags)) return;
     ImPlot::SetupAxis(ImAxis_X1, "何回目のプレイか", kAxisFlags);
     ImPlot::SetupAxis(ImAxis_Y1, nullptr, kAxisFlags);
+    // 横軸は、プレイが少なくても 10 回分の幅を取る。
     // 100% の点が上端で切れないように、少しだけ上に余白を取る（目盛りは 100% まで）
-    ImPlot::SetupAxesLimits(0.5, std::max(10.5, static_cast<double>(plays.size()) + 0.5), 0.0, 108.0,
-                            ImPlotCond_Always);
+    const double xMin = 0.5;
+    const double xMax = std::max(10.5, static_cast<double>(plays.size()) + 0.5);
+    ImPlot::SetupAxesLimits(xMin, xMax, 0.0, 108.0, ImPlotCond_Always);
     static const double kPercentTicks[] = {0, 20, 40, 60, 80, 100};
     static const char* const kPercentLabels[] = {"0%", "20%", "40%", "60%", "80%", "100%"};
     ImPlot::SetupAxisTicks(ImAxis_Y1, kPercentTicks, 6, kPercentLabels);
@@ -237,10 +239,14 @@ void drawTrendPlot(const std::vector<const SavedResult*>& results, GameMode mode
     // 最新の自己ベストにだけ、数字を添える（すべての点には付けない）
     if (!bestXs.empty()) {
         const std::string label = std::format("自己ベスト {:.1f}%", bestYs.back());
-        // 上端に近ければ点の下に、右端に近ければ点の左に出す（枠からはみ出さないように）
+        // 枠からはみ出さないように、上端に近ければ点の下に出す。横は、ふだんは点の真上（中央揃え）、
+        // 横軸の左端に近ければ点の右に、右端に近ければ点の左に出す（端の判断は、プレイの数ではなく横軸の範囲で行う）
         const float offsetY = bestYs.back() > 90.0 ? ui::px(18.0f) : -ui::px(16.0f);
-        const bool nearRight = bestXs.back() > static_cast<double>(plays.size()) * 0.8;
-        const float offsetX = nearRight ? -(ImGui::CalcTextSize(label.c_str()).x * 0.5f + ui::px(10.0f)) : 0.0f;
+        const double position = (bestXs.back() - xMin) / (xMax - xMin);  // 横軸の中での位置（0 = 左端、1 = 右端）
+        const float shift = ImGui::CalcTextSize(label.c_str()).x * 0.5f + ui::px(10.0f);
+        float offsetX = 0.0f;
+        if (position < 0.2) offsetX = shift;
+        else if (position > 0.8) offsetX = -shift;
         ImPlot::PlotText(label.c_str(), bestXs.back(), bestYs.back(), ImVec2{offsetX, offsetY});
     }
 
@@ -268,16 +274,23 @@ void drawTrendPlot(const std::vector<const SavedResult*>& results, GameMode mode
 
 /// 1 色の棒グラフ（x = 項目の番号、y = 値）。カーソルを乗せた棒の説明を tooltip で出す
 /// @param labels 項目の名前（x 軸の目盛り）
+/// @param yTickStep 縦軸の目盛りの間隔。0 なら ImPlot に任せる。プレイ回数のように整数だけを目盛りにしたい時に渡す
+///                  （任せると 0.2 ごとなどの目盛りになり、小数なしの書式では同じ数字が並ぶため）
 /// @param tooltip 番号を受け取り、説明の文字を返す
 template <class Tooltip>
 void drawBarPlot(const char* title, const std::vector<std::string>& labels, const std::vector<double>& values,
-                 double yMax, const char* yFormat, ImVec2 size, Tooltip tooltip) {
+                 double yMax, const char* yFormat, double yTickStep, ImVec2 size, Tooltip tooltip) {
     if (!ImPlot::BeginPlot(title, size, kPlotFlags | ImPlotFlags_NoLegend)) return;
     ImPlot::SetupAxis(ImAxis_X1, nullptr, kAxisFlags);
     ImPlot::SetupAxis(ImAxis_Y1, nullptr, kAxisFlags);
     const double count = static_cast<double>(std::max<std::size_t>(labels.size(), 1));
     ImPlot::SetupAxesLimits(-0.6, count - 0.4, 0.0, yMax, ImPlotCond_Always);
     ImPlot::SetupAxisFormat(ImAxis_Y1, yFormat);
+    if (yTickStep > 0.0) {
+        std::vector<double> yTicks;
+        for (double y = 0.0; y <= yMax + 1e-9; y += yTickStep) yTicks.push_back(y);
+        ImPlot::SetupAxisTicks(ImAxis_Y1, yTicks.data(), static_cast<int>(yTicks.size()));  // 名前は yFormat で作る
+    }
     // 目盛りの名前は、多すぎる時は間引く（最大 10 個）
     std::vector<double> ticks;
     std::vector<const char*> tickLabels;
@@ -421,7 +434,10 @@ void StatsDashboard::drawMode(StatsFilter& filter, const ResultStore& store, con
         dayPlays.push_back(day.plays);
         maxPlays = std::max(maxPlays, static_cast<double>(day.plays));
     }
-    drawBarPlot("日ごとのプレイ回数", dayLabels, dayPlays, std::ceil(maxPlays * 1.15), "%.0f",
+    // 縦軸の目盛りは整数だけにする（多い時は、目盛りが 8 個ほどになるように間引く）
+    const double playsMax = std::ceil(maxPlays * 1.15);
+    const double playsTickStep = std::max(1.0, std::ceil(playsMax / 8.0));
+    drawBarPlot("日ごとのプレイ回数", dayLabels, dayPlays, playsMax, "%.0f", playsTickStep,
                 ImVec2{ImGui::GetContentRegionAvail().x, chartHeight}, [&](std::size_t i) {
                     return std::format("{}  {} 回\n{}: {}（{} / {}）", shortDate(days[i].date), days[i].plays,
                                        scoreName(filter.mode), percentText(days[i].score), days[i].score.count,
@@ -441,7 +457,7 @@ void StatsDashboard::drawMode(StatsFilter& filter, const ResultStore& store, con
     }
     const std::string levelTitle =
         std::format("{}の賢さごとの{}", filter.mode == GameMode::SkillDodge ? "敵" : "的", scoreName(filter.mode));
-    drawBarPlot(levelTitle.c_str(), levelLabels, levelRates, 100.0, "%.0f%%", ImVec2{columnWidth, chartHeight},
+    drawBarPlot(levelTitle.c_str(), levelLabels, levelRates, 100.0, "%.0f%%", 0.0, ImVec2{columnWidth, chartHeight},
                 [&](std::size_t i) {
                     return std::format("賢さ {}（{}）  {} 回\n{}: {}（{} / {}）", levels[i].level, levels[i].name,
                                        levels[i].plays, scoreName(filter.mode), percentText(levels[i].score),
@@ -461,7 +477,7 @@ void StatsDashboard::drawMode(StatsFilter& filter, const ResultStore& store, con
             slotRates.push_back(count.rate() * 100.0);
             slotCounts.push_back(count);
         }
-        drawBarPlot("キーごとのヒット率", slotLabels, slotRates, 100.0, "%.0f%%", ImVec2{columnWidth, chartHeight},
+        drawBarPlot("キーごとのヒット率", slotLabels, slotRates, 100.0, "%.0f%%", 0.0, ImVec2{columnWidth, chartHeight},
                     [&](std::size_t i) {
                         return std::format("{}  {:.1f}%（{} / {}）", slotLabels[i], slotCounts[i].rate() * 100.0f,
                                            slotCounts[i].hits, slotCounts[i].casts);

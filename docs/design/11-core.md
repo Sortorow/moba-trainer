@@ -143,8 +143,9 @@ JsonLoadResult loadJsonFile(const std::filesystem::path& file);
 | `AppPaths makeAppPaths(const path& root)` | `root` を基準に場所を決める。ファイルがあるかは確かめない。テストは `makeAppPaths(MOBA_SOURCE_DIR)` でソースの data を使う |
 | `optional<AppPaths> locateAppPaths(const path& startDir, int maxLevelsUp = 5)` | `startDir` から親へ順に `data/settings.jsonc` を探す。見つからなければ `nullopt`。`build/release/` の exe からソースの data を使うため |
 | `std::string toUtf8(const path& path)` | パスを UTF-8 の文字列にする。ログや画面に日本語のフォルダ名を出しても文字化けしないように |
+| `path pathFromUtf8(std::string_view text)` | UTF-8 の文字列をパスにする（`toUtf8` の逆）。`std::u8string` を通して作る。コマンドライン引数からパスを作る時に使う |
 
-**注意事項**: `toUtf8` は `path::u8string()` を `std::string` に詰め替えるだけです。Windows の `path::string()` はコードページ（Shift_JIS など）の文字列を返すので、ログや画面に出す時は必ず `toUtf8` を使います。
+**注意事項**: `toUtf8` は `path::u8string()` を `std::string` に詰め替えるだけです。Windows の `path::string()` はコードページ（Shift_JIS など）の文字列を返すので、ログや画面に出す時は必ず `toUtf8` を使います。逆に、UTF-8 の文字列からパスを作る時は、`path(std::string)`（コードページとして読む）ではなく `pathFromUtf8` を使います。
 
 ---
 
@@ -270,6 +271,7 @@ JsonLoadResult loadJsonFile(const std::filesystem::path& file);
 | 関数 | 説明 | 背景 |
 |---|---|---|
 | `path executableDirectory()` | 実行中の exe があるフォルダ（`GetModuleFileNameW`） | data フォルダを探す起点 |
+| `vector<string> commandLineArgs()` | コマンドライン引数（exe の名前を除く）を UTF-8 で返す（`GetCommandLineW` → `CommandLineToArgvW` → UTF-8）。取れなければ空（ERROR のログ） | 根拠: 報告ファイルの B5。`main` の `argv` は Shift_JIS で、書けない文字が `?` になるため |
 | `void installCrashHandler()` | 未処理の例外（アクセス違反など）と `std::terminate` の時に、原因をログへ書く仕組みを入れる。起動時に 1 回 | 根拠: Platform.h。クラッシュの原因を後から調べられるように |
 | `void disableIme(void* nativeWindowHandle)` | ウィンドウの IME を無効にする（`ImmAssociateContext(hwnd, nullptr)`） | 根拠: 指示書「ゲームのウィンドウでは、日本語入力（IME）を無効にする」。日本語入力がオンのままでも Q/W/E/R が届くように |
 | `float windowDpiScale(void* nativeWindowHandle)` | ウィンドウがあるモニターの拡大率（`GetDpiForWindow` ÷ 96） | 根拠: Platform.h。raylib の `GetWindowScaleDPI()` は `FLAG_WINDOW_HIGHDPI` を付けないと常に 1.0 を返すため |
@@ -283,6 +285,7 @@ JsonLoadResult loadJsonFile(const std::filesystem::path& file);
 | 関数 | 説明 |
 |---|---|
 | `std::wstring widen(std::string_view utf8)` | UTF-8 を、Windows の API に渡す UTF-16 にする |
+| `std::string narrow(std::wstring_view utf16)` | Windows の API から受け取った UTF-16 を UTF-8 にする（`widen` の逆） |
 | `LONG WINAPI onUnhandledException(EXCEPTION_POINTERS*)` | 例外のコード・場所・exe の先頭アドレスを FATAL で書き、ログを閉じる。その後は通常どおりクラッシュさせる（`EXCEPTION_CONTINUE_SEARCH`） |
 | `void onTerminate()` | 捕まえられなかった C++ の例外の `what()` を FATAL で書き、ログを閉じて `abort` する |
 

@@ -19,6 +19,13 @@ void handleProjectile(SkillContext& ctx) {
     ctx.world.spawnProjectile(std::move(p));
 }
 
+ParamRules projectileRules() {
+    return joinRules(projectileBaseRules(), {
+                                                optionalParam("onHit", ParamKind::Effects),
+                                                optionalParam("detonateMark", ParamKind::Text),
+                                            });
+}
+
 /// params: speed, width, visual, color, onHit, detonateMark
 void handleHomingProjectile(SkillContext& ctx) {
     Unit* target = ctx.world.findUnit(ctx.request.targetUnit);
@@ -38,10 +45,24 @@ void handleHomingProjectile(SkillContext& ctx) {
     ctx.world.spawnProjectile(std::move(p));
 }
 
-/// カーソルが射程内ならその位置へ、射程外なら射程の端へ瞬間移動する（params なし）
+ParamRules homingProjectileRules() {
+    // 追尾する弾は必ず当たって消えるので、pierce は使わない（書くと「使わない項目」の警告になる）
+    return {
+        requiredParam("speed", ParamKind::Positive),
+        requiredParam("width", ParamKind::Positive),
+        choiceParam("visual", ParamKind::Choice, projectileVisualNames()),
+        optionalParam("color", ParamKind::Color),
+        optionalParam("onHit", ParamKind::Effects),
+        optionalParam("detonateMark", ParamKind::Text),
+    };
+}
+
+/// カーソルが射程内ならその位置へ、射程外なら射程の端へ瞬間移動する（params は演出の color だけ）
 void handleBlink(SkillContext& ctx) {
     teleport(ctx.world, ctx.caster, aimPoint(ctx), ctx.def.color("color", Color{255, 240, 160, 255}));
 }
+
+ParamRules blinkRules() { return {optionalParam("color", ParamKind::Color)}; }
 
 /// params: flightTime（着地までの時間）, radius, duration（残る時間）, visual, color,
 ///         slowAmount / lingerTime（範囲内にいる間かかるスロウと、出た後に残る時間）, onHit（最初に入った時の効果）
@@ -64,8 +85,23 @@ void handleGroundZone(SkillContext& ctx) {
     ctx.world.spawnArea(std::move(a));
 }
 
+ParamRules groundZoneRules() {
+    return {
+        requiredParam("flightTime", ParamKind::NonNegative),  // 0 = 投げた瞬間に着地
+        requiredParam("duration", ParamKind::Positive),
+        requiredParam("radius", ParamKind::Positive),
+        optionalParam("slowAmount", ParamKind::Ratio),        // 0 = スロウなし
+        optionalParam("lingerTime", ParamKind::NonNegative),  // 0 = 範囲から出たらすぐ切れる
+        choiceParam("visual", ParamKind::Choice, areaVisualNames()),
+        optionalParam("color", ParamKind::Color),
+        optionalParam("onHit", ParamKind::Effects),
+    };
+}
+
 /// params: delay（爆発までの時間）, radius, color, onHit, cooldownRefundOnHit
 void handleGroundBlast(SkillContext& ctx) { ctx.world.spawnArea(makeGroundBlast(ctx, aimPoint(ctx))); }
+
+ParamRules groundBlastRules() { return groundBlastBaseRules(); }
 
 /// params: radius（対象の周りの範囲）, color, onHit
 void handleTargetedBlast(SkillContext& ctx) {
@@ -84,6 +120,14 @@ void handleTargetedBlast(SkillContext& ctx) {
     };
     ctx.world.addVfx(makeTeleportVfx(ctx.caster.pos, target->pos, a.color));  // 爆風が飛んでいく演出
     ctx.world.spawnArea(std::move(a));
+}
+
+ParamRules targetedBlastRules() {
+    return {
+        requiredParam("radius", ParamKind::Positive),
+        optionalParam("color", ParamKind::Color),
+        optionalParam("onHit", ParamKind::Effects),
+    };
 }
 
 }  // namespace moba::skills

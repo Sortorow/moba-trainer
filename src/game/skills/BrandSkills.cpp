@@ -142,4 +142,17 @@ void handleBrandR(SkillContext& ctx) {
     spawnBounce(ctx.world, params, state, ctx.caster.pos, target->id);
 }
 
+ParamRules brandRRules() {
+    return {
+        requiredParam("speed", ParamKind::Positive),
+        requiredParam("width", ParamKind::Positive),
+        requiredParam("bounces", ParamKind::NonNegativeInteger),  // 0 = 跳ね返らない
+        requiredParam("maxHitsPerTarget", ParamKind::PositiveInteger),
+        requiredParam("bounceRange", ParamKind::Positive),
+        requiredParam("recentWindow", ParamKind::NonNegative),  // 0 = 直前に当たった敵も後回しにしない
+        optionalParam("color", ParamKind::Color),
+        optionalParam("onHit", ParamKind::Effects),
+    };
+}
+
 }  // namespace moba::skills

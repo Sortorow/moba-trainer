@@ -64,8 +64,10 @@ flowchart LR
 | 起動に必要なものが無い | ダイアログを出して終了（終了コード 1・2） | data フォルダが無い・引数の誤り・入力スクリプトが読めない |
 | 設定ファイルが読めない | **前回の内容を使い続け**、ERROR のログとメニューの赤字 | JSON の書き方の誤り・必須の項目が無い |
 | 設定ファイルの値がおかしい | 範囲に収める・既定値にする。警告（WARN）とメニューの赤字 | 知らない `cameraMode`・範囲外の数 |
-| params の書き忘れ・効果の書き方の誤り | 既定値で続ける（誤った効果は飛ばす）。そのスキルを初めて使った時に、WARN のログとメニューの赤字（設定ファイルを読み直すまで 1 回だけ） | `SkillDef::num`、`parseEffects`、`DataWarnings` |
-| handler の名前の誤り | メニューの赤字。そのスキルを使うと何も起きない（ERROR のログ） | `App::validateData`、`casting::runSkill` |
+| スキルの params・handler の名前の誤り | 読み込む時に確かめ、**そのキャラのファイルを使わない**（前回の内容を使い続ける。初めてなら選べない）。ERROR のログとメニューの赤字に、どのスキルのどの項目がなぜ駄目か | `skills::checkSkillParams`、`GameData::loadAll` |
+| params の知らない項目名 | 警告（WARN）とメニューの赤字（「警告:」）。その項目は使わない | `skills::checkSkillParams` |
+| 確かめずに読んだ params の書き忘れ・効果の誤り（確かめる関数を渡さない自動テストなど） | 既定値で続ける（誤った効果は飛ばす）。そのスキルを初めて使った時に、WARN のログとメニューの赤字（設定ファイルを読み直すまで 1 回だけ） | `SkillDef::num`、`parseEffects`、`DataWarnings` |
+| 設定ファイルの文字列を ImGui の書式に入れる | `%` を `%%` にしてから入れる | `ui::escapeFormat`（賢さの名前） |
 | スキルが使えない | 何もしない。DEBUG のログに理由 | クールダウン中・射程外・対象がいない |
 | リザルトのファイルが読めない | `.broken` を付けて残し、上書きしない。記録の画面に赤字 | `ResultStore::load` |
 | 書き込みに失敗 | ログとエラーの一覧に出し、続ける | リザルトの保存・sandbox.jsonc の保存 |
@@ -137,9 +139,10 @@ flowchart LR
 ### 7.2 handler（スキルの動き）を足す
 
 1. `src/game/skills/<キャラ>Skills.cpp`（汎用なら `CommonSkills.cpp`）に `void handleXxx(SkillContext& ctx)` を書く
-2. `Skill.h` に宣言を足す
-3. `SkillRegistry.cpp` の `kHandlers` に名前と関数を足し、**配列の大きさを 1 増やす**
-4. 書き方の注意は [15-game-skills.md の 6 章](15-game-skills.md#6-新しい-handler-を作る時)
+2. 同じファイルに、params の決まりを返す `ParamRules xxxRules()` を書く（[15-game-skills.md の 3.3](15-game-skills.md#33-params-の決まりと読み込む時のチェックskillparamshskillparamscpp)）
+3. `Skill.h` に 2 つの宣言を足す
+4. `SkillRegistry.cpp` の `kHandlers` に名前・関数・決まりを足し、**配列の大きさを 1 増やす**
+5. 書き方の注意は [15-game-skills.md の 6 章](15-game-skills.md#6-新しい-handler-を作る時)
 
 ### 7.3 状態異常を足す
 
@@ -149,7 +152,7 @@ flowchart LR
 
 ### 7.4 弾・範囲の見た目を足す
 
-1. `game/Entities.h` の `ProjectileVisual` / `AreaVisual` に値を足し、`Entities.cpp` の `...FromString` に表記を足す
+1. `game/Entities.h` の `ProjectileVisual` / `AreaVisual` に値を足し、`Entities.cpp` の表（`kProjectileVisuals` / `kAreaVisuals`）に表記を足す（params の `visual` の決まりも、この表から作られる）
 2. `render/Renderer.cpp` の `drawProjectile` / `drawArea` に描き方を足す
 
 ### 7.5 ステージを足す

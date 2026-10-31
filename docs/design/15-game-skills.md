@@ -8,7 +8,8 @@
 |---|---|---|
 | [game/SkillCasting.h](../../src/game/SkillCasting.h) / [.cpp](../../src/game/SkillCasting.cpp) | `moba::casting` | 発動の流れ（クールダウン・行動不能・対象・射程・詠唱・予約・接近） |
 | [game/skills/Skill.h](../../src/game/skills/Skill.h) | `moba::skills` | handler の形（`SkillContext`・`SkillHandler`）、すべての handler と共通の部品の宣言 |
-| [game/skills/SkillRegistry.cpp](../../src/game/skills/SkillRegistry.cpp) | `moba::skills` | 設定ファイルの `"handler"` の名前と、処理の対応表 |
+| [game/skills/SkillRegistry.cpp](../../src/game/skills/SkillRegistry.cpp) | `moba::skills` | 設定ファイルの `"handler"` の名前と、処理・params の決まりの対応表 |
+| [game/skills/SkillParams.h](../../src/game/skills/SkillParams.h) / [.cpp](../../src/game/skills/SkillParams.cpp) | `moba::skills` | params の決まり（`ParamRule`）の形と、読み込む時のチェック（`checkSkillParams`） |
 | [game/skills/SkillHelpers.cpp](../../src/game/skills/SkillHelpers.cpp) | `moba::skills` | 共通の部品（弾・範囲の作り方、効果の付け方、ワープ、クールダウンの短縮） |
 | [game/skills/CommonSkills.cpp](../../src/game/skills/CommonSkills.cpp) | `moba::skills` | 複数のキャラで使い回せる汎用のスキル |
 | [game/skills/EzrealSkills.cpp](../../src/game/skills/EzrealSkills.cpp) | `moba::skills` | like ezreal 固有（E） |
@@ -24,6 +25,10 @@
 | `casting::CastOutcome` | 列挙型 | SkillCasting.h |
 | `skills::SkillContext` | 構造体 | Skill.h |
 | `skills::SkillHandler` | 関数ポインタの型（`void (*)(SkillContext&)`） | Skill.h |
+| `skills::ParamKind` | 列挙型 | SkillParams.h |
+| `skills::ParamRule` | 構造体 | SkillParams.h |
+| `skills::ParamRules` | 型の別名（`std::vector<ParamRule>`） | SkillParams.h |
+| `HandlerEntry` | 構造体（SkillRegistry.cpp の中だけ） | SkillRegistry.cpp |
 | `BounceParams`・`BounceState` | 構造体（BrandSkills.cpp の中だけ） | BrandSkills.cpp |
 
 ### キャラのスキルと handler の対応（コミット `0498fab` の時点の設定ファイル）
@@ -155,17 +160,75 @@ handler に渡す情報です。
 using SkillHandler = void (*)(SkillContext&);
 ```
 
-`SkillRegistry.cpp` の `kHandlers`（`std::array<std::pair<std::string_view, SkillHandler>, 11>`）が、名前と関数の対応表です。
+`SkillRegistry.cpp` の `kHandlers`（`std::array<HandlerEntry, 11>`）が対応表です。`HandlerEntry`（.cpp の中だけの構造体）は 1 行分で、`name`（設定ファイルに書く名前）・`handler`（処理）・`rules`（params の決まりを返す関数 `ParamRules (*)()`）を持ちます。
 
 | 関数 | 説明 |
 |---|---|
 | `SkillHandler findHandler(string_view name)` | 名前から処理を探す。無ければ `nullptr`（表を順に見る） |
-| `bool handlerExists(string_view name)` | その名前があるか（`App::validateData` が設定ファイルの確認に使う） |
+| `bool handlerExists(string_view name)` | その名前があるか |
 | `vector<string_view> handlerNames()` | すべての名前 |
+| `optional<ParamRules> findParamRules(string_view name)` | 名前から params の決まりを探す。名前が無ければ `nullopt` |
+| `findEntry`（.cpp の中だけ） | 名前で表の行を探す。無ければ `nullptr` |
 
 **背景**（推測）: 継承（スキルごとのクラス）ではなく関数ポインタの表にしたのは、handler が状態を持たず、設定ファイルの名前から選ぶだけでよいためと考えられます。新しい handler を足す時は、Skill.h に宣言し、`kHandlers` に 1 行足し、**配列の大きさ（11）も 1 つ増やします**。
 
-### 3.3 共通の部品（SkillHelpers.cpp）
+**背景**（根拠: SkillParams.h のコメント、claude_directive.txt の「設定・調整」）: 決まりを返す関数を処理と同じ行に置くのは、params を読む処理のすぐ近くに決まりを書き、書き忘れを防ぐためです。決まりは処理と同じファイル（`CommonSkills.cpp` など）の `...Rules` 関数にあります。
+
+### 3.3 params の決まりと、読み込む時のチェック（SkillParams.h・SkillParams.cpp）
+
+キャラのファイルを読む時、各スキルの params を、その handler の決まりで確かめます。`App` の構築時に `GameData::setSkillValidator(skills::checkSkillParams)` で渡され、`GameData::loadAll` から呼ばれます（`data` は `game/skills` を知らないため、関数を外から渡す形。[12-data.md](12-data.md)）。
+
+**`ParamKind`（列挙型）**: 値の種類。
+
+| 値 | 決まり | 主な項目 |
+|---|---|---|
+| `Positive` | 0 より大きい数 | 弾速・幅・半径・残る時間・探す距離（0 だと動きが成り立たない。`doveSpeed` は割り算に使う） |
+| `NonNegative` | 0 以上の数 | 待ち時間（`delay` など。0 = すぐ）・`lingerTime`・`recentWindow` |
+| `Ratio` | 0 以上 1 以下の数 | `cooldownRefundOnHit`・`slowAmount` |
+| `AnyNumber` | どんな数でもよい | 見た目のずれ（`doveCardDrawOffset...`） |
+| `PositiveInteger` / `NonNegativeInteger` | 1 以上 / 0 以上の整数 | `maxHitsPerTarget` / `bounces` |
+| `Flag` / `Text` | `true` か `false` / 文字列 | `pierce` など / 印の名前 |
+| `Choice` / `ChoiceList` | 決まった文字列のどれか / その配列 | `visual` / `targetKinds` |
+| `Color` | `[R, G, B]` か `[R, G, B, A]`（各 0〜255 の整数） | `color` など |
+| `Effects` | 効果の配列（各効果の決まりも確かめる） | `onHit` など |
+
+**`ParamRule`（構造体）**: 項目 1 つの決まり。
+
+| メンバ | 型 | 既定値 | 説明 |
+|---|---|---|---|
+| `key` | `string_view` | — | 項目名 |
+| `kind` | `ParamKind` | `Positive` | 値の種類 |
+| `required` | `bool` | `false` | `true` なら、書いていなければエラー |
+| `choices` | `vector<string_view>` | 空 | `Choice` / `ChoiceList` の時に書ける文字列 |
+
+| 関数 | 説明 |
+|---|---|
+| `ParamRule requiredParam(key, kind)` | 必ず書く項目の決まりを作る |
+| `ParamRule optionalParam(key, kind)` | 省略できる項目の決まりを作る |
+| `ParamRule choiceParam(key, kind, choices)` | 決まった文字列を書く項目（省略できる）の決まりを作る |
+| `ParamRules joinRules(ParamRules base, const ParamRules& more)` | 決まりをつなげる（共通の部品の決まりに、handler 固有の決まりを足す時） |
+| `SkillCheck checkSkillParams(const SkillDef& def)` | params を、その handler の決まりで確かめる。戻り値はエラーと警告の文の一覧（`SkillCheck`、[12-data.md](12-data.md)） |
+| `ParamRules projectileBaseRules()` / `groundBlastBaseRules()`（SkillHelpers.cpp） | `makeProjectile` / `makeGroundBlast` が読む項目の決まり（各 handler の決まりの土台） |
+| `ParamRules projectileRules()` など 11 個（各 handler のファイル） | handler ごとの決まり |
+
+`checkSkillParams` の判定:
+
+| 場合 | 結果 | 文の例 |
+|---|---|---|
+| handler が存在しない | エラー | `like_emma の R（マジックショー）: handler "x" は存在しません` |
+| 必ず書く項目が無い | エラー | `…: params.hatRadius がありません（必ず書く項目です）` |
+| 値が決まりを満たさない | エラー | `…: params.doveSpeed は 0 より大きい数にしてください（今: 0）` |
+| 効果の誤り（知らない `type`・`duration` が無いか 0 以下・`amount` が 0〜1 の外・`mark` に `tag` が無い） | エラー | `…: params.onHit の 1 番目の効果: duration は 0 より大きい数にしてください（今: 0）` |
+| 決まりに無い項目名（効果の中の知らない項目名も） | 警告 | `…: params.doveSped は handler "emma_r" では使いません（書き間違いかもしれません。この項目は無視します）` |
+
+.cpp の中だけの関数: `where`（「キャラ ID の キー（スキル名）」の文）、`shown`（値を 40 文字までの文にする）、`checkNumber`・`checkColor`・`checkEffects`・`checkValue`（種類ごとの判定）、`choiceText`（選択肢を並べた文）。
+
+**注意事項**:
+
+- 決まりを確かめた後の params だけが handler に渡るので、handler の中では値の範囲を確かめなくてよい（Skill.h のコメント）。ただし、テストなど `setSkillValidator` を呼ばない使い方では確かめられないので、`num` の既定値で動き続ける作りは残しています。
+- 決まりを足し忘れた項目は「使わない項目」として警告になります。新しい項目を読む時は、必ず決まりも足してください。
+
+### 3.4 共通の部品（SkillHelpers.cpp）
 
 | 関数 | 説明 |
 |---|---|
@@ -286,5 +349,5 @@ using SkillHandler = void (*)(SkillContext&);
 3. ラムダに取り込むのは値だけ（`ctx` の参照を取り込まない）
 4. 不発で何も出さない時、クールダウンを戻すかを決める（`cancelAndRefund` の形）
 5. 弾も範囲も出さないスキル（ワープなど）は、何もしなくてよい（`runSkill` が `endCastIfIdle` で記録を閉じる）
-6. `SkillRegistry.cpp` の配列の大きさを増やす
+6. `SkillRegistry.cpp` の配列の大きさを増やし、params の決まり（`...Rules` 関数）も同じ行に書く。0 を許すか・負を許すかは、その値の意味で決める（[data-files.md の「params の値の決まり」](../data-files.md#params-の値の決まり)）
 7. テスト（`tests/test_world.cpp`）を足す。期待値は設定ファイルの値から計算する（[30-tests.md](30-tests.md)）

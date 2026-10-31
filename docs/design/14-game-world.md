@@ -348,9 +348,11 @@ sequenceDiagram
 | 名前 | 説明 |
 |---|---|
 | `ProjectileVisual` | `Orb`（球）・`Ring`（輪）・`Crescent`（半月）・`Card`・`Beam`（光線）・`Bolt`（小さな弾）・`Dove`（鳩）。当たり判定はどれも同じ |
-| `ProjectileVisual projectileVisualFromString(string_view)` | `"orb"` などを見た目にする。知らない表記なら警告ログを出して `Orb` |
+| `ProjectileVisual projectileVisualFromString(string_view)` | `"orb"` などを見た目にする（.cpp の中だけの表 `kProjectileVisuals` を引く）。知らない表記なら警告ログを出して `Orb`（ゲームでは、知らない表記は読み込みの時点でエラーになるので、普通は起きない） |
+| `vector<string_view> projectileVisualNames()` | 弾の見た目の表記の一覧（params の `visual` の決まりに使う） |
 | `AreaVisual` | `Explosion`（輪だけ）・`Telegraph`（予告円が少しずつ埋まる）・`ThrownHat`（帽子が飛ぶ）・`Caltrops`（鉄菱が飛んで残る） |
-| `AreaVisual areaVisualFromString(string_view)` | `"explosion"` / `"telegraph"` / `"hat"` / `"caltrops"` を見た目にする。知らない表記なら警告ログを出して `Explosion` |
+| `AreaVisual areaVisualFromString(string_view)` | `"explosion"` / `"telegraph"` / `"hat"` / `"caltrops"` を見た目にする（表 `kAreaVisuals` を引く）。知らない表記なら警告ログを出して `Explosion` |
+| `vector<string_view> areaVisualNames()` | 範囲の見た目の表記の一覧（params の `visual` の決まりに使う） |
 | `string_view displayName(PropKind)` | 「鳩」/「帽子」（ログ用） |
 | `makeBurstVfx(pos, radius, color, duration = 0.35)` | 範囲が発動した時の、光って消える円 |
 | `makeRingVfx(pos, radius, color, duration = 0.4)` | 広がりながら消える輪（命中・ダウン） |
