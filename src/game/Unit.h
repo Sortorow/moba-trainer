@@ -65,7 +65,7 @@ struct Unit {
     // 目的地までの道のり（壁を回り込む点の並び。World が moveTarget から作る）
     std::vector<Vector2> path;
     std::optional<Vector2> pathGoal;  // path を作った時の moveTarget（変わったら作り直す）
-    float revealTime = 0.0f;          // ブッシュの中でも、外から見える残り時間（対象指定のスキルを使った後）
+    float revealTime = 0.0f;  // 視界の外やブッシュの中でも、相手から見える残り時間（対象指定のスキルで撃った後）
     StatusEffects status;
     CastState cast;
     std::optional<CastRequest> pendingCast;          // 射程外の対象へ近づいている途中のスキル

@@ -62,6 +62,10 @@ std::optional<CommandLineOptions> parseCommandLine(const std::vector<std::string
             ++i;
         } else if (arg == "--no-cooldown") {
             options.noCooldown = true;
+        } else if (arg == "--vision" && hasValue) {
+            if (value != "normal" && value != "full") return fail(arg, value);
+            options.fullVision = value == "full";
+            ++i;
         } else if (arg == "--script" && hasValue) {
             options.scriptFile = pathFromUtf8(value);
             ++i;

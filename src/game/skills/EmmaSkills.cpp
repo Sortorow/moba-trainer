@@ -85,6 +85,7 @@ void handleEmmaQ(SkillContext& ctx) {
 
     Prop newDove;
     newDove.owner = emma.id;
+    newDove.team = emma.team;
     newDove.kind = PropKind::Dove;
     newDove.pos = emma.pos;
     newDove.lifetime = newDove.remaining = def.num("doveLifetime", 6.0f);
@@ -119,6 +120,7 @@ void handleEmmaW(SkillContext& ctx) {
         }
         Prop hat;
         hat.owner = self.owner;
+        hat.team = self.team;
         hat.kind = PropKind::Hat;
         hat.pos = self.center;
         hat.lifetime = hat.remaining = hatLifetime;

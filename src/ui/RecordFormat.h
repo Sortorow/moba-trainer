@@ -30,4 +30,7 @@ enum class CooldownLabelStyle {
 /// クールダウンの設定の表示。「なし」か倍率かの判断は共通で、標準の時の書き方を style で選ぶ
 std::string cooldownLabel(const MatchConfig& config, CooldownLabelStyle style);
 
+/// 視界の設定の表示（「通常」/「全視界」）
+std::string visionLabel(const MatchConfig& config);
+
 }  // namespace moba::ui

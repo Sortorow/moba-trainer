@@ -36,7 +36,7 @@ void drawRecordTable(GameMode mode, const std::vector<SavedResult>& recent, cons
         flags |= ImGuiTableFlags_ScrollY;
         outerSize.y = maxHeight;
     }
-    if (!ImGui::BeginTable("records", 8, flags, outerSize)) return;
+    if (!ImGui::BeginTable("records", 9, flags, outerSize)) return;
     ImGui::TableSetupScrollFreeze(0, 1);
     ImGui::TableSetupColumn("順位");
     ImGui::TableSetupColumn(scoreTitle);
@@ -45,6 +45,7 @@ void drawRecordTable(GameMode mode, const std::vector<SavedResult>& recent, cons
     ImGui::TableSetupColumn("ステージ");
     ImGui::TableSetupColumn(mode == GameMode::SkillDodge ? "敵" : "的（賢さ・大きさ・速さ）");
     ImGui::TableSetupColumn("CD");
+    ImGui::TableSetupColumn("視界");
     ImGui::TableSetupColumn("日時");
     ImGui::TableHeadersRow();
 
@@ -71,6 +72,8 @@ void drawRecordTable(GameMode mode, const std::vector<SavedResult>& recent, cons
         ImGui::TextUnformatted(ui::difficultyLabel(r).c_str());
         ImGui::TableNextColumn();
         ImGui::TextUnformatted(ui::cooldownLabel(r.config, ui::CooldownLabelStyle::Short).c_str());
+        ImGui::TableNextColumn();
+        ImGui::TextUnformatted(ui::visionLabel(r.config).c_str());
         ImGui::TableNextColumn();
         ImGui::Text("%s%s", ui::shortTime(saved.playedAt).c_str(), highlight ? "  今回" : "");
     }

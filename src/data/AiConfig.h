@@ -83,6 +83,7 @@ struct AiConfig {
     float firstCastDelay = 1.5f;       // 開始から最初にスキルを撃つまでの時間
     float punishMinInterval = 1.0f;    // punishCC で動けない自キャラへ撃つ時も、最低限空ける間隔（秒）
     float maxEngageRange = 1000.0f;    // 自キャラと取る距離の上限
+    float visionMargin = 150.0f;       // 自キャラと取る距離を、視界の半径（visionRadius）からこの値だけ内側までに抑える
     float playerReactionTime = 0.25f;  // AI が想定する、プレイヤーが弾を見て避け始めるまでの時間
     std::vector<AiLevel> levels;       // 賢さ 1〜5
     SkillShotConfig skillShot;         // スキルショットの的

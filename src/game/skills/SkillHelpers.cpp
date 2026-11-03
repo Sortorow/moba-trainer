@@ -92,15 +92,18 @@ void applyEffects(World& world, Unit& target, const std::vector<EffectSpec>& eff
         }
         log::debug("status", "{} に{}（{:.2f}s, 強さ{:.0f}%）", target.name, displayName(effect.type), effect.duration,
                    effect.amount * 100.0f);
-        world.addVfx(makeTextVfx(target.pos, std::string(displayName(effect.type)), Color{255, 230, 140, 255}));
+        // 状態異常は相手の陣営から受けるので、演出は相手の陣営のもの
+        world.addVfx(makeTextVfx(opponentOf(target.team), target.pos, std::string(displayName(effect.type)),
+                                 Color{255, 230, 140, 255}));
     }
 }
 
 bool detonateMark(World& world, Unit& target, std::string_view markTag, Color color) {
     if (markTag.empty() || !target.status.consumeMark(markTag)) return false;
-    world.addVfx(makeBurstVfx(target.pos, target.radius * 2.2f, color, 0.5f));
-    world.addVfx(makeRingVfx(target.pos, target.radius * 2.8f, color, 0.5f));
-    world.addVfx(makeTextVfx(target.pos, "起爆!", color));
+    const Team team = opponentOf(target.team);  // 印を起爆したのは相手の陣営
+    world.addVfx(makeBurstVfx(team, target.pos, target.radius * 2.2f, color, 0.5f));
+    world.addVfx(makeRingVfx(team, target.pos, target.radius * 2.8f, color, 0.5f));
+    world.addVfx(makeTextVfx(team, target.pos, "起爆!", color));
     log::info("skill", "{} の印「{}」を起爆", target.name, markTag);
     return true;
 }
@@ -121,7 +124,7 @@ void teleport(World& world, Unit& unit, Vector2 destination, Color color) {
     // 壁や建物の中には立てないので、近くの立てる位置へ（フラッシュで壁の中を指定した時など）
     unit.pos = world.placeable(destination, unit.radius);
     unit.facing = geo::normalizedOr(unit.pos - from, unit.facing);
-    world.addVfx(makeTeleportVfx(from, unit.pos, color));
+    world.addVfx(makeTeleportVfx(unit.team, from, unit.pos, color));
     log::debug("skill", "{} が {} から {} へ移動", unit.name, geo::str(from), geo::str(unit.pos));
 }
 

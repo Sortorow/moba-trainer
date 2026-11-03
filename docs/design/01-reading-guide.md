@@ -94,7 +94,7 @@
 
 | 読むもの | 分かればよいこと |
 |---|---|
-| [src/render/Renderer.cpp](../../src/render/Renderer.cpp) の `drawWorld` | ゲーム画面は raylib で図形を描く。描く順番 |
+| [src/render/Renderer.cpp](../../src/render/Renderer.cpp) の `drawWorld` | ゲーム画面は raylib で図形を描く。描く順番。視界の外を暗くし、相手の陣営の物を視界の中だけ描く方法 |
 | [src/render/Hud.cpp](../../src/render/Hud.cpp) の `drawHud` | 文字（日本語）は Dear ImGui で重ねて描く |
 | [src/ui/MainMenu.cpp](../../src/ui/MainMenu.cpp) | メニューは Dear ImGui。選んだ内容を `MatchConfig` にして `App` に返す |
 
@@ -158,6 +158,7 @@ sequenceDiagram
 | 敵の考え方を変えたい | [src/game/ai/EnemyAI.cpp](../../src/game/ai/EnemyAI.cpp) の `tryCast` と `planMovement` | [16-game-ai.md](16-game-ai.md) |
 | ステージを足したい | `data/stages/*.jsonc` を足す（コードの変更は不要） | [data-files.md](../data-files.md) |
 | 壁の当たり・経路探索を直したい | [src/game/Terrain.cpp](../../src/game/Terrain.cpp) | [14-game-world.md](14-game-world.md) |
+| 視界（何が視線を遮るか・見える範囲）を直したい | [src/game/Vision.cpp](../../src/game/Vision.cpp) と `World::canSee` | [14-game-world.md](14-game-world.md#8-visionh--cpp) |
 | ヒット率・ドッジ率の数え方を知りたい | [src/game/CastStats.h](../../src/game/CastStats.h) と `World::finishCastRecord` | [18-game-results.md](18-game-results.md) |
 | メニューの項目を足したい | [src/ui/MainMenu.cpp](../../src/ui/MainMenu.cpp) と [src/game/MatchConfig.h](../../src/game/MatchConfig.h) | [20-ui.md](20-ui.md) |
 | HUD の表示を変えたい | [src/render/Hud.cpp](../../src/render/Hud.cpp) | [19-render.md](19-render.md) |

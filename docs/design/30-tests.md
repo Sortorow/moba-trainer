@@ -46,6 +46,7 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | [test_dodge.cpp](../../tests/test_dodge.cpp) | スキルドッジ・`ai::Aim`・ブランドの R | 被弾と HP・回避の確定・ダウン・予告の間に避ける・移動系だけのルール・偏差撃ち・射程外・ブランド R の跳ね返り・賢さとドッジ率・制限時間まで遊ぶ・詠唱時間もクールダウンも 0 のスキルでも撃つ間隔を守る・動けない自キャラにも `punishMinInterval` を空ける・一度も見えていない自キャラは今の位置を基準にする |
 | [test_shot.cpp](../../tests/test_shot.cpp) | スキルショット・`ai::SkillShotTarget` | 的の置き方・反応の下限・往復と接近のパターン・弾や範囲の回避・詠唱を見て避ける・飛んでいる途中の発動を数えない・賢さとヒット率 |
 | [test_stage.cpp](../../tests/test_stage.cpp) | `Terrain`・ステージ | 3 つのステージが読める・壁を回り込む・建物の中をクリック・囲まれた場所へは行けない・ブッシュの見え方・対象指定で見える・障害物に入り込まない |
+| [test_vision.cpp](../../tests/test_vision.cpp) | `vision::`・`World` の視界・敵 AI | 建物・壁・木は遮り箱は遮らない・視界の半径・ブッシュの奥・撃った時に見える時間（見えている時は付かない）・近づいている途中で見えなくなったら発動をやめる・見えない時に敵は撃たない・敵が保つ距離は視界の内側・全視界（壁・ブッシュ・距離に関係なく見える、敵 AI がブッシュの中の自キャラにも撃つ、モードごとの初期値と `Match` のルール）・視界の形が壁の手前で止まり角に頂点がある・路地裏と森で視界の形と視線の判定が一致する |
 | [test_sandbox.cpp](../../tests/test_sandbox.cpp) | `SandboxConfig`・練習場 | プリセットが読める・`"preset"` だけが書き換わりコメントが残る・コメント / 文字列 / 内側のオブジェクトの `"preset"` は書き換えない・一番外側に無ければ保存しない・プリセットの切り替えでダミーが置き直される |
 | [test_results.cpp](../../tests/test_results.cpp) | `ResultStore` | 1 日 20 件・180 日・モードごとの保存・保存して読み直しても同じ・読めないファイルを `.broken` にする・順位 |
 | [test_stats.cpp](../../tests/test_stats.cpp) | `ResultStats` | 絞り込み・平均と自己ベスト・直近 7 日の比較・移動平均・自己ベストの更新と TOP 3・自己ベストの数字 / TOP 3 / グラフの更新の印が同じプレイを指す・日ごと / 賢さごと / キーごと |
@@ -77,6 +78,7 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | `arrivals(f, seconds)` | test_shot.cpp | 的が移動先に着くたびの位置を記録する |
 | `playShot(data, level, seed, seconds)` | test_shot.cpp | スキルショットを遊んだ時のヒット率（自キャラは動かず、Q を撃ち続ける） |
 | `StageFixture`・`rect`・`circle`・`makeStage` | test_stage.cpp | テスト用の 2000 × 2000 のステージと、障害物にめり込まなかったかを確かめながら動かす部品 |
+| `VisionFixture`・`rectObstacle`・`circle`・`makeStage`・`boundaryDistance` | test_vision.cpp | テスト用の 4000 × 4000 のステージ（障害物の種類を選べる）と、視界の多角形の境目までの距離（多角形の内側かどうかを調べる） |
 | `NoCastTimeData` | test_dodge.cpp | `TempDataCopy` で data を写し、すべてのスキルの `castTime` と ai.jsonc の `enemyCooldownScale` を 0 に書き換える（今の設定ファイルには無い「詠唱もクールダウンも無いスキル」を作るため） |
 | `readText`・`dummyUnits` | test_sandbox.cpp | ファイルの中身をそのまま読む・練習場のダミーの一覧 |
 | `TempDir`・`dodgeResult`・`shotResult`・`at` | test_results.cpp | 一時フォルダと、テスト用の結果・日時 |
@@ -112,6 +114,7 @@ TEST_CASE("エズリアル Q: 正面の敵に当たり、外せば当たらな�
 | [shot_tour.txt](../../tests/scripts/shot_tour.txt) | スキルショット | `--character like_ezreal --mode shot --ai 3 --time 8 --seed 42 --script ...` |
 | [camera_tour.txt](../../tests/scripts/camera_tour.txt) | カメラの「固定しない」 | `--character like_ezreal --script ...` |
 | [stage_tour.txt](../../tests/scripts/stage_tour.txt) | 壁の回り込みとブッシュ | `--character like_emma --stage alley --script ...`（`forest` も） |
+| [vision_tour.txt](../../tests/scripts/vision_tour.txt) | 視界（視界の外の暗さ・壁やブッシュの陰・視界の外の敵や弾が描かれない） | `--character like_emma --mode dodge --stage alley --enemies 3 --ai 3 --time 12 --seed 42 --script ...`（`forest` も） |
 
 入力スクリプトで動かす時は、
 

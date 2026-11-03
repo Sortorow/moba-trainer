@@ -59,6 +59,9 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
     }
     world_->setCooldownScale(Team::Player, config_.playerCooldownScale());
     world_->setCooldownScale(Team::Enemy, data_.ai().enemyCooldownScale);
+    WorldRules rules;
+    rules.fullVision = config_.fullVision;
+    world_->setRules(rules);
 
     switch (config_.mode) {
         case GameMode::Sandbox:
@@ -77,10 +80,10 @@ Match::Match(const GameData& data, MatchConfig config) : data_(data), config_(st
                                    config_.targetLevel, config_.targetRadius, config_.targetMoveSpeed,
                                    config_.timeLimitSeconds, config_.seed);
     }
-    log::info("match", "{}を開始: キャラ={} ステージ={} クールダウン={}（倍率 {:.2f}）{}", displayName(config_.mode),
-              character->id, config_.stageId.empty() ? "（なし）" : config_.stageId,
+    log::info("match", "{}を開始: キャラ={} ステージ={} クールダウン={}（倍率 {:.2f}） 視界={}{}",
+              displayName(config_.mode), character->id, config_.stageId.empty() ? "（なし）" : config_.stageId,
               config_.cooldownMode == CooldownMode::None ? "なし" : "標準", config_.playerCooldownScale(),
-              modeSettings);
+              config_.fullVision ? "全視界" : "通常", modeSettings);
 }
 
 void Match::setupSkillDodge(const CharacterDef& character) {

@@ -64,7 +64,7 @@ float drawHpBar(ImDrawList* dl, const Unit& unit, ImVec2 topCenter) {
 /// キャラ名・HP・状態異常の残り時間
 void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) {
     for (const Unit& unit : world.units()) {
-        if (!world.canSee(Team::Player, unit)) continue;  // ブッシュに隠れている敵
+        if (!world.canSee(Team::Player, unit)) continue;  // 視界の外・ブッシュに隠れている敵
         const bool enemy = unit.team == Team::Enemy && !unit.characterId.empty();
         const ImVec2 top = toScreen(unit.pos - Vector2{0.0f, unit.radius + 30.0f}, camera);
         drawCenteredText(dl, top, 16.0f, enemy ? IM_COL32(255, 160, 150, 240) : IM_COL32(255, 255, 255, 230),
@@ -74,12 +74,14 @@ void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) 
         if (unit.maxHp > 0) below.y = drawHpBar(dl, unit, below) + px(10.0f);
 
         std::string status;
-        // 自キャラがブッシュの中にいる時: 敵から見えているかどうか
-        if (unit.team == Team::Player && world.terrain().bushAt(unit.pos) >= 0) {
+        // 自キャラがブッシュの中にいる時と、撃って見えるようになっている時: 敵から見えているかどうか
+        const bool inBush = world.terrain().bushAt(unit.pos) >= 0;
+        if (unit.team == Team::Player && (inBush || unit.revealTime > 0.0f)) {
+            const std::string_view prefix = inBush ? "ブッシュ: " : "";
             status = world.canSee(Team::Enemy, unit)
-                         ? (unit.revealTime > 0.0f ? std::format("ブッシュ: 見えている {:.1f}", unit.revealTime)
-                                                   : std::string("ブッシュ: 見えている"))
-                         : std::string("ブッシュ: 隠れている");
+                         ? (unit.revealTime > 0.0f ? std::format("{}見えている {:.1f}", prefix, unit.revealTime)
+                                                   : std::format("{}見えている", prefix))
+                         : std::format("{}隠れている", prefix);
         }
         for (const StatusEffect& effect : unit.status.list()) {
             if (!status.empty()) status += "  ";
@@ -90,8 +92,10 @@ void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) 
         if (!status.empty()) drawCenteredText(dl, below, 14.0f, IM_COL32(255, 230, 140, 255), status);
     }
     // 状態異常などの文字演出（少しずつ上へ浮かぶ）
+    // 相手の陣営の演出は、自キャラの視界の中にある時だけ
     for (const Vfx& vfx : world.vfx()) {
         if (vfx.kind != VfxKind::Text) continue;
+        if (vfx.team != Team::Player && !world.canSeePoint(Team::Player, vfx.pos)) continue;
         const float t = 1.0f - vfx.remaining / vfx.duration;
         const ImVec2 pos = toScreen(vfx.pos - Vector2{0.0f, 110.0f + t * 60.0f}, camera);
         drawCenteredText(dl, pos, 18.0f, toImColor(vfx.color, vfx.remaining / vfx.duration), vfx.text);
@@ -108,7 +112,7 @@ void drawOffscreenIndicators(ImDrawList* dl, const World& world, const Camera2D&
         const bool isPlayer = unit.team == Team::Player;
         const bool isEnemyCharacter = unit.team == Team::Enemy && !unit.characterId.empty();
         if (!isPlayer && !isEnemyCharacter) continue;
-        if (!world.canSee(Team::Player, unit)) continue;  // ブッシュに隠れている敵の方向は示さない
+        if (!world.canSee(Team::Player, unit)) continue;  // 見えない敵の方向は示さない
         const Vector2 s = GetWorldToScreen2D(unit.pos, camera);
         const float r = unit.radius * camera.zoom;
         if (s.x + r >= 0.0f && s.x - r <= display.x && s.y + r >= 0.0f && s.y - r <= display.y) continue;
@@ -245,11 +249,12 @@ void drawShotPanel(ImDrawList* dl, const Match& match) {
 
 /// 画面左上の操作説明（今のカメラも出す）
 /// @param escPauses Esc でポーズするモードか（スキルドッジ・スキルショット）。false なら Esc でメニューに戻る
-void drawHelp(ImDrawList* dl, CameraMode cameraMode, bool escPauses) {
+/// @param fullVision 全視界か（全視界なら「視界: 全視界」も出す）
+void drawHelp(ImDrawList* dl, CameraMode cameraMode, bool escPauses, bool fullVision) {
     const std::string help = std::format(
         "右クリック: 移動    Q/W/E/R/D/F: スキル    Y: カメラ（今: {}）    Space: 自キャラを映す    "
-        "F1: デバッグ表示    F5: 設定の再読み込み    Esc: {}",
-        displayName(cameraMode), escPauses ? "ポーズ" : "メニュー");
+        "F1: デバッグ表示    F5: 設定の再読み込み    Esc: {}{}",
+        displayName(cameraMode), escPauses ? "ポーズ" : "メニュー", fullVision ? "    視界: 全視界" : "");
     const float size = px(15.0f);
     const ImVec2 pos = px(12.0f, 10.0f);
     const float shadow = std::max(1.0f, px(1.0f));
@@ -267,7 +272,7 @@ void drawHud(const Match& match, const Camera2D& camera, CameraMode cameraMode) 
     drawSkillBar(dl, world);
     if (match.config().mode == GameMode::SkillDodge) drawDodgePanel(dl, match);
     if (match.config().mode == GameMode::SkillShot) drawShotPanel(dl, match);
-    drawHelp(dl, cameraMode, match.config().timed());
+    drawHelp(dl, cameraMode, match.config().timed(), match.config().fullVision);
 }
 
 }  // namespace moba

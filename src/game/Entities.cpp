@@ -65,9 +65,10 @@ std::string_view displayName(PropKind kind) {
     return "?";
 }
 
-Vfx makeBurstVfx(Vector2 pos, float radius, Color color, float duration) {
+Vfx makeBurstVfx(Team team, Vector2 pos, float radius, Color color, float duration) {
     Vfx vfx;
     vfx.kind = VfxKind::Burst;
+    vfx.team = team;
     vfx.pos = pos;
     vfx.radius = radius;
     vfx.color = color;
@@ -75,27 +76,27 @@ Vfx makeBurstVfx(Vector2 pos, float radius, Color color, float duration) {
     return vfx;
 }
 
-Vfx makeRingVfx(Vector2 pos, float radius, Color color, float duration) {
-    Vfx vfx = makeBurstVfx(pos, radius, color, duration);
+Vfx makeRingVfx(Team team, Vector2 pos, float radius, Color color, float duration) {
+    Vfx vfx = makeBurstVfx(team, pos, radius, color, duration);
     vfx.kind = VfxKind::Ring;
     return vfx;
 }
 
-Vfx makeTeleportVfx(Vector2 from, Vector2 to, Color color) {
-    Vfx vfx = makeBurstVfx(from, 60.0f, color, 0.35f);
+Vfx makeTeleportVfx(Team team, Vector2 from, Vector2 to, Color color) {
+    Vfx vfx = makeBurstVfx(team, from, 60.0f, color, 0.35f);
     vfx.kind = VfxKind::Teleport;
     vfx.pos2 = to;
     return vfx;
 }
 
 Vfx makeClickMarkerVfx(Vector2 pos) {
-    Vfx vfx = makeBurstVfx(pos, 36.0f, Color{80, 230, 120, 255}, 0.3f);
+    Vfx vfx = makeBurstVfx(Team::Player, pos, 36.0f, Color{80, 230, 120, 255}, 0.3f);
     vfx.kind = VfxKind::ClickMarker;
     return vfx;
 }
 
-Vfx makeTextVfx(Vector2 pos, std::string text, Color color) {
-    Vfx vfx = makeBurstVfx(pos, 0.0f, color, 0.9f);
+Vfx makeTextVfx(Team team, Vector2 pos, std::string text, Color color) {
+    Vfx vfx = makeBurstVfx(team, pos, 0.0f, color, 0.9f);
     vfx.kind = VfxKind::Text;
     vfx.text = std::move(text);
     return vfx;

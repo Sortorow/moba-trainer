@@ -173,23 +173,32 @@ std::vector<Unit*> World::enemiesInCircle(Vector2 center, float radius, Team myT
 }
 
 // ---------------------------------------------------------------------------
-// ブッシュと見え方
+// 視界
 // ---------------------------------------------------------------------------
 bool World::canSee(Team observer, const Unit& target) const {
     if (target.team == observer || target.revealTime > 0.0f) return true;
-    const int bush = terrain_.bushAt(target.pos);
-    if (bush < 0) return true;
-    // 同じブッシュの中に、observer の陣営のキャラがいれば見える
+    return canSeePoint(observer, target.pos);
+}
+
+bool World::canSeePoint(Team observer, Vector2 point) const {
+    if (rules_.fullVision) return true;
+    const float radius = settings().visionRadius;
     return std::any_of(units_.begin(), units_.end(), [&](const Unit& unit) {
-        return unit.alive && unit.team == observer && terrain_.bushAt(unit.pos) == bush;
+        // 見る側が入っているブッシュは、視線を遮らない
+        return unit.alive && unit.team == observer && Vector2Distance(unit.pos, point) <= radius &&
+               vision::lineOfSight(terrain_, unit.pos, point, terrain_.bushAt(unit.pos));
     });
 }
 
-void World::revealFromBush(Unit& unit) {
-    if (terrain_.bushAt(unit.pos) < 0) return;
-    unit.revealTime = settings().bushRevealTime;
-    log::debug("bush", "{} がブッシュの中で対象指定のスキルを使ったため、{:.1f} 秒間外から見えます", unit.name,
-               unit.revealTime);
+std::vector<vision::VisionRay> World::visionPolygon(const Unit& viewer) const {
+    return vision::visionPolygon(terrain_, viewer.pos, settings().visionRadius, terrain_.bushAt(viewer.pos));
+}
+
+void World::revealAttacker(Unit& caster, const Unit& target) {
+    if (target.team == caster.team || canSee(target.team, caster)) return;
+    caster.revealTime = settings().attackRevealTime;
+    log::debug("vision", "{} が見えていない所から {} を対象指定のスキルで撃ったため、{:.1f} 秒間見えます", caster.name,
+               target.name, caster.revealTime);
 }
 
 // ---------------------------------------------------------------------------
@@ -217,8 +226,8 @@ void World::damagePlayer(Unit& player) {
     if (player.hp > 0) return;
     ++player.deaths;
     player.hp = player.maxHp;
-    addVfx(makeRingVfx(player.pos, player.radius * 2.5f, Color{255, 90, 90, 255}, 0.6f));
-    addVfx(makeTextVfx(player.pos, "ダウン!", Color{255, 120, 120, 255}));
+    addVfx(makeRingVfx(Team::Player, player.pos, player.radius * 2.5f, Color{255, 90, 90, 255}, 0.6f));
+    addVfx(makeTextVfx(Team::Player, player.pos, "ダウン!", Color{255, 120, 120, 255}));
     log::info("dodge", "HP が 0 になりました（{} 回目）。全回復します", player.deaths);
 }
 
@@ -427,7 +436,7 @@ void World::updateAreas(float dt) {
             if (a.duration <= 0.0f) {
                 // 発動の瞬間だけ判定する範囲
                 for (Unit* unit : enemiesInCircle(a.center, a.radius, a.team)) hitWithArea(a, *unit);
-                addVfx(makeBurstVfx(a.center, a.radius, a.color));
+                addVfx(makeBurstVfx(a.team, a.center, a.radius, a.color));
                 if (a.hitUnits.empty())
                     log::debug("skill", "castId={} [{}] {} は誰にも当たらなかった", a.castId, toString(a.slot),
                                a.label);

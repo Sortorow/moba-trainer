@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #include "core/Geometry.h"
+#include "data/Settings.h"
 #include "game/World.h"
+#include "rlgl.h"
 
 namespace moba {
 namespace {
@@ -299,20 +302,154 @@ void drawVfx(const Vfx& vfx) {
     }
 }
 
+/// 視界の外を覆う三角形（3 つの頂点ずつ並べたもの）。視界の多角形の外側を、光線の間ごとに 2 つの三角形で埋める
+/// @param farDistance 三角形の外側の端の距離（画面の隅より遠く）
+std::vector<Vector2> outsideTriangles(Vector2 origin, const std::vector<vision::VisionRay>& rays, float farDistance) {
+    std::vector<Vector2> triangles;
+    triangles.reserve(rays.size() * 6);
+    for (std::size_t i = 0; i < rays.size(); ++i) {
+        const vision::VisionRay& a = rays[i];
+        const vision::VisionRay& b = rays[(i + 1) % rays.size()];
+        const Vector2 nearA = origin + a.dir * a.distance;
+        const Vector2 nearB = origin + b.dir * b.distance;
+        const Vector2 farA = origin + a.dir * farDistance;
+        const Vector2 farB = origin + b.dir * farDistance;
+        triangles.insert(triangles.end(), {nearA, farA, farB, nearA, farB, nearB});
+    }
+    return triangles;
+}
+
+/// 三角形の並び（outsideTriangles）を塗りつぶす
+void fillTriangles(const std::vector<Vector2>& triangles, Color color) {
+    for (std::size_t i = 0; i + 2 < triangles.size(); i += 3)
+        drawTriangleBothSides(triangles[i], triangles[i + 1], triangles[i + 2], color);
+}
+
+/// origin から、画面の隅までの最も遠い距離（ワールド座標）。視界の外を覆う三角形を画面の外まで伸ばすのに使う
+float distanceToFarthestScreenCorner(Vector2 origin, const Camera2D& camera) {
+    const float w = static_cast<float>(GetScreenWidth());
+    const float h = static_cast<float>(GetScreenHeight());
+    float farthest = 0.0f;
+    for (const Vector2 corner : {Vector2{0.0f, 0.0f}, Vector2{w, 0.0f}, Vector2{0.0f, h}, Vector2{w, h}}) {
+        farthest = std::max(farthest, Vector2Distance(origin, GetScreenToWorld2D(corner, camera)));
+    }
+    return farthest;
+}
+
+/// 描画先 target に drawContents で描き、視界の外（outside の三角形）を消す。
+/// target には、色に不透明度を掛けた値（premultiplied alpha）で描く（重ねる時に、半透明の色が薄くならないように）
+template <typename DrawContents>
+void drawInsideVision(const RenderTexture2D& target, const Camera2D& camera, const std::vector<Vector2>& outside,
+                      DrawContents drawContents) {
+    BeginTextureMode(target);
+    ClearBackground(BLANK);
+    BeginMode2D(camera);
+    rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD,
+                              RL_FUNC_ADD);
+    BeginBlendMode(BLEND_CUSTOM_SEPARATE);
+    drawContents();
+    EndBlendMode();
+    // 視界の外を、色も不透明度も 0 にする
+    rlSetBlendFactors(RL_ZERO, RL_ZERO, RL_FUNC_ADD);
+    BeginBlendMode(BLEND_CUSTOM);
+    fillTriangles(outside, WHITE);
+    EndBlendMode();
+    EndMode2D();
+    EndTextureMode();
+}
+
+/// drawInsideVision で描いた描画先を、画面に重ねる（BeginMode2D の外で呼ぶ）
+void compositeLayer(const RenderTexture2D& layer) {
+    BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
+    // 描画先の絵は上下が逆さまなので、高さをマイナスにして読む
+    const Rectangle source{0.0f, 0.0f, static_cast<float>(layer.texture.width),
+                           -static_cast<float>(layer.texture.height)};
+    DrawTextureRec(layer.texture, source, Vector2{0.0f, 0.0f}, WHITE);
+    EndBlendMode();
+}
+
 }  // namespace
 
-void drawWorld(const World& world, const RenderOptions& options) {
+void VisionLayers::ensureSize(int width, int height) {
+    if (width <= 0 || height <= 0) return;
+    if (below_.id != 0 && width == width_ && height == height_) return;
+    release();
+    below_ = LoadRenderTexture(width, height);
+    above_ = LoadRenderTexture(width, height);
+    width_ = width;
+    height_ = height;
+}
+
+void VisionLayers::release() {
+    if (below_.id != 0) UnloadRenderTexture(below_);
+    if (above_.id != 0) UnloadRenderTexture(above_);
+    below_ = RenderTexture2D{};
+    above_ = RenderTexture2D{};
+    width_ = height_ = 0;
+}
+
+void drawWorld(const World& world, const Camera2D& camera, const RenderOptions& options, VisionLayers& layers) {
+    constexpr Team kViewerTeam = Team::Player;
+    const auto isMine = [](Team team) { return team == kViewerTeam; };
+
+    // 自キャラの視界の外を覆う三角形（全視界の時と、自キャラがいない時は、視界の外は無い）
+    std::vector<Vector2> outside;
+    if (const Unit* viewer = world.player(); viewer && !world.rules().fullVision) {
+        const float farDistance =
+            std::max(distanceToFarthestScreenCorner(viewer->pos, camera), world.settings().visionRadius) + 100.0f;
+        outside = outsideTriangles(viewer->pos, world.visionPolygon(*viewer), farDistance);
+    }
+
+    // 相手の陣営の範囲・設置物・弾・演出は、別の描画先に描いて、視界の外を消しておく
+    layers.ensureSize(GetScreenWidth(), GetScreenHeight());
+    drawInsideVision(layers.below(), camera, outside, [&] {
+        for (const AreaEffect& area : world.areas()) {
+            if (!isMine(area.team)) drawArea(area, options.showHitboxes);
+        }
+        for (const Prop& prop : world.props()) {
+            if (!isMine(prop.team)) drawProp(prop);
+        }
+    });
+    drawInsideVision(layers.above(), camera, outside, [&] {
+        for (const Projectile& projectile : world.projectiles()) {
+            if (!isMine(projectile.team)) drawProjectile(projectile, options.showHitboxes);
+        }
+        for (const Vfx& vfx : world.vfx()) {
+            if (!isMine(vfx.team)) drawVfx(vfx);
+        }
+    });
+
+    BeginMode2D(camera);
     drawGround(world);
     for (const Obstacle& obstacle : world.terrain().obstacles()) drawObstacle(obstacle);
-    for (const AreaEffect& area : world.areas()) drawArea(area, options.showHitboxes);
-    for (const Prop& prop : world.props()) drawProp(prop);
+    for (const AreaEffect& area : world.areas()) {
+        if (isMine(area.team)) drawArea(area, options.showHitboxes);
+    }
+    for (const Prop& prop : world.props()) {
+        if (isMine(prop.team)) drawProp(prop);
+    }
+    EndMode2D();
+    compositeLayer(layers.below());
+
+    BeginMode2D(camera);
     for (const Unit& unit : world.units()) {
-        // ブッシュに隠れていて自キャラの陣営から見えない敵は描かない（弾や範囲は見える）
-        if (world.canSee(Team::Player, unit)) drawUnit(unit, world.time());
+        // 自キャラの陣営から見えない敵は描かない
+        if (world.canSee(kViewerTeam, unit)) drawUnit(unit, world.time());
     }
     for (const Shape& bush : world.terrain().bushes()) drawBush(bush);
-    for (const Projectile& projectile : world.projectiles()) drawProjectile(projectile, options.showHitboxes);
-    for (const Vfx& vfx : world.vfx()) drawVfx(vfx);
+    for (const Projectile& projectile : world.projectiles()) {
+        if (isMine(projectile.team)) drawProjectile(projectile, options.showHitboxes);
+    }
+    for (const Vfx& vfx : world.vfx()) {
+        if (isMine(vfx.team)) drawVfx(vfx);
+    }
+    EndMode2D();
+    compositeLayer(layers.above());
+
+    // 視界の外を暗くする（地形も、自分の陣営の物も、視界の外にある物はまとめて暗くなる）
+    BeginMode2D(camera);
+    fillTriangles(outside, Fade(BLACK, options.fogDarkness));
+    EndMode2D();
 }
 
 }  // namespace moba

@@ -6,7 +6,7 @@
 
 | 描くもの | 使うライブラリ | 座標 | ファイル |
 |---|---|---|---|
-| 床・障害物・キャラ・弾・範囲・演出（図形） | raylib（`DrawCircleV` など） | **ワールド座標**（`BeginMode2D(camera)` の中で描く） | [Renderer.h](../../src/render/Renderer.h) / [.cpp](../../src/render/Renderer.cpp) |
+| 床・障害物・キャラ・弾・範囲・演出（図形）・視界の外の暗さ | raylib（`DrawCircleV` など） | **ワールド座標**（`drawWorld` の中で `BeginMode2D(camera)` して描く） | [Renderer.h](../../src/render/Renderer.h) / [.cpp](../../src/render/Renderer.cpp) |
 | キャラ名・HP・状態異常・スキルバー・残り時間・画面外の矢印・操作説明（文字） | Dear ImGui の `ImDrawList` | **画面座標**（ピクセル） | [Hud.h](../../src/render/Hud.h) / [.cpp](../../src/render/Hud.cpp) |
 
 カメラの動かし方の計算は [CameraControl.h](../../src/render/CameraControl.h) / [.cpp](../../src/render/CameraControl.cpp) にあります。
@@ -20,11 +20,12 @@
 | 型 | 種類 | 定義 |
 |---|---|---|
 | `RenderOptions` | 構造体 | Renderer.h |
+| `VisionLayers` | クラス | Renderer.h |
 | `CameraControlInput` | 構造体 | CameraControl.h |
 
 ### 依存
 
-`render` は `game`（`World`・`Match` を読むだけ）と `data`、文字の倍率のために `ui/UiScale.h` を使います。**描画の関数はゲームの状態を変えません**（すべて `const` の参照で受け取る）。
+`render` は `game`（`World`・`Match` を読むだけ）と `data`、文字の倍率のために `ui/UiScale.h` を使います。**描画の関数はゲームの状態を変えません**（ゲームの状態はすべて `const` の参照で受け取る。`VisionLayers` だけは描画先なので書き換える）。
 
 ---
 
@@ -35,23 +36,60 @@
 | メンバ | 説明 |
 |---|---|
 | `showHitboxes` | 弾・範囲の当たり判定の円を描く（settings.jsonc の `showHitboxes`。デバッグパネルで一時的に切り替えられる） |
+| `fogDarkness` | 視界の外を暗くする強さ（settings.jsonc の `fogDarkness`。0〜1） |
 
-### 2.2 `void drawWorld(const World& world, const RenderOptions& options)`
+### 2.2 `void drawWorld(const World& world, const Camera2D& camera, const RenderOptions& options, VisionLayers& layers)`
 
-ゲーム画面を描きます。`BeginMode2D(camera)` の中で呼びます。描く順番（後のものが上に重なる）:
+ゲーム画面を描きます。`BeginDrawing` の中、**`BeginMode2D` の外**で呼びます（中で描画先を切り替えるため、自分で `BeginMode2D(camera)` する）。
+
+```mermaid
+flowchart TD
+    A[自キャラの視界の形<br/>World::visionPolygon] --> B[視界の外を覆う三角形<br/>outsideTriangles]
+    B --> C[層 below に描く<br/>相手の陣営の範囲・設置物]
+    B --> D[層 above に描く<br/>相手の陣営の弾・演出]
+    C --> C2[視界の外を消す]
+    D --> D2[視界の外を消す]
+    C2 --> E[画面に描く]
+    D2 --> E
+```
+
+画面に描く順番（後のものが上に重なる）:
 
 1. 床（マス目の線。細い線は 100、太い線は 500 ごと）と、ステージの外枠
 2. 障害物
-3. 地面の範囲
-4. 設置物（鳩・帽子）
-5. キャラ（**自キャラの陣営から見えないキャラは描かない**）
+3. 自分の陣営の地面の範囲・設置物
+4. 層 `below`（相手の陣営の範囲・設置物。視界の中の部分だけ）
+5. キャラ（**自キャラの陣営から見えないキャラは描かない**。見えるかどうかはキャラの中心で決めるので、体の一部が視界の外に出ていても描き、その部分は 9 で暗くなる）
 6. ブッシュ（半透明で、キャラの上に重ねる。中にいるキャラが草に隠れて見える）
-7. 弾
-8. 演出（文字の演出を除く）
+7. 自分の陣営の弾・演出（文字の演出を除く）
+8. 層 `above`（相手の陣営の弾・演出。視界の中の部分だけ）
+9. 視界の外を `fogDarkness` の黒で覆う
 
-**注意事項**: 弾と範囲は、ブッシュの中から撃たれたものも見えます（根拠: 指示書「敵がブッシュに隠れると、自キャラの画面からも消える（弾や範囲は見える）」）。
+**背景**（根拠: 指示書「視界」、claude_improve_and_answer.txt の 2026/11/03）: 視界の外は暗く、地形だけを描きます。相手の陣営の弾・範囲・設置物は、視界に入った部分だけ見えます（範囲も、視界の中の部分だけ）。自分の陣営の物は視界の外でも描きます（暗くはなる）。
 
-### 2.3 Renderer.cpp の中だけの関数
+**相手の陣営の物を視界の中だけ描く方法**: 画面と同じ大きさの描画先（`VisionLayers` の 2 枚）に描き、視界の外を覆う三角形を「色も不透明度も 0 にする」混ぜ方（`rlSetBlendFactors(RL_ZERO, RL_ZERO, ...)`）で描いて消してから、画面に重ねます。描画先には、色に不透明度を掛けた値（premultiplied alpha）で描き（`BLEND_CUSTOM_SEPARATE`）、画面に重ねる時は `BLEND_ALPHA_PREMULTIPLY` を使います。普通の混ぜ方で透明な描画先に半透明の色を描くと、不透明度が 2 回掛かって薄くなるためです。層を 2 枚にしているのは、範囲はキャラより下、弾はブッシュより上という、今までの重なり方を変えないためです。
+
+**視界の外を覆う三角形**（`outsideTriangles`）: 視界の形の、隣り合う 2 本の光線ごとに、光線の先から画面の隅より遠い所までを 2 つの三角形で埋めます。隣り合う光線の間の角度は 1° 以下なので、どの四角形もへこみません。三角形は重ならないので、半透明の黒で塗っても、暗さにむらが出ません。
+
+**注意事項**:
+
+- 全視界の時（`World::rules().fullVision`）と、自キャラがいない時は、視界の外は無い（すべて見える）ものとして描きます。
+- 描画先には MSAA（ふちのギザギザを減らす処理）がかからないので、相手の陣営の範囲・弾のふちは、自分の陣営の物より少しギザギザします。
+- 3D の描画にする時は、この描画の部分（層と三角形）を作り直します。視界の形の計算（`game/Vision`）はそのまま使えます。
+
+### 2.3 `VisionLayers`（クラス）
+
+相手の陣営の物を、自キャラの視界の中だけ描くための描画先（画面と同じ大きさの `RenderTexture2D` 2 枚）です。`App` が持ちます。
+
+| 関数 | 説明 |
+|---|---|
+| `void ensureSize(int width, int height)` | 描画先を用意する。大きさが変わっていれば作り直す（ウィンドウの大きさを変えた時）。`drawWorld` が毎フレーム呼ぶ |
+| `void release()` | 描画先を解放する。**ウィンドウを閉じる前に呼ぶ**（`App::shutdownWindow`）。閉じた後は解放できないので、デストラクタでは解放しない |
+| `below()` / `above()` | キャラより下に重ねる層（範囲・設置物）/ ブッシュより上に重ねる層（弾・演出） |
+
+コピーはできません（同じ描画先を 2 回解放しないように）。
+
+### 2.4 Renderer.cpp の中だけの関数
 
 定数: `kGroundColor`（床の色）・`kGridMinor` / `kGridMajor`（細い線・太い線の色）・`kHitboxColor`（当たり判定の円の色）。
 
@@ -74,6 +112,11 @@
 | `drawUnit(const Unit&, float time)` | キャラ。影 → 体（変身中は兎）→ 外周の輪 → 向きの線 → 被弾の光 → 状態異常の輪（拘束 = 紫、スロウ = 青）→ 印（回る黄色の輪）。打ち上げ中は 45 だけ浮かせて描く |
 | `drawProjectile(const Projectile&, bool showHitboxes)` | 弾を、見た目の種類ごとの形で描く。`drawOffsetForward` / `Side` を足した位置に描き、当たり判定の円は本当の位置に描く |
 | `drawVfx(const Vfx&)` | 演出を、残り時間に合わせて薄くしながら描く |
+| `outsideTriangles(origin, rays, farDistance)` | 視界の外を覆う三角形（3 つの頂点ずつ並べたもの） |
+| `fillTriangles(triangles, color)` | 三角形の並びを塗る |
+| `distanceToFarthestScreenCorner(origin, camera)` | 点から画面の隅までの最も遠い距離（ワールド座標）。三角形を画面の外まで伸ばすのに使う |
+| `drawInsideVision(target, camera, outside, drawContents)` | 描画先に `drawContents` で描き、視界の外を消す |
+| `compositeLayer(layer)` | 描画先を画面に重ねる（描画先の絵は上下が逆さまなので、高さをマイナスにして読む） |
 
 #### キャラの見分け方（`drawUnit`）
 
@@ -113,12 +156,12 @@
 | `drawCenteredText(ImDrawList*, ImVec2 center, float size, ImU32 color, const string& text)` | 中央揃えで影付きの文字を描く。`size` は倍率を掛ける前の大きさ（中で `px()` を掛ける） |
 | `toScreen(Vector2 world, const Camera2D&)` | ワールド座標を画面の位置にする |
 | `drawHpBar(ImDrawList*, const Unit&, ImVec2 topCenter)` | HP ゲージ（`maxHp` 個の区切り）。戻り値はゲージの下端の y |
-| `drawUnitLabels(ImDrawList*, const World&, const Camera2D&)` | 見えるキャラの名前（敵キャラは赤）・HP・状態異常の残り時間。自キャラがブッシュの中にいる時は「ブッシュ: 隠れている / 見えている」も出す。最後に文字の演出（少しずつ上へ浮かぶ）を描く |
+| `drawUnitLabels(ImDrawList*, const World&, const Camera2D&)` | 見えるキャラの名前（敵キャラは赤）・HP・状態異常の残り時間。自キャラがブッシュの中にいる時と、撃って見えるようになっている時は「（ブッシュ: ）隠れている / 見えている」も出す。最後に文字の演出（少しずつ上へ浮かぶ）を描く。相手の陣営の文字の演出は、自キャラの視界の中にある時だけ（`World::canSeePoint`） |
 | `drawOffscreenIndicators(ImDrawList*, const World&, const Camera2D&)` | 画面の外にいる敵キャラ（赤）と自キャラ（緑。カメラを固定しない時に出ることがある）の方向を、画面の端に矢印と名前で示す。ダミー・的と、見えない敵は示さない |
 | `drawSkillBar(ImDrawList*, const World&)` | 画面下中央の Q〜F。準備完了ならキーを大きく、クールダウン中はキーを左上に小さく出し、残り秒数を中央に出して、残りの割合だけ暗くする。スキルが無いキーは灰色。「移動系だけ」のルールで使えないスキルは斜線。詠唱中（0.05 秒より長い詠唱）は、上に詠唱バーとスキル名 |
 | `drawDodgePanel(ImDrawList*, const Match&)` | 画面上部。残り時間（10 秒以下は赤）、ドッジ率（％と「避けた数 / 総数」）、被弾、ダウン |
 | `drawShotPanel(ImDrawList*, const Match&)` | 画面上部。残り時間、ヒット率。**撃った時点で数える**（`stats().total()`。飛んでいる途中も含む） |
-| `drawHelp(ImDrawList*, CameraMode, bool escPauses)` | 画面左上の操作説明（今のカメラと、Esc がポーズかメニューか） |
+| `drawHelp(ImDrawList*, CameraMode, bool escPauses, bool fullVision)` | 画面左上の操作説明（今のカメラと、Esc がポーズかメニューか）。全視界なら最後に「視界: 全視界」も出す |
 
 ### 3.3 ピクセルの大きさと倍率
 

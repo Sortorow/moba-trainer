@@ -95,6 +95,7 @@ AiConfigLoadResult loadAiConfig(const std::filesystem::path& file) {
         c.firstCastDelay = std::max(0.0f, j.value("firstCastDelay", c.firstCastDelay));
         c.punishMinInterval = std::max(0.0f, j.value("punishMinInterval", c.punishMinInterval));
         c.maxEngageRange = std::max(200.0f, j.value("maxEngageRange", c.maxEngageRange));
+        c.visionMargin = std::max(0.0f, j.value("visionMargin", c.visionMargin));
         c.playerReactionTime = std::max(0.0f, j.value("playerReactionTime", c.playerReactionTime));
 
         for (const nlohmann::json& item : j.at("levels")) {

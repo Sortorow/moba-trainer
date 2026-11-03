@@ -5,6 +5,8 @@
 #include <string>
 #include <string_view>
 
+#include "data/Settings.h"
+
 namespace moba {
 
 /// モードの種類
@@ -37,6 +39,7 @@ struct MatchConfig {
     std::string stageId;  // data/stages の id。空や見つからない時は、一覧の最初のステージ
     CooldownMode cooldownMode = CooldownMode::Standard;
     float cooldownScale = 0.25f;  // 標準モードの倍率（1 = 実戦どおり、0.25 = 4 分の 1）
+    bool fullVision = false;      // 全視界（敵も味方もステージのすべてが見える）。false なら通常の視界
 
     // スキルドッジの設定
     int enemyCount = 3;  // 敵の数（1〜5）
@@ -56,5 +59,15 @@ struct MatchConfig {
     /// 制限時間があるモードか（スキルドッジ・スキルショット）
     bool timed() const { return mode != GameMode::Sandbox && timeLimitSeconds > 0.0f; }
 };
+
+/// モードごとの、視界の初期値（settings.jsonc の fullVision）。true なら全視界
+inline bool defaultFullVision(const Settings& settings, GameMode mode) {
+    switch (mode) {
+        case GameMode::Sandbox: return settings.fullVisionSandbox;
+        case GameMode::SkillDodge: return settings.fullVisionDodge;
+        case GameMode::SkillShot: return settings.fullVisionShot;
+    }
+    return false;
+}
 
 }  // namespace moba

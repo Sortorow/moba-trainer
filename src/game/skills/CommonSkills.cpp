@@ -80,7 +80,7 @@ void handleGroundZone(SkillContext& ctx) {
     const std::vector<EffectSpec> effects = ctx.def.effects("onHit");
     a.onUnitHit = [effects](World& world, AreaEffect& self, Unit& unit) {
         applyEffects(world, unit, effects, self.owner);
-        if (self.whileInside) world.addVfx(makeTextVfx(unit.pos, "スロウ", Color{150, 210, 255, 255}));
+        if (self.whileInside) world.addVfx(makeTextVfx(self.team, unit.pos, "スロウ", Color{150, 210, 255, 255}));
     };
     ctx.world.spawnArea(std::move(a));
 }
@@ -118,7 +118,7 @@ void handleTargetedBlast(SkillContext& ctx) {
     a.onUnitHit = [effects](World& world, AreaEffect& self, Unit& unit) {
         applyEffects(world, unit, effects, self.owner);
     };
-    ctx.world.addVfx(makeTeleportVfx(ctx.caster.pos, target->pos, a.color));  // 爆風が飛んでいく演出
+    ctx.world.addVfx(makeTeleportVfx(ctx.caster.team, ctx.caster.pos, target->pos, a.color));  // 爆風が飛んでいく演出
     ctx.world.spawnArea(std::move(a));
 }
 

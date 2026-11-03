@@ -8,6 +8,7 @@
 #include "core/Geometry.h"
 #include "core/Log.h"
 #include "data/CharacterDef.h"
+#include "data/Settings.h"
 #include "game/SkillCasting.h"
 #include "game/World.h"
 
@@ -61,7 +62,7 @@ void EnemyDirector::update(World& world, float dt) {
     const Unit* player = world.player();
     if (!player) return;
     const float now = world.time();
-    // 自キャラがブッシュに隠れている間は、位置を記録しない（最後に見えた位置を狙い、そこへ向かう）
+    // 自キャラが視界の外にいる間は、位置を記録しない（最後に見えた位置を基準に動く）
     const bool playerVisible = world.canSee(Team::Enemy, *player);
     if (playerVisible) observer_.record(now, player->pos);
     observer_.update(now);
@@ -76,11 +77,11 @@ void EnemyDirector::update(World& world, float dt) {
             planMovement(world, brain, *enemy, seenPlayer);
             brain.replanTimer = uniform(0.2f, 0.35f);
         }
-        tryCast(world, brain, *enemy, *player, playerVisible);
+        if (playerVisible) tryCast(world, brain, *enemy, *player);  // 見えない自キャラには撃たない
     }
 }
 
-// スキルの射程に応じて、自キャラと保つ距離を決める
+// スキルの射程に応じて、自キャラと保つ距離を決める（見えない自キャラには撃たないので、視界の内側に収める）
 float EnemyDirector::engageRange(const World& world, const Unit& enemy) const {
     const CharacterDef* def = world.characterOf(enemy);
     float shortest = std::numeric_limits<float>::max();
@@ -90,7 +91,9 @@ float EnemyDirector::engageRange(const World& world, const Unit& enemy) const {
         }
     }
     if (shortest == std::numeric_limits<float>::max()) shortest = 800.0f;
-    return std::clamp(shortest * level_.engageRangeRatio, kMinEngageRange, config_.maxEngageRange);
+    const float maxRange = std::max(
+        kMinEngageRange, std::min(config_.maxEngageRange, world.settings().visionRadius - config_.visionMargin));
+    return std::clamp(shortest * level_.engageRangeRatio, kMinEngageRange, maxRange);
 }
 
 // 他の敵と同じ方向から攻めないように、自キャラから見た角度をずらす
@@ -142,11 +145,10 @@ AimWeights EnemyDirector::aimWeights(bool playerStuck) const {
     return w;
 }
 
-void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit& player, bool playerVisible) {
+void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit& player) {
     if (enemy.cast.active || !enemy.status.canCast()) return;
     const float now = world.time();
-    // 見えていない相手が動けるかどうかは分からないので、動けない相手として狙うのは見えている時だけ
-    const bool playerStuck = playerVisible && !player.status.canMove();
+    const bool playerStuck = !player.status.canMove();
     const bool punish = level_.punishCC && playerStuck;
     if (!punish && now < brain.nextCastTime) return;
     // 動けない相手にも、最低限の間隔は空ける（クールダウンの無いスキルで撃ち続けないように）
@@ -205,8 +207,8 @@ void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit&
 
     brain.lastCastTime = now;
     brain.nextCastTime = now + uniform(level_.castIntervalMin, level_.castIntervalMax);
-    // 避けた方向の学習は、撃った時に見えていた場合だけ
-    if (bestModel->shape == AimShape::Line && playerVisible) {
+    // 避けた方向を学習する（撃つのは見えている時だけなので、撃った時の位置は分かっている）
+    if (bestModel->shape == AimShape::Line) {
         observer_.noteShot(now, player.pos, geo::normalizedOr(aimPoint - enemy.pos, enemy.facing));
     }
     log::debug("ai", "{} が [{}] {} を {} へ（命中見込み {:.0f}%{}）", enemy.name, toString(bestSkill->slot),

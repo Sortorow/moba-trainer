@@ -32,4 +32,6 @@ std::string cooldownLabel(const MatchConfig& config, CooldownLabelStyle style) {
     return style == CooldownLabelStyle::WithMode ? std::format("標準（{}）", scale) : scale;
 }
 
+std::string visionLabel(const MatchConfig& config) { return config.fullVision ? "全視界" : "通常"; }
+
 }  // namespace moba::ui

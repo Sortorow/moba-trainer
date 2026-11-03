@@ -479,12 +479,12 @@ TEST_CASE("発動の依頼の結果: 詠唱を始めた・予約した・使え�
 TEST_CASE("発動の依頼の結果: 対象指定のスキルは、対象がいなければ使えず、射程外なら近づき始める") {
     Fixture f("like_emma");
     const float range = f.skill(SkillSlot::E).range;
-    const EntityId target = f.addDummy({range + 800.0f, 0});
+    const EntityId target = f.addDummy({range + 300.0f, 0});  // 射程の外で、視界（900）の中
     auto request = [&](Vector2 cursor) {
         return casting::requestCast(f.world(), f.player(), CastRequest{SkillSlot::E, cursor});
     };
 
-    CHECK(request({-(range + 800.0f), 0}) == casting::CastOutcome::Rejected);  // カーソルの位置に敵がいない
+    CHECK(request({-(range + 300.0f), 0}) == casting::CastOutcome::Rejected);  // カーソルの位置に敵がいない
     CHECK(request(f.unit(target).pos) == casting::CastOutcome::Approaching);
 }
 

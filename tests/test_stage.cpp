@@ -156,7 +156,7 @@ TEST_CASE("ブッシュ: 外からは見えず、同じブッシュの中から�
     CHECK(f.world().enemyAt({-700.0f, 0.0f}, Team::Player, 60.0f) == nullptr);
 }
 
-TEST_CASE("ブッシュ: 中で対象指定のスキルを使うと、bushRevealTime 秒だけ外から見える") {
+TEST_CASE("ブッシュ: 中から対象指定のスキルで外の敵を撃つと、attackRevealTime 秒だけ外から見える") {
     StageFixture f(makeStage({}, {circle(0, 0, 200)}));
     const EntityId player = f.addUnit(Team::Player, {0.0f, 0.0f}, "like_emma");
     f.addUnit(Team::Enemy, {400.0f, 0.0f});
@@ -172,7 +172,7 @@ TEST_CASE("ブッシュ: 中で対象指定のスキルを使うと、bushReveal
     f.runWithoutOverlap(0.5f);
     CHECK(f.world().canSee(Team::Enemy, f.unit(player)));
 
-    const float reveal = f.world().settings().bushRevealTime;
+    const float reveal = f.world().settings().attackRevealTime;
     f.runWithoutOverlap(reveal);
     CHECK_FALSE(f.world().canSee(Team::Enemy, f.unit(player)));
 }

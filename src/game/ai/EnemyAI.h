@@ -3,7 +3,8 @@
 //
 // 敵ごとに、一定間隔で次の 2 つを行う:
 //   移動: スキルの射程に応じた距離を保ちながら自キャラを追う。賢いほど横移動が多く、他の敵と離れて囲むように動く
-//   スキル: 使えるスキルの中から、命中見込み（Aim.h）が最も高いものを選んで撃つ
+//   スキル: 使えるスキルの中から、命中見込み（Aim.h）が最も高いものを選んで撃つ。自キャラが見えない間は撃たない
+//   自キャラが見えない間は、最後に見えた位置を基準に動く（見失った自キャラを探しに行く動きは、まだ無い）
 // 賢さごとの数値は data/ai.jsonc で調整できる。
 
 #include <cstdint>
@@ -55,20 +56,20 @@ private:
     /// 敵の移動先を決める（スキルの射程に応じた距離を保ち、賢さに応じて横移動・他の敵と離れる動きを加える）
     /// @param seenPlayer AI が認識している自キャラの位置（反応の遅れの分だけ前の位置）
     void planMovement(World& world, Brain& brain, Unit& enemy, Vector2 seenPlayer);
-    /// 撃てる時なら、命中見込みが最も高いスキルを選んで撃つ（狙いのぶれも加える）
-    /// @param playerVisible 自キャラが見えているか（ブッシュに隠れている間は、最後に見えた位置を狙う）
-    void tryCast(World& world, Brain& brain, Unit& enemy, const Unit& player, bool playerVisible);
+    /// 撃てる時なら、命中見込みが最も高いスキルを選んで撃つ（狙いのぶれも加える）。自キャラが見えている時だけ呼ぶ
+    void tryCast(World& world, Brain& brain, Unit& enemy, const Unit& player);
     /// 他の敵と同じ方向から攻めないように、自キャラから見た敵の方向をずらす
     /// @param away 自キャラから敵へ向かう向き
     /// @return ずらした後の向き
     Vector2 spreadDirection(World& world, const Brain& brain, Vector2 seenPlayer, Vector2 away) const;
-    /// 自キャラと保つ距離（使うスキルの最短の射程 × engageRangeRatio を、決められた範囲に収めたもの）
+    /// 自キャラと保つ距離（使うスキルの最短の射程 × engageRangeRatio を、決められた範囲に収めたもの）。
+    /// 上限は maxEngageRange と「視界の半径 − visionMargin」の小さい方
     float engageRange(const World& world, const Unit& enemy) const;
     /// 着弾時に自キャラがいそうな位置の重み（賢さの設定から作る）
     /// @param playerStuck 自キャラが動けないか（動けないなら、今の位置だけを狙う）
     AimWeights aimWeights(bool playerStuck) const;
     /// AI が認識している自キャラの位置（反応の遅れの分だけ前の、見えていた位置）。
-    /// 一度も見えていない時（最初からブッシュに隠れている時）は、位置の記録が無いので今の位置
+    /// 一度も見えていない時（最初から視界の外にいる時）は、位置の記録が無いので今の位置
     Vector2 seenPlayerPosition(const Unit& player, float now) const;
     /// min 以上 max 未満の乱数（max が min 以下なら min）
     float uniform(float min, float max);

@@ -21,8 +21,10 @@
 | ダウン | HP が 0 になること。全回復して続ける | `Unit::deaths` |
 | 賢さ | 敵・的の AI の難しさ（1〜5） | `MatchConfig::aiLevel` / `targetLevel`、`AiLevel`、`SkillShotLevel` |
 | ステージ | 遊ぶ場所（障害物なし・路地裏・森） | `StageDef`、`Terrain` |
-| 障害物 | 通れない場所（建物・壁・木・箱）。移動だけを妨げ、弾は通り抜ける | `Obstacle`、`ObstacleKind` |
-| ブッシュ | 草むら。中のキャラは外から見えない | `StageDef::bushes`、`Terrain::bushAt`、`World::canSee` |
+| 障害物 | 通れない場所（建物・壁・木・箱）。移動と視線（箱を除く）を妨げ、弾は通り抜ける | `Obstacle`、`ObstacleKind` |
+| ブッシュ | 草むら。中のキャラと、ブッシュの奥は外から見えない | `StageDef::bushes`、`Terrain::bushAt`、`World::canSee` |
+| 視界 | キャラから半径 `visionRadius`（1150）の中で、視線が遮られていない所。視界の外の敵キャラは見えず、地面は暗く描く | `vision::lineOfSight`、`vision::visionPolygon`、`World::canSee`、`World::canSeePoint`、`VisionLayers` |
+| 全視界 | 敵も味方も、ステージのすべてが見える状態。メニューの「視界」で選ぶ。練習場の初期値 | `MatchConfig::fullVision`、`WorldRules::fullVision`、`defaultFullVision` |
 | リザルト | 制限時間まで遊んだ結果 | `MatchResult`、`SavedResult` |
 | 記録 | 保存したリザルトの直近 10 回の順位表 | `drawRecordTable`、`drawRecordsWindow` |
 | 統計 | 保存したリザルトを集計したダッシュボード | `StatsDashboard`、`ResultStats` |

@@ -67,6 +67,7 @@ int main();
 | `timeSeconds` | `optional<float>` | `--time <秒>` | 制限時間（秒）。0 より大きい値。メニューと違い 1 分未満も指定できる |
 | `seed` | `optional<uint32_t>` | `--seed <n>` | 乱数の種。0 はエラー（0 は「開始時に決める」の意味のため） |
 | `noCooldown` | `bool` | `--no-cooldown` | クールダウン「なし」で始める |
+| `fullVision` | `optional<bool>` | `--vision <name>` | `normal`（通常）/ `full`（全視界）。これ以外はエラー。指定しなければ、モードごとの初期値（settings.jsonc の `fullVision`） |
 | `scriptFile` | `optional<path>` | `--script <file>` | 入力スクリプトで操作する |
 | `windowWidth` / `windowHeight` | `optional<int>` | `--window <W>x<H>` | ウィンドウの大きさ（実ピクセル。拡大率を掛けない）。320x240 以上 |
 | `hideDebugPanel` | `bool` | `--no-debug-panel` | デバッグパネルを最初から閉じる |
@@ -148,6 +149,7 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 | `menu_` | `MainMenu` | メインメニュー |
 | `input_` | `unique_ptr<InputSource>` | 入力の取得元（`LiveInput` か `ScriptInput`） |
 | `camera_` | `Camera2D` | raylib の 2D カメラ（注視点・拡大率・画面の中心） |
+| `visionLayers_` | `VisionLayers` | 相手の陣営の物を、自キャラの視界の中だけ描くための描画先（[19-render.md](19-render.md) の 2.3） |
 | `cameraMode_` | `CameraMode` | 今のカメラ（メニューと Y キーで変わる） |
 | `settingsCameraMode_` | `CameraMode` | 設定ファイルの `cameraMode`。**設定ファイルの値が変わった時だけ**反映するために覚えておく |
 | `cursorConfined_` | `bool` | カーソルをウィンドウの中に閉じ込めているか |
@@ -201,7 +203,7 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 | 関数 | 説明 |
 |---|---|
 | `void initWindow()` | ウィンドウを**隠した状態で**開き（拡大率に合わせて大きさを変える時にちらつかないように）、IME を無効にし、大きさと位置を決めてから表示する。raylib のログをゲームのログに流す。rlImGui・ImPlot を準備し、`imgui.ini` を保存しない設定・キーボードでの UI 操作の無効化（Q/W/E/R が UI に取られないように）・日本語フォントの読み込み・文字の倍率の反映を行う。Esc は `SetExitKey(KEY_NULL)` でウィンドウを閉じるキーから外す |
-| `void shutdownWindow()` | カーソルの閉じ込めを解除し、ImPlot・rlImGui を片付けてウィンドウを閉じる |
+| `void shutdownWindow()` | カーソルの閉じ込めを解除し、視界のための描画先（`visionLayers_`）を解放し、ImPlot・rlImGui を片付けてウィンドウを閉じる |
 | `void fitWindowToScreen(int logicalWidth, int logicalHeight)` | 設定の大きさ（拡大率 100% の時の大きさ）に拡大率を掛け、モニターの作業領域の 85% に収め、中央に置く（`ui::fitWindowSize`） |
 | `void applyUiScale()` | 文字・ボタンの倍率（拡大率 × 設定の `uiScale`）を `ui::setScale` で反映する |
 | `void checkDpiChange()` | 毎フレーム拡大率を調べ、変わっていれば（別のモニターへの移動など）`applyUiScale()` し直す。ウィンドウの大きさは変えない |
@@ -235,7 +237,7 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 #### 描画の順番（`draw`）
 
 1. 背景を塗る
-2. メニュー以外では、`BeginMode2D(camera_)` の中で `drawWorld`（ゲーム画面）
+2. メニュー以外では、`drawWorld`（ゲーム画面。中で `BeginMode2D(camera_)` する。視界のための描画先 `visionLayers_` を渡す）
 3. `rlImGuiBegin()` の中で、画面ごとの UI
    - `Menu`: `MainMenu::draw`。「開始」で `startMatch`、「終了」で `quit_`
    - `Playing`: `drawHud` → 練習場なら `drawSandboxPanel` と `refreshDummiesIfChanged` → デバッグパネル（F1 で表示中なら）。デバッグパネルでキャラを切り替えたら、新しい乱数の種で `startMatch`

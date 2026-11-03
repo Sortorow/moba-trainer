@@ -14,6 +14,9 @@ inline constexpr EntityId kInvalidId = 0;
 /// 陣営（自キャラ側・敵側）。ダミーは敵側
 enum class Team { Player, Enemy };
 
+/// 相手の陣営
+constexpr Team opponentOf(Team team) { return team == Team::Player ? Team::Enemy : Team::Player; }
+
 /// スキルのキー。配列の添字としても使う
 enum class SkillSlot { Q, W, E, R, D, F, Count };
 inline constexpr int kSkillSlotCount = static_cast<int>(SkillSlot::Count);

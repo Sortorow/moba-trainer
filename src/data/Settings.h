@@ -47,7 +47,14 @@ struct Settings {
     float cameraEdgeScrollSpeed = 2500.0f;       // 固定しない時に、画面の端でカメラが動く速さ（ゲーム内の距離 / 秒）
     // 固定しない時に、画面の端からこの幅まで近づくとカメラが動く（拡大率 100% の時のピクセル）
     float cameraEdgeMargin = 12.0f;
-    float bushRevealTime = 3.0f;  // ブッシュの中で対象指定のスキルを使った時に、外から見えるようになる時間（秒）
+    float visionRadius = 1150.0f;  // 視界の半径（全キャラ共通）
+    // 相手から見えていない時に、対象指定のスキルでその相手を撃つと、相手の陣営から見えるようになる時間（秒）
+    float attackRevealTime = 3.0f;
+    float fogDarkness = 0.6f;  // 視界の外を暗くする強さ（0 = 暗くしない、1 = 真っ黒）
+    // モードごとの、視界の初期値（true = 全視界。敵も味方もステージのすべてが見える）。メニューで変えられる
+    bool fullVisionSandbox = true;
+    bool fullVisionDodge = false;
+    bool fullVisionShot = false;
     float cooldownScale = 0.25f;  // クールダウン「標準」モードの倍率の初期値（メニューで変更できる）
     bool showHitboxes = true;     // 弾・範囲の当たり判定の円を表示する
     float uiScale = 1.0f;         // 文字・ボタンの大きさの倍率（Windows の拡大率に、さらに掛ける）

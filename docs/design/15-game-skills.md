@@ -89,7 +89,7 @@ flowchart TD
     S -->|はい| A
     J -->|毎刻み casting::update| T{射程に入った?}
     T -->|はい| M
-    T -->|対象が消えた| X
+    T -->|対象が消えた・見えなくなった| X
 ```
 
 **背景**（根拠: `d771af6`「quick cast、詠唱・先行入力・射程外の対象への接近」、`6700cb2`「usableDuringCast」）: LoL やエターナルリターンの操作感（キーを押した瞬間に撃つ・詠唱中に押したスキルは詠唱後に出る・射程外の対象には近づいてから使う）を再現するための流れです。
@@ -100,7 +100,7 @@ flowchart TD
 |---|---|
 | `void orderMove(World& world, Unit& unit, Vector2 destination)` | 右クリックの移動命令。目的地をステージの内側に収めて `moveTarget` にする。射程外の対象への接近（`pendingCast`）はやめる。詠唱中に呼んでも、硬直が終わってから動き出す（移動は `World::updateUnit` が止めているだけなので） |
 | `CastOutcome requestCast(World& world, Unit& caster, const CastRequest& request)` | スキルの発動を依頼する（上の図）。使えなければ DEBUG のログを出して何もしない。**自キャラも敵 AI も、この関数でスキルを使う**。戻り値はどうなったか（下の表）。敵 AI は `Rejected` かどうかで「撃てたか」を判断する。自キャラの操作・予約の発動・テストは戻り値を使わない |
-| `void update(World& world, Unit& caster, float dt)` | 詠唱の進行と、射程外の対象への接近。`World::updateUnit` から毎刻み呼ばれる |
+| `void update(World& world, Unit& caster, float dt)` | 詠唱の進行と、射程外の対象への接近。`World::updateUnit` から毎刻み呼ばれる。近づいている途中で対象が消えるか、対象のキャラが見えなくなったら（`World::canSee`）、発動をやめる（LoL と同じ。2026/11/03） |
 | `void cancelCast(World& world, Unit& caster, string_view reason)` | 詠唱を中断する。予約していたスキルも取り消す。**クールダウンは戻さない** |
 
 #### `CastOutcome`（列挙型）: `requestCast` の結果
@@ -123,7 +123,7 @@ flowchart TD
 | `bool needsTarget(Targeting)` | 対象指定（`Unit`）か設置物指定（`Prop`）か |
 | `optional<Vector2> targetPosition(World&, const CastRequest&)` | 対象（敵・設置物）の今の位置。消えていれば `nullopt` |
 | `bool resolvePropTarget(World&, const Unit& caster, const SkillDef&, CastRequest& request)` | 設置物指定のスキル（エマの R）の対象を、カーソルに最も近いものから選ぶ。選べるのは params の `targetKinds` の種類で、カーソルから `pickRadius`（既定 150）以内のもの。鳩・帽子は自分が置いた・隠れていないもの、兎は**見えている**変身中の敵 |
-| `void runSkill(World&, Unit& caster, const SkillDef&, const CastRequest&)` | handler を実行する。発動の番号を振り、`World::beginCast`、ヒット率の対象なら `CastStats::recordCast`（**自キャラだけ**）、対象指定のスキルならブッシュから見えるようにする（`revealFromBush`）、handler を呼ぶ、`endCastIfIdle` |
+| `void runSkill(World&, Unit& caster, const SkillDef&, const CastRequest&)` | handler を実行する。発動の番号を振り、`World::beginCast`、ヒット率の対象なら `CastStats::recordCast`（**自キャラだけ**）、対象のキャラがいれば `World::revealAttacker`（相手から見えていない所から撃ったら、しばらく見えるようにする。兎を対象にしたエマの R も含む）、handler を呼ぶ、`endCastIfIdle` |
 | `bool usableDuringCurrentCast(const World&, const Unit& caster, const SkillDef& requested)` | 今の詠唱を中断せずにすぐ使えるスキルか。条件: 詠唱中・使いたいスキルの詠唱時間が 0・今詠唱しているスキルの `usableDuringCast` にある |
 | `void finishCast(World&, Unit& caster)` | 詠唱を終えて `runSkill` する。**詠唱を始めた位置ではなく、今いる位置から発動する**（溜めの間に R で移動していれば移動先から。根拠: `6700cb2`）。予約があれば続けて `requestCast` |
 | `void beginCast(World&, Unit& caster, const SkillDef&, const CastRequest&)` | クールダウンを入れ（`cooldown × 陣営の倍率`）、詠唱の状態にし、対象（無ければカーソル）の方を向く。詠唱時間が 0 ならすぐ `finishCast` |

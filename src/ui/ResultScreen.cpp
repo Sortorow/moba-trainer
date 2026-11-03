@@ -74,12 +74,14 @@ ResultAction drawResultScreen(const MatchResult& result, const std::vector<Saved
                                      : std::format("{}（{:.0f}）", result.targetSizeName, config.targetRadius);
         ImGui::TextDisabled("的の賢さ %s ／ 大きさ %s ／ 移動速度 %.0f", result.aiLevelName.c_str(), size.c_str(),
                             config.targetMoveSpeed);
-        ImGui::TextDisabled("制限時間 %.0f 秒 ／ クールダウン %s", config.timeLimitSeconds,
-                            ui::cooldownLabel(config, ui::CooldownLabelStyle::WithMode).c_str());
+        ImGui::TextDisabled("制限時間 %.0f 秒 ／ クールダウン %s ／ 視界 %s", config.timeLimitSeconds,
+                            ui::cooldownLabel(config, ui::CooldownLabelStyle::WithMode).c_str(),
+                            ui::visionLabel(config).c_str());
     } else {
-        ImGui::TextDisabled("敵 %d 体 ／ 賢さ %s ／ 制限時間 %.0f 秒 ／ クールダウン %s", config.enemyCount,
+        ImGui::TextDisabled("敵 %d 体 ／ 賢さ %s ／ 制限時間 %.0f 秒 ／ クールダウン %s ／ 視界 %s", config.enemyCount,
                             result.aiLevelName.c_str(), config.timeLimitSeconds,
-                            ui::cooldownLabel(config, ui::CooldownLabelStyle::WithMode).c_str());
+                            ui::cooldownLabel(config, ui::CooldownLabelStyle::WithMode).c_str(),
+                            ui::visionLabel(config).c_str());
     }
     ImGui::Separator();
     ImGui::Spacing();

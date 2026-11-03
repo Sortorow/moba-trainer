@@ -13,6 +13,7 @@
 #include "game/ResultStore.h"
 #include "input/InputSource.h"
 #include "raylib.h"
+#include "render/Renderer.h"
 #include "ui/MainMenu.h"
 
 namespace moba {
@@ -89,6 +90,7 @@ private:
     std::unique_ptr<InputSource> input_;
 
     Camera2D camera_{};
+    VisionLayers visionLayers_;                           // 相手の陣営の物を、自キャラの視界の中だけ描くための描画先
     CameraMode cameraMode_ = CameraMode::Locked;          // 今のカメラ（メニューと Y キーで変わる）
     CameraMode settingsCameraMode_ = CameraMode::Locked;  // 設定ファイルの cameraMode（変わった時だけ反映するため）
     bool cursorConfined_ = false;                         // カーソルをウィンドウの中に閉じ込めているか

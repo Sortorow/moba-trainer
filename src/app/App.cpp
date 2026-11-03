@@ -136,6 +136,7 @@ void App::checkDpiChange() {
 
 void App::shutdownWindow() {
     if (cursorConfined_) platform::releaseCursor();
+    visionLayers_.release();
     ImPlot::DestroyContext();
     rlImGuiShutdown();
     CloseWindow();
@@ -239,6 +240,7 @@ MatchConfig App::configFromCommandLine() const {
     if (options_.aiLevel) config.aiLevel = config.targetLevel = *options_.aiLevel;
     if (options_.timeSeconds) config.timeLimitSeconds = *options_.timeSeconds;
     if (options_.seed) config.seed = *options_.seed;
+    config.fullVision = options_.fullVision.value_or(defaultFullVision(data_.settings(), config.mode));
     return config;
 }
 
@@ -354,9 +356,8 @@ void App::draw() {
     ClearBackground(Color{14, 17, 22, 255});
 
     if (screen_ != Screen::Menu && match_) {
-        BeginMode2D(camera_);
-        drawWorld(match_->world(), RenderOptions{data_.settings().showHitboxes});
-        EndMode2D();
+        const Settings& settings = data_.settings();
+        drawWorld(match_->world(), camera_, RenderOptions{settings.showHitboxes, settings.fogDarkness}, visionLayers_);
     }
 
     rlImGuiBegin();

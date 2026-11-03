@@ -136,6 +136,7 @@ TEST_CASE("リザルトの保存: 保存した内容（設定・キーごとの�
     original.config.stageId = "forest";
     original.stageName = "森";
     original.config.cooldownMode = CooldownMode::None;
+    original.config.fullVision = true;
     original.config.timeLimitSeconds = 180.0f;
     original.config.seed = 12345;
     original.playedSeconds = 180.0f;
@@ -156,6 +157,7 @@ TEST_CASE("リザルトの保存: 保存した内容（設定・キーごとの�
     CHECK(r.config.stageId == "forest");
     CHECK(r.stageName == "森");
     CHECK(r.config.cooldownMode == CooldownMode::None);
+    CHECK(r.config.fullVision);
     CHECK(r.config.timeLimitSeconds == doctest::Approx(180.0f));
     CHECK(r.config.seed == 12345u);
     CHECK(r.config.targetLevel == 4);
@@ -167,6 +169,20 @@ TEST_CASE("リザルトの保存: 保存した内容（設定・キーごとの�
     CHECK(r.playerHits.casts == 12);
     CHECK(r.playerHitsBySlot[static_cast<std::size_t>(index(SkillSlot::Q))].hits == 7);
     CHECK(r.playerHitsBySlot[static_cast<std::size_t>(index(SkillSlot::W))].casts == 0);
+}
+
+TEST_CASE("リザルトの保存: 視界の項目が無い記録（視界を入れる前の記録）は、通常の視界として読む") {
+    SavedResult saved;
+    saved.playedAt = "2026-10-25 12:00:03";
+    saved.result = dodgeResult(5, 10);
+    saved.result.config.fullVision = true;
+    nlohmann::json j = toJson(saved);
+    CHECK(j.at("vision") == "full");
+    j.erase("vision");
+    std::string error;
+    const std::optional<SavedResult> loaded = savedResultFromJson(j, error);
+    REQUIRE(loaded.has_value());
+    CHECK_FALSE(loaded->result.config.fullVision);
 }
 
 TEST_CASE("リザルトの保存: 読めないファイルは名前を変えて残し、次の保存で上書きしない") {

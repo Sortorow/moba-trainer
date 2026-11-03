@@ -11,6 +11,7 @@
 | [Entities.h](../../src/game/Entities.h) / [.cpp](../../src/game/Entities.cpp) | `Projectile`（弾）、`AreaEffect`（地面の範囲）、`Prop`（設置物）、`Vfx`（演出） |
 | [StatusEffects.h](../../src/game/StatusEffects.h) / [.cpp](../../src/game/StatusEffects.cpp) | `StatusEffects`（状態異常と印） |
 | [Terrain.h](../../src/game/Terrain.h) / [.cpp](../../src/game/Terrain.cpp) | `Terrain`（地形の当たり・押し出し・経路探索・ブッシュ） |
+| [Vision.h](../../src/game/Vision.h) / [.cpp](../../src/game/Vision.cpp) | `vision::`（視線が通るかの判定と、視界の形の計算）、`VisionRay` |
 
 ヒット率・ドッジ率の集計（`CastStats`・`DodgeCount`）は [18-game-results.md](18-game-results.md)、スキルの発動の流れ（`casting::`）は [15-game-skills.md](15-game-skills.md) にあります。
 
@@ -28,6 +29,7 @@
 | `ProjectileVisual`、`AreaVisual`、`PropKind`、`VfxKind` | 列挙型 | Entities.h |
 | `Projectile`、`AreaEffect`、`Prop`、`Vfx` | 構造体 | Entities.h |
 | `StatusEffect` | 構造体 | StatusEffects.h |
+| `vision::VisionRay` | 構造体 | Vision.h |
 | `StatusEffects` | クラス | StatusEffects.h |
 | `Terrain` | クラス | Terrain.h |
 | `Terrain::Grid` | 構造体（private） | Terrain.h |
@@ -60,7 +62,7 @@
 ゲームを `dt` 秒進めます。固定の刻み（1/120 秒）で呼びます。
 
 1. `time_ += dt`
-2. すべてのキャラを進める（`updateUnit`）: 状態異常 → クールダウン → 被弾の光 → ブッシュから見える時間 → 詠唱（`casting::update`）→ 移動 → 障害物から押し出す
+2. すべてのキャラを進める（`updateUnit`）: 状態異常 → クールダウン → 被弾の光 → 撃って見えるようになっている時間（`revealTime`） → 詠唱（`casting::update`）→ 移動 → 障害物から押し出す
 3. `flushSpawns`: 2 で出た弾・範囲・設置物を加える
 4. `updateProjectiles`: 弾を進めて当てる
 5. `updateAreas`: 範囲を進めて当てる
@@ -100,14 +102,24 @@
 | `Unit* nearestEnemy(Vector2 from, Team myTeam, float maxDistance, string_view preferMark = {})` | `maxDistance` 以内で最も近い敵。`preferMark` の印が付いた敵がいれば、距離に関係なくそちらを先に選ぶ。見えない敵は選ばない（エズリアルの E の追尾弾） |
 | `vector<Unit*> enemiesInCircle(Vector2 center, float radius, Team myTeam)` | 円にかかっている敵。**範囲の命中判定用なので、見えない敵も含む** |
 
-### 2.5 ブッシュと見え方
+### 2.5 視界
 
 | 関数 | 説明 |
 |---|---|
-| `bool canSee(Team observer, const Unit& target) const` | `observer` の陣営から `target` が見えるか。同じ陣営・見える時間（`revealTime`）が残っている・ブッシュの外なら見える。ブッシュの中なら、同じブッシュに `observer` の陣営のキャラがいる時だけ見える |
-| `void revealFromBush(Unit& unit)` | ブッシュの中で対象指定のスキルを使った時に呼ぶ。`bushRevealTime` 秒だけ外から見えるようにする。ブッシュの外なら何もしない |
+| `bool canSee(Team observer, const Unit& target) const` | `observer` の陣営から `target` が見えるか。同じ陣営・撃って見える時間（`revealTime`）が残っている・`canSeePoint` で `target` の中心が見える、のどれかなら見える |
+| `bool canSeePoint(Team observer, Vector2 point) const` | `observer` の陣営の、生きているキャラのどれかから、`visionRadius` 以内で視線が通っているか（`vision::lineOfSight`。見る側が入っているブッシュは遮らない） |
+| `vector<vision::VisionRay> visionPolygon(const Unit& viewer) const` | `viewer` から見える範囲の形（描画用。`vision::visionPolygon` に `visionRadius` と、`viewer` のいるブッシュを渡す） |
+| `void revealAttacker(Unit& caster, const Unit& target)` | 対象指定のスキルを `target` に撃った時に呼ぶ（`casting::runSkill` から）。`caster` が `target` の陣営から見えていなければ、`attackRevealTime` 秒だけ見えるようにする。同じ陣営が対象の時と、もう見えている時は何もしない |
 
-**背景**（根拠: 指示書「ステージ」、`8c72709`）: 「ブッシュの中のキャラは外から見えない。同じブッシュの中にいれば見える。ブッシュの中で対象指定のスキルを使った時だけ 3 秒ほど外から見える」という仕様です。弾・範囲はブッシュの中のキャラにも当たります（見えないだけ）。
+**背景**（根拠: 指示書「視界」「ステージ」、claude_improve_and_answer.txt の 2026/11/03）: MOBA の基本のルールとして、視界の半径（1150。最初は 900 だったが、敵や的と自キャラが取る距離が視界の外になるため、同じ日に変更）の中で、建物・壁・木と、自分が入っていないブッシュに遮られていない所だけが見えます。箱は低い物なので遮りません。ブッシュの中が外から見えない決まり（手順 3）は、「ブッシュも視線を遮る」に含まれます。
+
+撃って見えるようになる決まりは、もとは「ブッシュの中で対象指定のスキルを使うと見える」でしたが、視界を入れた時に「相手から見えていない時に、対象指定のスキルで相手を撃つと見える」にそろえました。将来オートアタックや視界を得る道具を入れた時に、壁の向こうから一方的に殴られた側が相手を見つけられるようにするための決まりです（根拠: 同上）。
+
+弾・範囲は、見えないキャラにも当たります（見えないだけ）。
+
+**全視界**（根拠: claude_improve_and_answer.txt の 2026/11/03）: `WorldRules::fullVision` が `true` の時は、`canSee`・`canSeePoint` がいつも `true` を返します。見えるかどうかを使う所（描画・対象の選択・敵 AI・`revealAttacker`）はすべてこの 2 つを通るので、それぞれの所で全視界かどうかを調べる必要はありません（描画の暗さだけは、`Renderer` が `rules().fullVision` を見て描かない）。視界の仕組みに不具合が出た時の、一時的な逃げ道としても使います。
+
+**注意事項**: 視線は壁に対しては双方向に同じです（こちらから見えなければ、相手からも見えない）。対象指定のスキルの射程（475〜750）は視界の半径より短いので、`revealAttacker` が見えるようにするのは、今はほぼ「ブッシュの中から外の相手を撃った時」だけです。
 
 ### 2.6 命中と発動の記録
 
@@ -209,6 +221,7 @@ sequenceDiagram
 | メンバ | 説明 |
 |---|---|
 | `movementSkillsOnly` | 自キャラは移動系のスキル（`movementSkill: true`）だけ使える |
+| `fullVision` | 全視界。`canSee`・`canSeePoint` がいつも `true` を返す（敵も味方も、ステージのすべてが見える）。`Match` が `MatchConfig::fullVision` から決める |
 
 **背景**（根拠: `712d7d8`、`f533230`）: 手順 2 では、スキルドッジで自キャラが移動系のスキルだけ使えるルールでした。その後、エマの R のように他のスキルで置いた物へワープするスキルも回避に使えるため、すべてのスキルを使えるように変えました。**仕組みは残してあり、今はどのモードでも使っていません**（テスト「「移動系だけ使える」ルールを有効にすると…」で動作は確かめています）。
 
@@ -257,7 +270,7 @@ sequenceDiagram
 | `moveTarget` | 目的地（右クリック・AI・ダミーの動きが書く）。着いたら空になる |
 | `path` | 目的地までの道のり（壁を回り込む点の並び）。`World` が `moveTarget` から作る |
 | `pathGoal` | `path` を作った時の `moveTarget`（変わったら作り直す） |
-| `revealTime` | ブッシュの中でも外から見える残り時間 |
+| `revealTime` | 視界の外やブッシュの中でも、相手から見える残り時間（対象指定のスキルで撃った後。`World::revealAttacker` が決める） |
 | `status` | 状態異常と印 |
 | `cast` | 詠唱中の状態 |
 | `pendingCast` | 射程外の対象へ近づいている途中のスキル |
@@ -324,6 +337,7 @@ sequenceDiagram
 | メンバ | 説明 |
 |---|---|
 | `id` / `owner` | 番号・置いたキャラ |
+| `team` | 置いたキャラの陣営（相手の陣営の設置物は、視界の中だけ描く） |
 | `kind` | `PropKind::Dove`（鳩）か `Hat`（帽子） |
 | `pos` | 位置 |
 | `lifetime` / `remaining` | 持続時間と残り時間 |
@@ -337,6 +351,7 @@ sequenceDiagram
 | メンバ | 説明 |
 |---|---|
 | `kind` | `VfxKind`: `Burst`（光る円）・`Ring`（広がる輪）・`Teleport`（ワープ）・`ClickMarker`（右クリックの地点）・`Text`（文字） |
+| `team` | 演出のもとになった行動をした陣営（相手の陣営の演出は、視界の中だけ描く）。状態異常の文字や印の起爆のように、受けた側の位置に出る演出は、受けた側の相手の陣営（`opponentOf`） |
 | `pos` / `pos2` | 位置（`Teleport` は移動前と移動後） |
 | `radius` / `color` / `text` | 大きさ・色・文字 |
 | `duration` / `remaining` | 長さと残り時間 |
@@ -354,11 +369,11 @@ sequenceDiagram
 | `AreaVisual areaVisualFromString(string_view)` | `"explosion"` / `"telegraph"` / `"hat"` / `"caltrops"` を見た目にする（表 `kAreaVisuals` を引く）。知らない表記なら警告ログを出して `Explosion` |
 | `vector<string_view> areaVisualNames()` | 範囲の見た目の表記の一覧（params の `visual` の決まりに使う） |
 | `string_view displayName(PropKind)` | 「鳩」/「帽子」（ログ用） |
-| `makeBurstVfx(pos, radius, color, duration = 0.35)` | 範囲が発動した時の、光って消える円 |
-| `makeRingVfx(pos, radius, color, duration = 0.4)` | 広がりながら消える輪（命中・ダウン） |
-| `makeTeleportVfx(from, to, color)` | ワープ（移動前と移動後の輪と、その間の線） |
-| `makeClickMarkerVfx(pos)` | 右クリックした地点の、縮んで消える輪 |
-| `makeTextVfx(pos, text, color)` | 少しずつ上へ浮かんで消える文字（「起爆!」「ダウン!」「スロウ」など） |
+| `makeBurstVfx(team, pos, radius, color, duration = 0.35)` | 範囲が発動した時の、光って消える円 |
+| `makeRingVfx(team, pos, radius, color, duration = 0.4)` | 広がりながら消える輪（命中・ダウン） |
+| `makeTeleportVfx(team, from, to, color)` | ワープ（移動前と移動後の輪と、その間の線） |
+| `makeClickMarkerVfx(pos)` | 右クリックした地点の、縮んで消える輪（自キャラの陣営） |
+| `makeTextVfx(team, pos, text, color)` | 少しずつ上へ浮かんで消える文字（「起爆!」「ダウン!」「スロウ」など） |
 
 ---
 
@@ -406,11 +421,11 @@ sequenceDiagram
 
 ## 7. Terrain.h / .cpp
 
-**役割**: ステージの地形（障害物・ブッシュ）。当たりと押し出し、経路探索、ブッシュの判定を行います。
+**役割**: ステージの地形（障害物・ブッシュ）。当たりと押し出し、経路探索、ブッシュの判定を行います。視線の計算は [8 章](#8-visionh--cpp) の `vision::` が、この地形を使って行います。
 
 **背景**（根拠: `8c72709`、指示書「ステージ」）: 手順 3 で、路地裏と森のステージのために作りました。
 
-- 壁・建物・木などは**移動だけ**を妨げ、弾や範囲は止めない
+- 壁・建物・木などは**移動と視線だけ**を妨げ、弾や範囲は止めない（視線は 2026/11/03 に追加。箱は視線を遮らない）
 - 障害物の向こうを右クリックすると、回り込む道を自動で探して進む（敵も同じ）
 - 建物の中など立てない場所を指定したら、その近くの立てる場所まで進む
 - 重なり合うブッシュは 1 つのブッシュとして扱う
@@ -450,6 +465,7 @@ flowchart TD
 | `bool segmentClear(Vector2 a, Vector2 b, float radius) const` | 円が `a` から `b` へまっすぐ進む間に、障害物にかからないか（半径の半分（4〜20）ごとに点を取って `blocked` を調べる） |
 | `vector<Vector2> findPath(Vector2 from, Vector2 to, float radius) const` | 道のり（通る点の並び。最後が目的地）。たどり着けなければ空 |
 | `int bushAt(Vector2 pos) const` | `pos` を含むブッシュの番号（重なり合うブッシュは同じ番号）。外なら −1 |
+| `int bushGroup(std::size_t index) const` | `bushes()` の `index` 番目のブッシュの番号（`bushAt` と同じ番号。視線の計算で、見る側が入っているブッシュを除くのに使う） |
 | `const Grid& gridFor(float radius) const`（private） | 半径（切り上げた整数）ごとの立てるマス目。初めて使う時に作り、`grids_` に覚える |
 | `Vector2 cellCenter(int col, int row) const`（private） | マス目の中心の座標 |
 | `void cellOf(Vector2 pos, int& col, int& row) const`（private） | 座標を含むマス目の番号 |
@@ -475,3 +491,53 @@ flowchart TD
 - `grids_` は `mutable` で、`const` の関数の中で作ります。複数のスレッドから同時に使うことは想定していません。
 - マス目の表は半径ごとに作るので、半径の種類が多いと（ダミーのプリセットでいろいろな大きさを使うなど）メモリと最初の 1 回の時間が増えます。1 つの表は、5000 × 3200 のステージで 125 × 80 = 1 万マスです。
 - 「触れているだけならかかっていない」という余裕（`kTouchTolerance = 0.5`）が無いと、壁に沿って歩く時に、押し出された位置がまた「かかっている」と判定されて動けなくなります（推測）。
+
+---
+
+## 8. Vision.h / .cpp
+
+**役割**: 視線が通るかの判定と、視界の形（多角形）の計算です。描画とは切り離してあり、描き方（2D・3D）が変わってもそのまま使えます。
+
+**背景**（根拠: 指示書「視界」、claude_improve_and_answer.txt の 2026/11/03）: 視界の仕組みを入れた時に作りました。視界の形は描画（視界の外を暗くする・相手の陣営の物を視界の中だけ描く）に使い、見えるかどうかの判定（`World::canSee`）には `lineOfSight` を使います。
+
+### 8.1 視線を遮る物
+
+| 物 | 遮るか |
+|---|---|
+| 建物・壁・木（`ObstacleKind::Building` / `Wall` / `Tree`） | 遮る |
+| 箱（`ObstacleKind::Crate`） | 遮らない（低い物） |
+| ブッシュ | 見る側が入っているブッシュ（`ignoreBush`。重なり合うブッシュは同じ番号）は遮らない。それ以外は遮る |
+
+### 8.2 関数
+
+| 関数 | 説明 |
+|---|---|
+| `bool lineOfSight(const Terrain&, Vector2 from, Vector2 to, int ignoreBush)` | `from` から `to` まで視線が通るか。途中か `to` の上（形の縁を含む）に遮る物があれば通らない。距離は考えない（視界の半径は `World::canSeePoint` が見る） |
+| `vector<VisionRay> visionPolygon(const Terrain&, Vector2 origin, float radius, int ignoreBush)` | `origin` から見える範囲の形。光線を角度の順（+X から、画面上の時計回り）に並べたもの |
+
+`VisionRay` は、長さ 1 の向き `dir` と、遮る物に当たるまでの距離 `distance`（当たらなければ `radius`）です。光線の先（`origin + dir * distance`）を順に結ぶと、視界の多角形になります。
+
+### 8.3 視界の形の作り方
+
+1. 視界の円にかかる、遮る物だけを集める
+2. 光線を出す角度を集める: 1° ごとの 360 本、長方形の 4 つの角、円の 2 本の接線。角と接線は、その向きと、両隣（±0.0001 ラジアン）の 3 本ずつ
+3. 角度を並べ、ほぼ同じ角度を 1 つにまとめる
+4. 光線ごとに、遮る物に入るまでの距離（長方形はスラブ法、円は 2 次方程式）の最小を求める
+
+角と接線の両隣にも光線を出すので、多角形の頂点は角や接線の位置に合い、影の縁がずれません。1° ごとの光線は、何にも当たらない所で視界の円を多角形で近似するためのものです（距離 900 で、円との差は約 0.03）。
+
+**注意事項**:
+
+- 円（木・丸いブッシュ）の、見る側に向いた縁は、光線の間を直線で結ぶので、ほんの少し内側に入り込みます（半径 100 の木を距離 500 から見て約 0.1）。`lineOfSight` との食い違いはこの範囲だけです（テスト「視界の形: 路地裏・森で、多角形の内側かどうかと、視線の判定が一致する」で確かめている）。
+- 遮る物に囲まれた所（見る側が障害物の中）にいると、すべての光線の距離が 0 になります。キャラは障害物から押し出されるので、普通は起きません。
+- 光線の数は、遮る物の数 × 最大 12 本 + 360 本です。毎フレーム自キャラの分を 1 回作ります。路地裏（障害物 25 個ほど）でも、光線 1 本あたり 25 回の交差判定です。
+
+### 8.4 .cpp の中だけの関数
+
+| 関数 | 説明 |
+|---|---|
+| `entryDistanceRect` / `entryDistanceCircle` / `entryDistance` | 点から向きに進んで、形に入るまでの距離（入らなければ無限大。点が中なら 0） |
+| `sightBlockers` | 視線を遮る形の一覧（箱と、`ignoreBush` のブッシュを除く） |
+| `shapeWithin` | 形の一部が、点から半径以内にあるか |
+| `addEdgeAngles` | 角度と、その両隣を加える |
+| `wrapAngle` | 角度を −π 以上 π 未満に収める |

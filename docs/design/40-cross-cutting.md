@@ -92,7 +92,7 @@ flowchart LR
 | `dodge` | 被弾・ダウン・発動の結果 | World.cpp |
 | `status` | 状態異常 | SkillHelpers.cpp |
 | `move` | 移動先にたどり着けない | World.cpp |
-| `bush` | ブッシュから見えるようになった | World.cpp |
+| `vision` | 見えていない所から対象指定のスキルで撃ったため、見えるようになった | World.cpp |
 | `ai` | 敵 AI・的の AI の判断 | EnemyAI.cpp・SkillShotTarget.cpp |
 | `input` | キー・右クリック・入力スクリプト | PlayerController.cpp・ScriptInput.cpp |
 | `camera` | カメラの切り替え・カーソルの閉じ込め | App.cpp |

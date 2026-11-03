@@ -112,7 +112,7 @@ flowchart LR
 | `rightCount_` / `leftCount_` | 右・左へ避けた回数（1 から数える。0 で割らないように） |
 | `kHistorySeconds = 2`・`kDodgeCheckDelay = 0.4`・`kDodgeThreshold = 40`（.cpp） | 履歴の長さ・避けた向きを調べるまでの時間・「避けた」とみなす横の距離 |
 
-**注意事項**: 自キャラがブッシュに隠れている間は記録しないので、`positionAt` は最後に見えた位置を返し続けます。これで「最後に見えた位置を狙う」動きになります（根拠: 指示書「自キャラがブッシュに隠れると、敵は最後に見えた位置を狙う」）。
+**注意事項**: 自キャラが敵の陣営から見えない間（視界の外・ブッシュの中）は記録しないので、`positionAt` は最後に見えた位置を返し続けます。敵は見えない自キャラには撃たないので、これは移動先を決める時だけに使われ、「最後に見えた位置を基準に動く」動きになります（根拠: 指示書「視界」）。
 
 ---
 
@@ -121,11 +121,13 @@ flowchart LR
 **役割**: すべての敵の移動とスキルを決めます（根拠: EnemyAI.h の先頭）。
 
 - **移動**: スキルの射程に応じた距離を保ちながら自キャラを追う。賢いほど横移動が多く、他の敵と離れて囲むように動く
-- **スキル**: 使えるスキルの中から、命中見込み × 優先度が最も高いものを選んで撃つ
+- **スキル**: 使えるスキルの中から、命中見込み × 優先度が最も高いものを選んで撃つ。**自キャラが見えない間は撃たない**
 
 **背景**（根拠: `712d7d8`「敵 AI: 着弾時の自キャラの位置を予測して狙う（留まる / 移動継続 / 回避先）。数値は data/ai.jsonc」、指示書の要件「それぞれの敵は自キャラを追いかける、自分の持つスキルができるだけ当たるように動く」）。
 
 **未実装**（根拠: 指示書「地形を意識した敵の撃ち方（自キャラの背面が壁なら横に広いスキルを優先する、など）は、まだ実装していない」）: 地形を意識した撃ち方。
+
+**未実装**（根拠: 指示書「視界」、claude_improve_and_answer.txt の 2026/11/03「敵 AI に関する実装は後回しに」）: 自キャラを見失った時に探しに行く動き。予定している内容は、ブッシュの中や壁の向こう（視界の外）へ向かう、賢さ 4 以上はブッシュの中や壁の向こうへ方向指定のスキルを 1 か所 1 回だけ撃って、途中で当たればそこへ向かう、全部探して見つからなければ最初から探し直す、です。今は、見失った敵は最後に見えた位置を基準に動き続けます。
 
 ### 4.1 毎刻みの処理（`update`）
 
@@ -139,29 +141,35 @@ flowchart TD
     E --> F[敵ごとに]
     F --> G{replanTimer が 0?}
     G -->|はい| H[planMovement: 移動先を決め直す<br/>次は 0.2〜0.35 秒後]
-    G --> I[tryCast]
-    H --> I
+    G --> J{自キャラが見える?}
+    H --> J
+    J -->|はい| I[tryCast]
+    J -->|いいえ| K[撃たない]
 ```
+
+「見える」は `World::canSee(Team::Enemy, 自キャラ)` です。敵の陣営の誰か 1 人から見えていれば、すべての敵が撃てます（弾は壁を通り抜けるので、壁の陰にいる敵も撃つ）。
 
 ### 4.2 移動先の決め方（`planMovement`）
 
 1. 自キャラ（認識している位置）から見た、今の敵の方向を基準にする
 2. `flank` なら、他の敵と 70 度より近い方向にいる時は、離れる向きへずらす（最大 35 度。`spreadDirection`）
-3. その方向へ `engageRange`（使うスキルの**最短の射程** × `engageRangeRatio`。350〜`maxEngageRange`）だけ離れた位置を目標にする
+3. その方向へ `engageRange`（使うスキルの**最短の射程** × `engageRangeRatio`。350〜上限）だけ離れた位置を目標にする。上限は `maxEngageRange` と「視界の半径（`visionRadius`）− `visionMargin`」の小さい方（既定では 1150 − 150 = 1000 で、`maxEngageRange` と同じ）
 4. `strafe` が 0 より大きければ、横へ `300 × strafe` だけずらす。向きは 0.6〜1.6 秒ごとにランダムに変える
 5. ステージの内側に収めて `moveTarget` にする（壁の向こうなら `World` が回り込む）
 
 ### 4.3 撃ち方（`tryCast`）
 
 1. 詠唱中・行動不能なら撃たない
-2. 次に撃ってよい時刻（`nextCastTime`）の前なら撃たない。ただし `punishCC` で、**自キャラが見えていて動けない**なら待たない。その場合も、最後に撃ってから `punishMinInterval`（ai.jsonc。既定 1 秒）は空ける（クールダウンの無いスキルで撃ち続けないように。テスト「punishCC の敵は、動けない自キャラにも punishMinInterval の間隔を空けて撃つ」）
+2. 次に撃ってよい時刻（`nextCastTime`）の前なら撃たない。ただし `punishCC` で、**自キャラが動けない**なら待たない。その場合も、最後に撃ってから `punishMinInterval`（ai.jsonc。既定 1 秒）は空ける（クールダウンの無いスキルで撃ち続けないように。テスト「punishCC の敵は、動けない自キャラにも punishMinInterval の間隔を空けて撃つ」）
 3. 使えるスキル（`usedByEnemy`・クールダウンが 0・`aimModelFor` が作れる）ごとに `chooseAim` し、命中見込み × `aiPriority` が最も高いものを選ぶ
 4. 命中見込みが `minHitChance` 未満なら、`nextCastTime + castIntervalMax` までは待つ（待ちすぎない）
 5. 狙いのぶれ（0〜`aimError`）を加える。直線の弾は横方向にだけ、円は全方向へ
 6. `casting::requestCast` で撃つ。結果が `Rejected`（使えなかった）なら、ここで終わる（次の刻みで撃ち直す）
-7. 撃てたら（`Rejected` 以外）、次の時刻を `castIntervalMin`〜`Max` 後にする。直線の弾で、自キャラが見えていたなら `noteShot`
+7. 撃てたら（`Rejected` 以外）、次の時刻を `castIntervalMin`〜`Max` 後にする。直線の弾なら `noteShot`
 
-**狙う相手の位置と速度**は、`reactionTime` 秒前の位置と、その時の速度です。自キャラが動けない時は速度 0、重みは「留まる」だけにします（`aimWeights(true)`）。自キャラが一度も見えていない時（最初からブッシュに隠れている時）は、位置の記録が無いので、自キャラの今の位置を使います（`seenPlayerPosition`。移動先を決める時も同じ）。
+`tryCast` は自キャラが見えている時だけ呼ばれるので、上の「動けない」「`noteShot`」で見えているかを確かめる必要はありません。
+
+**狙う相手の位置と速度**は、`reactionTime` 秒前の位置と、その時の速度です。自キャラが動けない時は速度 0、重みは「留まる」だけにします（`aimWeights(true)`）。自キャラが一度も見えていない時（最初から視界の外やブッシュの中にいる時）は、位置の記録が無いので、自キャラの今の位置を使います（`seenPlayerPosition`。移動先を決める時も同じ）。
 
 **背景**（根拠: 報告ファイルの D4、2026-10-30 の修正）: 以前は、位置の記録が無い時に (0, 0) を自キャラの位置として狙い・移動していました。開始の位置やステージの配置が変わった時に、(0, 0) を狙い続けないようにしました。
 
@@ -175,9 +183,9 @@ flowchart TD
 | `const AiLevel& level() const` | 使っている賢さの設定（リザルト・デバッグパネル） |
 | `size_t enemyCount() const` | 敵の数 |
 | `void planMovement(World&, Brain&, Unit& enemy, Vector2 seenPlayer)`（private） | 4.2 |
-| `void tryCast(World&, Brain&, Unit& enemy, const Unit& player, bool playerVisible)`（private） | 4.3 |
+| `void tryCast(World&, Brain&, Unit& enemy, const Unit& player)`（private） | 4.3。自キャラが見えている時だけ呼ぶ |
 | `Vector2 spreadDirection(World&, const Brain&, Vector2 seenPlayer, Vector2 away) const`（private） | 他の敵と同じ方向から攻めないように、方向をずらす |
-| `float engageRange(const World&, const Unit& enemy) const`（private） | 自キャラと保つ距離 |
+| `float engageRange(const World&, const Unit& enemy) const`（private） | 自キャラと保つ距離（上限は `maxEngageRange` と「`visionRadius` − `visionMargin`」の小さい方） |
 | `AimWeights aimWeights(bool playerStuck) const`（private） | 賢さの設定から重みを作る。`adaptive` なら避ける向きの重みを `rightBias` で左右に分ける |
 | `Vector2 seenPlayerPosition(const Unit& player, float now) const`（private） | AI が認識している自キャラの位置（`reactionTime` 秒前の、見えていた位置）。位置の記録が無ければ、自キャラの今の位置 |
 | `float uniform(float min, float max)`（private） | min 以上 max 未満の乱数（max ≦ min なら min） |

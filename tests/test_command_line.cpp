@@ -19,7 +19,7 @@ TEST_CASE("コマンドライン引数: 数・名前・フラグを読み、読�
     std::string error;
     const std::optional<CommandLineOptions> options =
         parseCommandLine({"--character", "like_emma", "--mode", "dodge", "--enemies", "3", "--seed", "42", "--window",
-                          "1280x720", "--no-cooldown"},
+                          "1280x720", "--no-cooldown", "--vision", "full"},
                          error);
     REQUIRE(options.has_value());
     CHECK(*options->characterId == "like_emma");
@@ -29,9 +29,14 @@ TEST_CASE("コマンドライン引数: 数・名前・フラグを読み、読�
     CHECK(*options->windowWidth == 1280);
     CHECK(*options->windowHeight == 720);
     CHECK(options->noCooldown);
+    CHECK(*options->fullVision);
+    CHECK_FALSE(*parseCommandLine({"--vision", "normal"}, error)->fullVision);
+    CHECK_FALSE(
+        parseCommandLine({"--mode", "sandbox"}, error)->fullVision.has_value());  // 指定しなければモードの初期値
 
     CHECK_FALSE(parseCommandLine({"--enemies", "9"}, error).has_value());
     CHECK(error == "--enemies の値が読めません: 9");
+    CHECK_FALSE(parseCommandLine({"--vision", "all"}, error).has_value());
     CHECK_FALSE(parseCommandLine({"--unknown"}, error).has_value());
     CHECK(error == "不明な引数です: --unknown");
     CHECK(parseCommandLine({}, error).has_value());  // 引数なし = メニューから始める

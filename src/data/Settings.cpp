@@ -34,7 +34,14 @@ SettingsLoadResult loadSettings(const std::filesystem::path& file) {
         s.cameraViewHeight = std::clamp(j.value("cameraViewHeight", s.cameraViewHeight), 400.0f, 6000.0f);
         s.cameraEdgeScrollSpeed = std::max(0.0f, j.value("cameraEdgeScrollSpeed", s.cameraEdgeScrollSpeed));
         s.cameraEdgeMargin = std::clamp(j.value("cameraEdgeMargin", s.cameraEdgeMargin), 1.0f, 100.0f);
-        s.bushRevealTime = std::clamp(j.value("bushRevealTime", s.bushRevealTime), 0.0f, 30.0f);
+        s.visionRadius = std::clamp(j.value("visionRadius", s.visionRadius), 100.0f, 5000.0f);
+        s.attackRevealTime = std::clamp(j.value("attackRevealTime", s.attackRevealTime), 0.0f, 30.0f);
+        s.fogDarkness = std::clamp(j.value("fogDarkness", s.fogDarkness), 0.0f, 1.0f);
+        if (const auto it = j.find("fullVision"); it != j.end() && it->is_object()) {
+            s.fullVisionSandbox = it->value("sandbox", s.fullVisionSandbox);
+            s.fullVisionDodge = it->value("dodge", s.fullVisionDodge);
+            s.fullVisionShot = it->value("shot", s.fullVisionShot);
+        }
         s.cooldownScale = std::max(0.0f, j.value("cooldownScale", s.cooldownScale));
         s.showHitboxes = j.value("showHitboxes", s.showHitboxes);
         s.uiScale = std::clamp(j.value("uiScale", s.uiScale), 0.5f, 3.0f);

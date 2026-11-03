@@ -63,7 +63,7 @@ bool resolvePropTarget(World& world, const Unit& caster, const SkillDef& def, Ca
     if (allows(toString(PropTargetKind::Rabbit))) {
         for (const Unit& unit : world.units()) {
             if (!unit.alive || unit.team == caster.team || !unit.status.has(EffectType::Polymorph)) continue;
-            if (!world.canSee(caster.team, unit)) continue;  // ブッシュに隠れている兎は選べない
+            if (!world.canSee(caster.team, unit)) continue;  // 見えない兎は選べない
             const float distance = std::max(0.0f, Vector2Distance(unit.pos, request.cursor) - unit.radius);
             if (distance <= pickRadius && distance < bestDistance) {
                 bestDistance = distance;
@@ -77,7 +77,7 @@ bool resolvePropTarget(World& world, const Unit& caster, const SkillDef& def, Ca
 }
 
 /// スキルの処理（handler）を実行する（詠唱が終わった時、または詠唱中でもすぐ使えるスキルを使った時）。
-/// 発動の番号を振って記録を始め、ヒット率の集計・ブッシュから見えるようにする処理も行う
+/// 発動の番号を振って記録を始め、ヒット率の集計・見えていない所から撃った時に見えるようにする処理も行う
 void runSkill(World& world, Unit& caster, const SkillDef& def, const CastRequest& request) {
     const skills::SkillHandler handler = skills::findHandler(def.handler);
     if (!handler) {
@@ -92,8 +92,9 @@ void runSkill(World& world, Unit& caster, const SkillDef& def, const CastRequest
     log::info("skill", "{} が [{}] {} を発動 castId={} 位置{} カーソル{}", caster.name, toString(request.slot),
               def.name, castId, geo::str(caster.pos), geo::str(request.cursor));
 
-    // ブッシュの中で対象指定のスキルを使うと、しばらく外から見えるようになる
-    if (def.targeting == Targeting::Unit) world.revealFromBush(caster);
+    // 相手から見えていない所（ブッシュの中など）から対象指定のスキルで撃つと、しばらく相手から見えるようになる。
+    // 兎になった敵を対象にしたエマの R も含む
+    if (const Unit* target = world.findUnit(request.targetUnit)) world.revealAttacker(caster, *target);
 
     skills::SkillContext ctx{world, caster, def, request, castId};
     handler(ctx);
@@ -238,6 +239,13 @@ void update(World& world, Unit& caster, float dt) {
             caster.pendingCast.reset();
             caster.moveTarget.reset();
             log::debug("skill", "対象がいなくなったため、[{}] の発動を中止しました", toString(request.slot));
+            return;
+        }
+        // 近づいている途中で対象のキャラが見えなくなったら、追いかけるのをやめる（LoL と同じ）
+        if (const Unit* unit = world.findUnit(request.targetUnit); unit && !world.canSee(caster.team, *unit)) {
+            caster.pendingCast.reset();
+            caster.moveTarget.reset();
+            log::debug("skill", "対象が見えなくなったため、[{}] の発動を中止しました", toString(request.slot));
             return;
         }
         if (Vector2Distance(caster.pos, *targetPos) <= def->range) {

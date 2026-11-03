@@ -157,6 +157,7 @@ json toJson(const SavedResult& saved) {
         {"playedSeconds", std::round(r.playedSeconds * 100.0f) / 100.0f},
         {"cooldown",
          {{"mode", c.cooldownMode == CooldownMode::None ? "none" : "standard"}, {"scale", c.cooldownScale}}},
+        {"vision", c.fullVision ? "full" : "normal"},
         {"seed", c.seed},
         {"hits", toJson(r.playerHits)},
         {"hitsBySlot", bySlot},
@@ -206,6 +207,7 @@ std::optional<SavedResult> savedResultFromJson(const json& j, std::string& error
             c.cooldownMode = it->value("mode", "standard") == "none" ? CooldownMode::None : CooldownMode::Standard;
             c.cooldownScale = it->value("scale", c.cooldownScale);
         }
+        c.fullVision = j.value("vision", "normal") == "full";  // 視界を入れる前の記録は、通常として読む
         c.seed = j.value("seed", 0u);
         if (const auto it = j.find("hits"); it != j.end()) r.playerHits = hitCountFromJson(*it);
         if (const auto it = j.find("hitsBySlot"); it != j.end()) {

@@ -1,0 +1,12 @@
+# 視界の確認: 視界の外が暗くなり、壁・ブッシュの陰になる所は見えない。視界の外の敵・敵の弾・範囲は描かれない
+# build\release\moba_trainer.exe --character like_emma --mode dodge --stage alley --enemies 3 --ai 3 --time 12 --seed 42 --script tests\scripts\vision_tour.txt
+# build\release\moba_trainer.exe --character like_emma --mode dodge --stage forest --enemies 3 --ai 3 --time 12 --seed 42 --script tests\scripts\vision_tour.txt
+# スクリーンショットは、実行した時のフォルダ（カレントディレクトリ）に保存される
+0.00 cursor 0 0
+0.50 screenshot vision_start.png
+2.50 screenshot vision_enemies.png
+2.60 move -450 450                   # 左下へ（森ではブッシュ、路地裏では広場の左下）
+5.00 screenshot vision_moved.png
+5.10 move 900 0                      # 右へ（路地裏では建物の間を回り込む）
+8.00 screenshot vision_around.png
+8.10 exit

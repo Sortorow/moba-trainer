@@ -62,6 +62,7 @@
 | `timeLimit` | 制限時間（秒） |
 | `playedSeconds` | 遊んだ時間（秒） |
 | `cooldown` | クールダウンの設定（`mode` = `"standard"` / `"none"`、`scale` = 標準の倍率） |
+| `vision` | 視界（`"normal"` = 通常、`"full"` = 全視界）。この項目が無い記録（視界を入れる前の記録）は通常として読む |
 | `seed` | 乱数の種（同じ展開を再現する時に使う） |
 | `hits` | 自キャラのスキルのヒット率（`casts` = 発動した数、`hits` = 当たった数）。制限時間の終了時に飛んでいる途中だった発動は含めない |
 | `hitsBySlot` | キーごとのヒット率（`"Q"` など。発動したキーだけ） |
@@ -83,6 +84,7 @@
     "playedAt": "2026-10-25 22:40:12",
     "playedSeconds": 60.0,
     "seed": 1447571065,
+    "vision": "normal",
     "stage": { "id": "open", "name": "障害物なし" },
     "target": { "level": 3, "levelName": "ふつう", "moveSpeed": 340.0, "radius": 65.0, "sizeName": "標準" },
     "timeLimit": 60.0,

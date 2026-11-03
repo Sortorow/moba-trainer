@@ -85,7 +85,10 @@ data/
 | `cameraViewHeight` | `1500` | 画面の縦方向に映るゲーム内の距離。大きいほど引いた視点（400〜6000） | `src/app/App.cpp`（カメラの拡大率）<br>`src/ui/DebugPanel.cpp`（一時的に変えるスライダー） |
 | `cameraEdgeScrollSpeed` | `2500` | カメラを固定しない時に、画面の端でカメラが動く速さ（ゲーム内の距離 / 秒。0 以上） | `src/app/App.cpp` → `src/render/CameraControl.cpp` |
 | `cameraEdgeMargin` | `12` | カメラを固定しない時に、画面の端からこの幅まで近づくとカメラが動く（Windows の拡大率 100% の時のピクセル。1〜100） | `src/app/App.cpp`（Windows の拡大率と `uiScale` を掛ける）→ `src/render/CameraControl.cpp` |
-| `bushRevealTime` | `3` | ブッシュの中で対象指定のスキルを使った時に、外から見えるようになる時間（秒。0〜30）。詳しくは [6 章](#6-stagesjsoncステージ)の「ブッシュの見え方」 | `src/game/World.cpp`（`src/game/SkillCasting.cpp` から呼ばれる） |
+| `visionRadius` | `1150` | 視界の半径（ゲーム内の距離。全キャラ共通。100〜5000）。詳しくは [6 章](#6-stagesjsoncステージ)の「視界とブッシュの見え方」 | `src/game/World.cpp`（`canSeePoint`・`visionPolygon`）<br>→ 見えるかどうかを使う所: `src/render/Renderer.cpp`、`src/render/Hud.cpp`、`src/game/World.cpp`（対象の選択）、`src/game/SkillCasting.cpp`、`src/game/ai/EnemyAI.cpp`<br>`src/game/ai/EnemyAI.cpp`（敵が自キャラと保つ距離の上限） |
+| `attackRevealTime` | `3` | 相手から見えていない時に、対象指定のスキルで相手を撃つと、相手の陣営から見えるようになる時間（秒。0〜30）。ブッシュの中から撃った時も同じ | `src/game/World.cpp`（`revealAttacker`。`src/game/SkillCasting.cpp` から呼ばれる） |
+| `fogDarkness` | `0.6` | 視界の外を暗くする強さ（0 = 暗くしない、1 = 真っ黒） | `src/app/App.cpp` → `src/render/Renderer.cpp` |
+| `fullVision.sandbox` / `fullVision.dodge` / `fullVision.shot` | `true` / `false` / `false` | モードごとの視界の初期値。`true` = 全視界（敵も味方もステージのすべてが見える）、`false` = 通常。メニューの「視界」と、コマンドライン引数 `--vision` でも選べる | `src/game/MatchConfig.h`（`defaultFullVision`）<br>→ `src/ui/MainMenu.cpp`（メニューの初期値・モードを選び直した時）、`src/app/App.cpp`（コマンドラインで開始する時の初期値）<br>→ `src/game/Match.cpp`（`World` のルールにする）→ `src/game/World.cpp`（`canSee`・`canSeePoint`）、`src/render/Renderer.cpp`（暗さを描かない）、`src/render/Hud.cpp`（操作説明に「視界: 全視界」）、`src/game/ResultStore.cpp`（結果に保存）、`src/ui/RecordsPanel.cpp`・`src/ui/ResultScreen.cpp`（表示） |
 | `cooldownScale` | `0.25` | クールダウン「標準」モードの倍率の初期値（0 以上）。メニューで変えられる | `src/ui/MainMenu.cpp`（メニューの初期値と選択肢）<br>`src/app/App.cpp`（コマンドラインで開始する時の初期値） |
 | `showHitboxes` | `true` | 弾・範囲の当たり判定の円を表示するか | `src/app/App.cpp` → `src/render/Renderer.cpp`（描画）<br>`src/ui/DebugPanel.cpp`（一時的に変えるチェックボックス） |
 | `uiScale` | `1.0` | 文字・ボタンの大きさの倍率。Windows の拡大率にさらに掛ける（0.5〜3.0）。詳しくは [dpi-scaling.md](dpi-scaling.md) | `src/app/App.cpp` → `src/ui/UiScale.cpp` |
@@ -108,6 +111,7 @@ data/
 | `firstCastDelay` | `1.5` | 開始してから、敵が最初にスキルを撃つまでの時間（秒） | `src/game/ai/EnemyAI.cpp` |
 | `punishMinInterval` | `1.0` | `punishCC` で、動けない自キャラへ間隔を待たずに撃つ時も、最低限空ける間隔（秒。0 以上）。クールダウンの無いスキルで撃ち続けないように | `src/game/ai/EnemyAI.cpp` |
 | `maxEngageRange` | `1000` | 敵が自キャラと取ろうとする距離の上限（200 以上） | `src/game/ai/EnemyAI.cpp` |
+| `visionMargin` | `150` | 敵が自キャラと取ろうとする距離を、視界の半径（`settings.jsonc` の `visionRadius`）からこの値だけ内側までに抑える（0 以上）。敵は自キャラが見えない間は撃たないので、射程の長いスキルの敵が視界の外で止まらないように | `src/game/ai/EnemyAI.cpp` |
 | `playerReactionTime` | `0.25` | AI が想定する「プレイヤーが弾を見てから避け始めるまでの時間」（秒） | `src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp` |
 | `levels` | （必須） | 賢さ 1〜5 の設定。上から順に 1, 2, 3, 4, 5 | 下の表と、表の後の説明を参照 |
 | `skillShot` | （必須） | スキルショットの的の設定 | [skillShot の項目](#skillshot-の項目スキルショットの的)を参照 |
@@ -268,17 +272,23 @@ data/
 | `rect` | — | 長方形 `[左, 上, 幅, 高さ]`。`rect` か `circle` のどちらかを書く | `src/data/StageDef.cpp`（読み込み）→ `src/game/Terrain.cpp`、`src/render/Renderer.cpp` |
 | `circle` | — | 円 `[x, y, 半径]` | `src/data/StageDef.cpp`（読み込み）→ `src/game/Terrain.cpp`、`src/render/Renderer.cpp` |
 
-### ブッシュの見え方
+### 視界とブッシュの見え方
 
 | 場面 | 見え方 |
 |---|---|
-| ブッシュの中のキャラを、ブッシュの外から見る | 見えない（画面に描かれず、名前・画面外の矢印も出ない。対象指定のスキルの対象にも選べない）。弾や範囲は見える |
-| 同じブッシュの中にいる | 見える（重なり合うブッシュは同じブッシュ） |
-| ブッシュの中で対象指定のスキル（`targeting` が `"unit"`。エマの E など）を使った | `settings.jsonc` の `bushRevealTime` 秒（初期値 3 秒）だけ、外から見える。方向指定・地点指定・設置物指定のスキルでは見えない |
-| 自キャラがブッシュの中にいる | 頭上の下に「ブッシュ: 隠れている」または「ブッシュ: 見えている」と出る |
-| 敵 AI から自キャラが見えない | 敵は、最後に見えた位置を狙い、そこへ向かう（避け方の学習もしない） |
+| 視界 | 陣営のキャラのどれかから `settings.jsonc` の `visionRadius`（初期値 1150）以内で、視線が遮られていない所が見える。キャラが見えるかどうかは、キャラの中心で決める |
+| 視線を遮る物 | 建物・壁・木（`"building"` / `"wall"` / `"tree"`）と、見る側が入っていないブッシュ。箱（`"crate"`）は低いので遮らない |
+| ブッシュの中のキャラを、ブッシュの外から見る | 見えない。ブッシュの陰になる範囲（ブッシュの奥）も見えない |
+| 同じブッシュの中にいる | 見える。自分が入っているブッシュ（重なり合うブッシュは同じブッシュ）は視線を遮らないので、ブッシュの奥も見える |
+| 見えない敵キャラ | 画面に描かれず、名前・画面外の矢印も出ない。対象指定のスキルの対象にも選べない。射程外の対象へ近づいている途中で見えなくなったら、発動をやめる |
+| 相手の陣営の弾・範囲・設置物・演出 | 視界の中にある部分だけ描く（範囲も、視界の中の部分だけ） |
+| 視界の外の地面・障害物 | 暗く描く（強さは `settings.jsonc` の `fogDarkness`） |
+| 相手から見えていない時に、対象指定のスキル（`targeting` が `"unit"`。エマの E など。兎を対象にしたエマの R も含む）で相手を撃った | `settings.jsonc` の `attackRevealTime` 秒（初期値 3 秒）だけ、相手の陣営から見える。ブッシュの中から撃った時も同じ。方向指定・地点指定のスキルでは見えない |
+| 自キャラがブッシュの中にいる時と、撃って見えるようになっている時 | 頭上の下に「隠れている」または「見えている」と出る（ブッシュの中なら「ブッシュ: 」が付く） |
+| 敵 AI から自キャラが見えない | 敵は撃たない。最後に見えた位置を基準に動く（避け方の学習もしない） |
+| 全視界（メニューの「視界」・`settings.jsonc` の `fullVision`） | 上の決まりはすべて無くなり、敵も味方もステージのすべてが見える。視界の外の暗さも無い |
 
-見え方の判定は `World::canSee`（`src/game/World.cpp`）です。使っているのは `src/render/Renderer.cpp`（描くかどうか）、`src/render/Hud.cpp`（名前・矢印・自キャラの表示）、`src/game/World.cpp`（対象の選択）、`src/game/SkillCasting.cpp`（兎の選択と、対象指定のスキルで見えるようにする処理）、`src/game/ai/EnemyAI.cpp`（敵 AI の認識）です。
+見え方の判定は `World::canSee`・`World::canSeePoint`（`src/game/World.cpp`）で、視線の計算は `src/game/Vision.cpp` です。使っているのは `src/render/Renderer.cpp`（描くかどうか・視界の外を暗くする・相手の陣営の物を視界の中だけ描く）、`src/render/Hud.cpp`（名前・矢印・文字の演出・自キャラの表示）、`src/game/World.cpp`（対象の選択）、`src/game/SkillCasting.cpp`（兎の選択・撃った時に見えるようにする処理・近づいている途中の中止）、`src/game/ai/EnemyAI.cpp`（敵 AI の認識）です。
 
 ---
 
@@ -555,9 +565,10 @@ data/
 | `ResultStats.cpp` / `ResultStats.h` | 使わない（統計の計算。[docs/results.md](results.md) を参照） | — |
 | `Match.cpp` / `Match.h` | スキルドッジでキャラを配置し、敵を選ぶ。敵のクールダウン倍率と、敵 AI の賢さを設定する。スキルショットで的を置き（メニューで選んだ大きさ・移動速度）、的の AI の賢さを設定する。リザルトに出すキャラ名・ステージ名・賢さの名前・的の大きさの名前を渡す。選んだステージの地形で World を作り、自キャラ・敵を立てる位置に置く。練習場では、選んでいるプリセットのダミーを置き、プリセットが変わったら置き直す | ai、sandbox、stages、characters |
 | `Sandbox.cpp` / `Sandbox.h` | 練習場で自キャラとダミーを配置する（ダミーの名前・位置・往復先・大きさ・移動速度・色）。建物や木と重なる位置はずらす | sandbox、stages、characters |
-| `World.cpp` / `World.h` | キャラの設定を ID で探す。移動速度・当たり判定の半径を使って移動と当たり判定をする。地形（`Terrain.cpp`）を持ち、道のりに沿って移動させ、障害物から押し出す。ブッシュの見え方を判定する（`bushRevealTime`）。敵のクールダウン倍率を保持する | settings、ai、stages、characters |
+| `World.cpp` / `World.h` | キャラの設定を ID で探す。移動速度・当たり判定の半径を使って移動と当たり判定をする。地形（`Terrain.cpp`）を持ち、道のりに沿って移動させ、障害物から押し出す。視界の判定をする（`visionRadius`・`attackRevealTime`）。敵のクールダウン倍率を保持する | settings、ai、stages、characters |
 | `Terrain.cpp` / `Terrain.h` | 地形の計算: 障害物との当たり・押し出し・まっすぐ進めるかの判定・経路探索（マス目の A*）・どのブッシュの中か | stages |
-| `SkillCasting.cpp` / `SkillCasting.h` | スキル発動の流れ（詠唱・クールダウン・射程・対象の選択・詠唱中に使えるスキル・移動系だけ使えるルール）。ブッシュの中で対象指定のスキルを使った時に、見えるようにする。ブッシュに隠れている兎は選ばない | stages、characters |
+| `Vision.cpp` / `Vision.h` | 視線が通るかの判定と、視界の形（多角形）の計算。障害物の種類（`kind`。箱は遮らない）とブッシュを使う | stages |
+| `SkillCasting.cpp` / `SkillCasting.h` | スキル発動の流れ（詠唱・クールダウン・射程・対象の選択・詠唱中に使えるスキル・移動系だけ使えるルール）。相手から見えていない時に対象指定のスキルで撃ったら、見えるようにする。見えない兎は選ばない。射程外の対象へ近づいている途中で対象が見えなくなったら、発動をやめる | settings、stages、characters |
 | `StatusEffects.cpp` / `StatusEffects.h` | スキルの効果（`onHit` などに書いた状態異常）を働かせる | characters |
 | `CastStats.cpp` / `CastStats.h` | `countsForHitRate` が `true` のスキルだけを、ヒット率として集計する（判定は `SkillCasting.cpp` から受け取る）。リザルト用に、制限時間の終了時に飛んでいる途中だった発動を除いた数も出す | characters |
 | `DummyController.cpp` / `DummyController.h` | ダミーを静止・往復させる（静止する位置・往復先は `Sandbox.cpp` から受け取る） | sandbox |
@@ -570,7 +581,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `EnemyAI.cpp` / `EnemyAI.h` | 敵の動きとスキル選び（`usedByEnemy`・`aiPriority`・射程・賢さごとの設定）。自キャラがブッシュに隠れている間は、最後に見えた位置を狙う | ai、stages、characters |
+| `EnemyAI.cpp` / `EnemyAI.h` | 敵の動きとスキル選び（`usedByEnemy`・`aiPriority`・射程・賢さごとの設定）。自キャラが見えない間は撃たず、最後に見えた位置を基準に動く。自キャラと保つ距離は `maxEngageRange` と「`visionRadius` − `visionMargin`」の小さい方まで | settings、ai、stages、characters |
 | `SkillShotTarget.cpp` / `SkillShotTarget.h` | スキルショットの的の移動（動き方のパターン）と回避（`skillShot` の距離と `levels` の項目）。詠唱を見て避ける時は、スキルの当たり方を `Aim.cpp` の `aimModelFor` で作る。移動先は立てる位置に収め、ランダムな移動ではブッシュの中を選ばない | ai、stages、characters |
 | `Aim.cpp` / `Aim.h` | 狙いの計算。スキルの `targeting` / `castTime` / `range` と、`params` の `speed` / `width` / `radius` / `delay` / `flightTime` を使う | characters |
 | `PlayerObserver.cpp` / `PlayerObserver.h` | 使わない | — |
@@ -601,8 +612,8 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `Renderer.cpp` / `Renderer.h` | 当たり判定の円の表示（`showHitboxes`）、キャラの大きさと色。弾の見た目のずれ（エマの `doveCardDrawOffsetForward` / `doveCardDrawOffsetSide`。値は `EmmaSkills.cpp` が弾に設定する）。ステージの床・障害物（種類ごとの見た目）・ブッシュ。ブッシュに隠れていて見えない敵は描かない | settings、stages、characters |
-| `Hud.cpp` / `Hud.h` | スキルバー（スキル名・クールダウン・使えないスキルを暗く表示）、詠唱バー、キャラ名の表示。操作説明に今のカメラ（`cameraMode`。値は `App.cpp` から受け取る）を表示。ブッシュに隠れている敵の名前・矢印は出さず、自キャラがブッシュの中にいる時は見えているかどうかを出す | settings、stages、characters |
+| `Renderer.cpp` / `Renderer.h` | 当たり判定の円の表示（`showHitboxes`）、キャラの大きさと色。弾の見た目のずれ（エマの `doveCardDrawOffsetForward` / `doveCardDrawOffsetSide`。値は `EmmaSkills.cpp` が弾に設定する）。ステージの床・障害物（種類ごとの見た目）・ブッシュ。見えない敵は描かない。相手の陣営の弾・範囲・設置物・演出は視界の中だけ描き、視界の外を暗くする（`fogDarkness`） | settings、stages、characters |
+| `Hud.cpp` / `Hud.h` | スキルバー（スキル名・クールダウン・使えないスキルを暗く表示）、詠唱バー、キャラ名の表示。操作説明に今のカメラ（`cameraMode`。値は `App.cpp` から受け取る）を表示。見えない敵の名前・矢印と、視界の外の相手の陣営の文字の演出は出さない。自キャラがブッシュの中にいる時と、撃って見えるようになっている時は、敵から見えているかどうかを出す | settings、stages、characters |
 | `CameraControl.cpp` / `CameraControl.h` | カメラの動かし方（自キャラに固定 / 固定しない）。`cameraEdgeScrollSpeed`・`cameraEdgeMargin` を使う（値は `App.cpp` から受け取る）。カメラが動ける範囲はステージの範囲（`size`） | settings、stages |
 
 ### src/ui/
@@ -640,4 +651,5 @@ data/
 | `test_camera.cpp` | 使わない（`CameraControl.cpp` の計算を、テスト用の値で確かめる） | — |
 | `test_sandbox.cpp` | sandbox.jsonc が読み込めること、プリセットを選ぶと `"preset"` だけが書き換わること、練習場のダミーが置き直されることのテスト（data フォルダを一時フォルダへ写して使う） | sandbox、characters |
 | `test_stage.cpp` | ステージのファイルが読み込めること、壁を回り込むこと、立てない場所を指定した時・たどり着けない時の動き、ブッシュの見え方、路地裏・森でスキルドッジを遊んでも障害物に入り込まないことのテスト | stages、characters |
-| `scripts/brand_tour.txt`、`scripts/camera_tour.txt`、`scripts/dodge_tour.txt`、`scripts/emma_tour.txt`、`scripts/ezreal_tour.txt`、`scripts/shot_tour.txt`、`scripts/stage_tour.txt` | 使わない（`--script` で使う入力スクリプト） | — |
+| `test_vision.cpp` | 視線を遮る物（箱は遮らない）、視界の半径、ブッシュの奥、撃った時に見える時間、近づいている途中の中止、見えない時に敵が撃たないこと、敵が保つ距離、視界の形と視線の判定が一致することのテスト | settings、ai、stages、characters |
+| `scripts/brand_tour.txt`、`scripts/camera_tour.txt`、`scripts/dodge_tour.txt`、`scripts/emma_tour.txt`、`scripts/ezreal_tour.txt`、`scripts/shot_tour.txt`、`scripts/stage_tour.txt`、`scripts/vision_tour.txt` | 使わない（`--script` で使う入力スクリプト） | — |

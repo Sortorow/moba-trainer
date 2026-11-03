@@ -121,6 +121,7 @@ void MainMenu::setConfig(const MatchConfig& config) {
 MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultStore& results) {
     if (!initialized_) {
         config_.cooldownScale = data.settings().cooldownScale;
+        config_.fullVision = defaultFullVision(data.settings(), config_.mode);
         initialized_ = true;
     }
     MenuAction action;
@@ -152,6 +153,7 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultSt
         ImGui::TextColored(ImVec4{1.0f, 0.5f, 0.5f, 1.0f}, "キャラクターの設定ファイルがありません");
 
     ImGui::SeparatorText("モード");
+    const GameMode previousMode = config_.mode;
     if (ImGui::RadioButton("練習場（ダミー相手にスキルを試す）", config_.mode == GameMode::Sandbox)) {
         config_.mode = GameMode::Sandbox;
     }
@@ -161,6 +163,8 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultSt
     if (ImGui::RadioButton("スキルショット（動き回る的にスキルを当てる）", config_.mode == GameMode::SkillShot)) {
         config_.mode = GameMode::SkillShot;
     }
+    // モードを選び直したら、視界はそのモードの初期値に戻す
+    if (config_.mode != previousMode) config_.fullVision = defaultFullVision(data.settings(), config_.mode);
 
     ImGui::SeparatorText("ステージ");
     const std::vector<const StageDef*> stages = data.stageList();
@@ -193,6 +197,12 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultSt
     ImGui::BeginDisabled(config_.cooldownMode == CooldownMode::None);
     drawCooldownScaleCombo(config_.cooldownScale, data.settings().cooldownScale);
     ImGui::EndDisabled();
+
+    ImGui::SeparatorText("視界");
+    if (ImGui::RadioButton("通常", !config_.fullVision)) config_.fullVision = false;
+    ImGui::SameLine();
+    if (ImGui::RadioButton("全視界（敵も味方も、すべてが見える）", config_.fullVision)) config_.fullVision = true;
+    ImGui::TextDisabled("モードを選び直すと、そのモードの初期値（settings.jsonc の fullVision）に戻ります");
 
     ImGui::SeparatorText("カメラ");
     if (ImGui::RadioButton("自キャラに固定", cameraMode == CameraMode::Locked)) cameraMode = CameraMode::Locked;

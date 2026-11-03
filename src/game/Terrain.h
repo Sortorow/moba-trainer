@@ -3,7 +3,7 @@
 //
 // 経路探索は、ステージを kCellSize 四方のマス目に分けた A* で行い、得られた道のりを
 // 「まっすぐ進めるところは、まっすぐ進む」ように間引く（キャラの半径ごとに、通れるマス目を作って使い回す）。
-// 弾は地形に止められない（壁を通り抜ける）。地形が妨げるのは移動だけ。
+// 弾は地形に止められない（壁を通り抜ける）。地形が妨げるのは移動と、視線（Vision.h）だけ。
 
 #include <map>
 #include <vector>
@@ -45,6 +45,8 @@ public:
 
     /// pos を含むブッシュの番号（重なり合うブッシュは同じ番号）。ブッシュの外なら -1
     int bushAt(Vector2 pos) const;
+    /// bushes() の index 番目のブッシュの番号（bushAt と同じ番号）
+    int bushGroup(std::size_t index) const { return bushGroups_[index]; }
 
 private:
     /// 半径ごとの「立てるマス目」

@@ -122,6 +122,7 @@ std::string_view displayName(PropKind kind);
 struct Prop {
     EntityId id = kInvalidId;
     EntityId owner = kInvalidId;
+    Team team = Team::Player;  // 置いたキャラの陣営（相手の陣営の設置物は、視界の中だけ描く）
     PropKind kind = PropKind::Dove;
     Vector2 pos{};
     float lifetime = 0.0f;
@@ -140,6 +141,7 @@ enum class VfxKind { Burst, Ring, Teleport, ClickMarker, Text };
 /// 演出 1 つ（当たり判定は無い。残り時間が 0 になったら消える）
 struct Vfx {
     VfxKind kind = VfxKind::Burst;
+    Team team = Team::Player;  // 演出のもとになった行動をした陣営（相手の陣営の演出は、視界の中だけ描く）
     Vector2 pos{};
     Vector2 pos2{};  // Teleport の移動先
     float radius = 0.0f;
@@ -150,14 +152,14 @@ struct Vfx {
 };
 
 /// 範囲が発動した時の、円が光って消える演出
-Vfx makeBurstVfx(Vector2 pos, float radius, Color color, float duration = 0.35f);
+Vfx makeBurstVfx(Team team, Vector2 pos, float radius, Color color, float duration = 0.35f);
 /// 輪が広がりながら消える演出（命中・ダウンなど）
-Vfx makeRingVfx(Vector2 pos, float radius, Color color, float duration = 0.4f);
+Vfx makeRingVfx(Team team, Vector2 pos, float radius, Color color, float duration = 0.4f);
 /// ワープの演出（移動前と移動後の輪と、その間の線）
-Vfx makeTeleportVfx(Vector2 from, Vector2 to, Color color);
-/// 右クリックした地点に出る、縮んで消える輪
+Vfx makeTeleportVfx(Team team, Vector2 from, Vector2 to, Color color);
+/// 右クリックした地点に出る、縮んで消える輪（自キャラの陣営の演出）
 Vfx makeClickMarkerVfx(Vector2 pos);
 /// 文字の演出（「起爆!」「ダウン!」など。少しずつ上へ浮かんで消える。描くのは Hud.cpp）
-Vfx makeTextVfx(Vector2 pos, std::string text, Color color);
+Vfx makeTextVfx(Team team, Vector2 pos, std::string text, Color color);
 
 }  // namespace moba

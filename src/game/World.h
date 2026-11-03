@@ -11,6 +11,7 @@
 #include "game/Entities.h"
 #include "game/Terrain.h"
 #include "game/Unit.h"
+#include "game/Vision.h"
 #include "raylib.h"
 
 namespace moba {
@@ -22,6 +23,7 @@ struct Settings;
 /// モードごとのルール
 struct WorldRules {
     bool movementSkillsOnly = false;  // 自キャラは移動系のスキルだけ使える（今はどのモードでも使っていない）
+    bool fullVision = false;          // 全視界（敵も味方も、ステージのすべてが見える）
 };
 
 /// 1 回のプレイの中身（キャラ・弾・範囲効果・設置物・演出・地形）をまとめて持ち、時間を進める
@@ -76,13 +78,19 @@ public:
     /// 円の範囲に当たり判定がかかっている敵（myTeam ではないキャラ）。範囲の命中判定用なので、見えない敵も含む
     std::vector<Unit*> enemiesInCircle(Vector2 center, float radius, Team myTeam);
 
-    // --- ブッシュと見え方 ---
+    // --- 視界 ---
 
-    /// observer の陣営から target が見えるか。ブッシュの中のキャラは、同じブッシュに observer の陣営のキャラがいるか、
-    /// 対象指定のスキルを使って見えている間（revealTime）だけ見える
+    /// observer の陣営から target が見えるか。同じ陣営なら必ず見える。それ以外は、canSeePoint で target の中心が
+    /// 見えるか、対象指定のスキルで撃ってきて見えている間（revealTime）なら見える。全視界なら必ず見える
     bool canSee(Team observer, const Unit& target) const;
-    /// ブッシュの中で対象指定のスキルを使った時に呼ぶ（bushRevealTime 秒だけ外から見えるようにする）。ブッシュの外なら何もしない
-    void revealFromBush(Unit& unit);
+    /// observer の陣営の視界に point が入っているか（その陣営の生きているキャラのどれかから、
+    /// visionRadius 以内で、視線が遮られていない）。全視界なら必ず入っている
+    bool canSeePoint(Team observer, Vector2 point) const;
+    /// viewer から見える範囲の形（描画用。視界の半径は visionRadius）
+    std::vector<vision::VisionRay> visionPolygon(const Unit& viewer) const;
+    /// 対象指定のスキルを target に撃った時に呼ぶ。caster が target の陣営から見えていなければ、
+    /// attackRevealTime 秒だけ見えるようにする（味方を対象にした時と、もう見えている時は何もしない）
+    void revealAttacker(Unit& caster, const Unit& target);
 
     /// スキルが当たった時の共通処理（ヒット率・ドッジ率の集計、被弾の演出、自キャラの HP、ログ）
     /// @param label ログに出す弾・範囲の名前
