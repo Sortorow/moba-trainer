@@ -47,7 +47,7 @@ struct Settings {
     float cameraEdgeScrollSpeed = 2500.0f;       // 固定しない時に、画面の端でカメラが動く速さ（ゲーム内の距離 / 秒）
     // 固定しない時に、画面の端からこの幅まで近づくとカメラが動く（拡大率 100% の時のピクセル）
     float cameraEdgeMargin = 12.0f;
-    float visionRadius = 1150.0f;  // 視界の半径（全キャラ共通）
+    float visionRadius = 1000.0f;  // 視界の半径（全キャラ共通）
     // 相手から見えていない時に、対象指定のスキルでその相手を撃つと、相手の陣営から見えるようになる時間（秒）
     float attackRevealTime = 3.0f;
     float fogDarkness = 0.6f;  // 視界の外を暗くする強さ（0 = 暗くしない、1 = 真っ黒）

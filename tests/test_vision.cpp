@@ -5,8 +5,10 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <random>
 
+#include "core/Geometry.h"
 #include "core/Paths.h"
 #include "data/GameData.h"
 #include "data/StageDef.h"
@@ -155,7 +157,7 @@ TEST_CASE("視界: 建物・壁・木は視線を遮り、箱は遮らない") {
 TEST_CASE("視界: 視界の半径（visionRadius）より遠いキャラは見えない。同じ陣営は遠くても見える") {
     VisionFixture f(makeStage({}));
     const float radius = f.world().settings().visionRadius;
-    REQUIRE(radius == doctest::Approx(1150.0f));
+    REQUIRE(radius == doctest::Approx(1000.0f));
     f.addUnit(Team::Player, {0.0f, 0.0f});
     const EntityId near = f.addUnit(Team::Enemy, {radius - 1.0f, 0.0f});
     const EntityId far = f.addUnit(Team::Enemy, {0.0f, radius + 1.0f});
@@ -280,6 +282,54 @@ TEST_CASE("敵 AI: 自キャラと保つ距離は、視界の半径より内側"
     CHECK(Vector2Length(*target) <= f.world().settings().visionRadius - f.data().ai().visionMargin + 1.0f);
 }
 
+TEST_CASE("スキルショット: 的と自キャラの距離の上限は、視界の内側（visionRadius − visionMargin）") {
+    GameData data(makeAppPaths(MOBA_SOURCE_DIR));
+    data.loadAll();
+    const SkillShotConfig& shot = data.ai().skillShot;
+    const float radius = data.settings().visionRadius;
+    CHECK(shot.maxDistanceWithin(radius) == doctest::Approx(radius - shot.visionMargin));
+    CHECK(shot.maxDistanceWithin(5000.0f) == doctest::Approx(shot.maxDistance));          // 視界が広ければ maxDistance
+    CHECK(shot.maxDistanceWithin(100.0f) == doctest::Approx(shot.minDistance + 100.0f));  // 狭すぎても下限は保つ
+}
+
+TEST_CASE("スキルショット: 自キャラが離れても、的は近づき直して視界の外に出たままにならない") {
+    GameData data(makeAppPaths(MOBA_SOURCE_DIR));
+    data.loadAll();
+    MatchConfig config;
+    config.mode = GameMode::SkillShot;
+    config.characterId = "like_ezreal";
+    config.stageId = "open";
+    config.targetLevel = 3;
+    config.timeLimitSeconds = 30.0f;
+    config.seed = 5;
+    Match match(data, config);
+    REQUIRE(match.valid());
+    const float maxDistance = data.ai().skillShot.maxDistanceWithin(data.settings().visionRadius);
+    const auto target = [&]() -> const Unit& { return *match.world().findUnit(match.target().unitId()); };
+
+    // 自キャラが的から離れる向きに 4 秒歩き続ける（ステージの端に着いたら、その場で止まる）
+    const InputFrame noInput;
+    int visible = 0;
+    int steps = 0;
+    for (int i = 0; i < 4 * 120; ++i) {
+        Unit& player = *match.world().player();
+        if (i % 36 == 0) {
+            const Vector2 away = geo::normalizedOr(player.pos - target().pos, Vector2{1.0f, 0.0f});
+            casting::orderMove(match.world(), player, player.pos + away * 400.0f);
+        }
+        match.update(1.0f / 120.0f, noInput);
+        ++steps;
+        if (match.world().canSee(Team::Player, target())) ++visible;
+    }
+    CHECK(static_cast<float>(visible) / static_cast<float>(steps) > 0.9f);
+
+    // 止まると、的は上限の内側に戻ってくる
+    match.world().player()->moveTarget.reset();
+    for (int i = 0; i < 3 * 120; ++i) match.update(1.0f / 120.0f, noInput);
+    CHECK(Vector2Distance(target().pos, match.world().player()->pos) <= maxDistance + 5.0f);
+    CHECK(match.world().canSee(Team::Player, target()));
+}
+
 TEST_CASE("全視界: 壁の向こう・ブッシュの中・視界の半径より遠い所も、敵味方とも見える") {
     VisionFixture f(
         makeStage({rectObstacle(ObstacleKind::Wall, 200.0f, -100.0f, 50.0f, 200.0f)}, {circle(0.0f, 600.0f, 150.0f)}));
@@ -345,6 +395,76 @@ TEST_CASE("全視界: 視界の初期値はモードごと（settings.jsonc の 
     config.fullVision = false;
     const Match normal(data, config);
     CHECK_FALSE(normal.world().rules().fullVision);
+}
+
+TEST_CASE("敵 AI: 見失ったら、消えた方向の先へ追いかける。ブッシュに入った自キャラは、ブッシュに入って見つけ直す") {
+    // (900, 0) を中心に半径 250 のブッシュ。自キャラはブッシュの中心まで歩いて止まる
+    VisionFixture f(makeStage({}, {circle(900.0f, 0.0f, 250.0f)}));
+    const CharacterDef* def = f.data().character("like_ezreal");
+    REQUIRE(def != nullptr);
+    Unit player = makePlayerUnit(*def);
+    const EntityId playerId = f.world().addUnit(player);
+    const EntityId enemy = f.addUnit(Team::Enemy, {-700.0f, 0.0f}, "like_ezreal");
+    ai::EnemyDirector director;
+    director.setup(f.data().ai(), 3, 7);
+    director.addEnemy(enemy);
+    casting::orderMove(f.world(), f.unit(playerId), {900.0f, 0.0f});
+
+    bool lost = false;
+    bool foundAgain = false;
+    for (int i = 0; i < 8 * 120 && !foundAgain; ++i) {
+        director.update(f.world(), 1.0f / 120.0f);
+        f.world().update(1.0f / 120.0f);
+        const bool visible = f.world().canSee(Team::Enemy, f.unit(playerId));
+        if (!visible) lost = true;
+        if (lost && visible) foundAgain = true;
+    }
+    CHECK(lost);
+    CHECK(foundAgain);
+    CHECK(f.world().terrain().bushAt(f.unit(enemy).pos) >= 0);  // ブッシュに入って見つけた
+}
+
+TEST_CASE(
+    "敵 AI: 賢さ 1 は最後に見えた位置へ、賢さ 5 は消えた方向の先（chasePredict）まで追いかけ、着いても見つからなければ"
+    "探索に移る") {
+    // 自キャラが +X へ歩いている途中で、敵から見えない遠くへ消えた時の、敵の行き先を比べる
+    const auto chaseFrom = [](int level) {
+        VisionFixture f(makeStage({}));
+        const CharacterDef* def = f.data().character("like_ezreal");
+        REQUIRE(def != nullptr);
+        Unit player = makePlayerUnit(*def);
+        const EntityId playerId = f.world().addUnit(player);
+        const EntityId enemy = f.addUnit(Team::Enemy, {-700.0f, 0.0f}, "like_ezreal");
+        ai::EnemyDirector director;
+        director.setup(f.data().ai(), level, 7);
+        director.addEnemy(enemy);
+        casting::orderMove(f.world(), f.unit(playerId), {1500.0f, 0.0f});
+        for (int i = 0; i < 120; ++i) {
+            director.update(f.world(), 1.0f / 120.0f);
+            f.world().update(1.0f / 120.0f);
+        }
+        REQUIRE(f.world().canSee(Team::Enemy, f.unit(playerId)));
+        const Vector2 lastSeen = f.unit(playerId).pos;
+        const float speed = f.unit(playerId).moveSpeed();
+        f.unit(playerId).pos = {0.0f, 1900.0f};  // 遠くへ消える（敵の視界の外）
+        f.unit(playerId).moveTarget.reset();
+        // 追跡から探索に移った時の、敵の位置（= 追いかけた先）
+        std::optional<Vector2> chaseEnd;
+        for (int i = 0; i < 6 * 120 && !chaseEnd; ++i) {
+            const ai::EnemyDirector::Mode before = director.mode();
+            director.update(f.world(), 1.0f / 120.0f);
+            f.world().update(1.0f / 120.0f);
+            if (before == ai::EnemyDirector::Mode::Chase && director.mode() == ai::EnemyDirector::Mode::Search)
+                chaseEnd = f.unit(enemy).pos;
+        }
+        CHECK_FALSE(f.world().canSee(Team::Enemy, f.unit(playerId)));
+        REQUIRE(chaseEnd.has_value());  // 着いても見つからなければ、探索に移る
+        const float predict = f.data().ai().level(level).chasePredict;
+        const Vector2 expected = lastSeen + Vector2{speed * predict, 0.0f};
+        return Vector2Distance(*chaseEnd, expected);
+    };
+    CHECK(chaseFrom(1) < 60.0f);  // 最後に見えた位置
+    CHECK(chaseFrom(5) < 60.0f);  // 最後に見えた位置 + 速度 × chasePredict（2 秒 = 約 650 先）
 }
 
 TEST_CASE("視界の形: 壁に向けた光線は壁の手前で止まり、遮る物の無い向きは視界の半径まで届く") {

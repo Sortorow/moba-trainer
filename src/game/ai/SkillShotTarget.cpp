@@ -416,6 +416,12 @@ void SkillShotTarget::wander(const World& world, Unit& self, const Unit& player)
 
 void SkillShotTarget::updatePattern(const World& world, Unit& self, const Unit& player, float dt) {
     pattern_.elapsed += dt;
+    // 自キャラが動いて maxDistance より離れたら、今のパターンをやめて近づき直す（視界の外に出たままにならないように）。
+    // 離れすぎている時の startPattern は、必ず「接近」を選ぶ
+    if (pattern_.kind != TargetPattern::Approach && Vector2Distance(self.pos, player.pos) > config_.maxDistance) {
+        startPattern(world, self, player);
+        return;
+    }
     // 壁に引っかかるなどして長く終わらないパターンは打ち切る
     if (pattern_.elapsed > kPatternTimeout) {
         startPattern(world, self, player);

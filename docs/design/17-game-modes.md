@@ -147,7 +147,7 @@
 | 関数 | 説明 |
 |---|---|
 | `void setupSkillDodge(const CharacterDef& character)` | 自キャラ（HP 5）を置き、敵 AI を準備し、自キャラを囲むように敵を置く。敵のキャラは `enemyCandidates()` からランダム。角度は均等＋ばらつき（±0.25 ラジアン）、距離は 1000〜1250。障害物と重なれば近くの立てる位置へ |
-| `void setupSkillShot(const CharacterDef& character)` | 自キャラ（HP なし）を置き、的の AI を準備し、自キャラから離れたランダムな方向に的を 1 体置く。的の名前は「的」、色は橙、大きさ・速さはメニューで選んだもの |
+| `void setupSkillShot(const CharacterDef& character)` | 自キャラ（HP なし）を置き、的の AI を準備し（自キャラとの距離の上限は、視界の内側に収めたもの = `maxDistanceWithin`）、自キャラから離れたランダムな方向に的を 1 体置く。的の名前は「的」、色は橙、大きさ・速さはメニューで選んだもの |
 
 ### 4.4 メンバ変数
 

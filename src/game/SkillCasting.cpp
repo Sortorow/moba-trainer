@@ -87,7 +87,7 @@ void runSkill(World& world, Unit& caster, const SkillDef& def, const CastRequest
     }
 
     const int castId = world.newCastId();
-    world.beginCast(castId, caster.team, request.slot);
+    world.beginCast(castId, caster.team, request.slot, !request.probe);
     if (def.countsForHitRate && caster.team == Team::Player) world.stats().recordCast(castId, request.slot);
     log::info("skill", "{} が [{}] {} を発動 castId={} 位置{} カーソル{}", caster.name, toString(request.slot),
               def.name, castId, geo::str(caster.pos), geo::str(request.cursor));

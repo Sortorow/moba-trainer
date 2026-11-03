@@ -18,6 +18,7 @@ const Settings& World::settings() const { return data_->settings(); }
 
 void World::update(float dt) {
     time_ += dt;
+    recentHits_.clear();
     for (Unit& unit : units_) updateUnit(unit, dt);
     flushSpawns();
     updateProjectiles(dt);
@@ -204,9 +205,10 @@ void World::revealAttacker(Unit& caster, const Unit& target) {
 // ---------------------------------------------------------------------------
 // 共通処理
 // ---------------------------------------------------------------------------
-void World::registerHit(int castId, SkillSlot slot, std::string_view label, Unit& target) {
+void World::registerHit(int castId, Team attacker, SkillSlot slot, std::string_view label, Unit& target) {
     stats_.recordHit(castId);
     target.hitFlash = 0.25f;
+    recentHits_.push_back(HitRecord{attacker, target.id, target.pos});
     log::info("hit", "castId={} [{}] {} が {} に命中 位置{}", castId, toString(slot), label, target.name,
               geo::str(target.pos));
     if (hitObserver_) hitObserver_(castId, slot, target);
@@ -234,7 +236,9 @@ void World::damagePlayer(Unit& player) {
 // ---------------------------------------------------------------------------
 // 発動の記録（ドッジ率の集計）
 // ---------------------------------------------------------------------------
-void World::beginCast(int castId, Team team, SkillSlot slot) { casts_[castId] = CastRecord{team, slot, 0, false}; }
+void World::beginCast(int castId, Team team, SkillSlot slot, bool countsForDodge) {
+    casts_[castId] = CastRecord{team, slot, 0, false, countsForDodge};
+}
 
 void World::endCastIfIdle(int castId) {
     const auto it = casts_.find(castId);
@@ -254,6 +258,11 @@ void World::finishCastRecord(int castId) {
     casts_.erase(it);
     stats_.settle(castId);  // 自キャラの発動なら、ヒット率の「外れ」もここで確定する
     if (record.team != Team::Enemy) return;
+    if (!record.countsForDodge) {
+        log::debug("dodge", "castId={} [{}] の結果: {}（確かめ撃ちなので、ドッジ率に数えない）", castId,
+                   toString(record.slot), record.hitPlayer ? "被弾" : "当たらなかった");
+        return;
+    }
 
     ++dodge_.total;
     if (record.hitPlayer) {
@@ -411,7 +420,7 @@ void World::updateHomingProjectile(Projectile& p, float dt) {
 void World::hitWithProjectile(Projectile& p, Unit& target) {
     p.hitUnits.push_back(target.id);
     // 味方（自分自身）への到達は命中として数えない（ブランドの R が自分に跳ね返る時など）
-    if (target.team != p.team) registerHit(p.castId, p.slot, p.label, target);
+    if (target.team != p.team) registerHit(p.castId, p.team, p.slot, p.label, target);
     if (p.onHit) p.onHit(*this, p, target);
 }
 
@@ -455,7 +464,7 @@ void World::updateAreas(float dt) {
 
 void World::hitWithArea(AreaEffect& a, Unit& target) {
     a.hitUnits.push_back(target.id);
-    registerHit(a.castId, a.slot, a.label, target);
+    registerHit(a.castId, a.team, a.slot, a.label, target);
     if (a.onUnitHit) a.onUnitHit(*this, a, target);
 }
 

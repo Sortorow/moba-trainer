@@ -23,8 +23,12 @@
 | ステージ | 遊ぶ場所（障害物なし・路地裏・森） | `StageDef`、`Terrain` |
 | 障害物 | 通れない場所（建物・壁・木・箱）。移動と視線（箱を除く）を妨げ、弾は通り抜ける | `Obstacle`、`ObstacleKind` |
 | ブッシュ | 草むら。中のキャラと、ブッシュの奥は外から見えない | `StageDef::bushes`、`Terrain::bushAt`、`World::canSee` |
-| 視界 | キャラから半径 `visionRadius`（1150）の中で、視線が遮られていない所。視界の外の敵キャラは見えず、地面は暗く描く | `vision::lineOfSight`、`vision::visionPolygon`、`World::canSee`、`World::canSeePoint`、`VisionLayers` |
+| 視界 | キャラから半径 `visionRadius`（1000）の中で、視線が遮られていない所。視界の外の敵キャラは見えず、地面は暗く描く | `vision::lineOfSight`、`vision::visionPolygon`、`World::canSee`、`World::canSeePoint`、`VisionLayers` |
 | 全視界 | 敵も味方も、ステージのすべてが見える状態。メニューの「視界」で選ぶ。練習場の初期値 | `MatchConfig::fullVision`、`WorldRules::fullVision`、`defaultFullVision` |
+| 追跡 | 敵が自キャラを見失った直後に、消えた方向の先（賢いほど先まで読む）へ追いかける動き | `EnemyDirector::Mode::Chase`、`AiLevel::chasePredict` |
+| 探索 | 追いかけた先にもいなかった時に、敵全員で手分けして、まだ見ていないエリアを探す動き。全エリアを探しても見つからなければ最初から探し直す | `EnemyDirector::Mode::Search`、`ai::SearchMap`、`SearchConfig` |
+| エリア（探索） | 探索の単位。ブッシュ 1 つか、地面を 500 四方に分けたマス 1 つ。中の「確かめる点」がすべて敵の視界に一度入ったら探索済み | `SearchMap::Area`、`SearchMap::Point` |
+| 確かめ撃ち | 賢さ 4・5 の敵が、見失っている間に、ブッシュの中や壁の向こうへスキルを撃って、自キャラがいるかを確かめること。1 エリアに 1 回。ドッジ率に数えない | `EnemyDirector::tryProbe`、`AiLevel::probe`、`CastRequest::probe` |
 | リザルト | 制限時間まで遊んだ結果 | `MatchResult`、`SavedResult` |
 | 記録 | 保存したリザルトの直近 10 回の順位表 | `drawRecordTable`、`drawRecordsWindow` |
 | 統計 | 保存したリザルトを集計したダッシュボード | `StatsDashboard`、`ResultStats` |

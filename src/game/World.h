@@ -20,6 +20,13 @@ class GameData;
 struct CharacterDef;
 struct Settings;
 
+/// スキルが当たった記録 1 つ（敵 AI が、見えない自キャラに自分たちのスキルが当たったことを知るため）
+struct HitRecord {
+    Team attacker = Team::Enemy;   // 当てた側の陣営
+    EntityId target = kInvalidId;  // 当たったキャラ
+    Vector2 pos{};                 // 当たった時の、当たったキャラの位置
+};
+
 /// モードごとのルール
 struct WorldRules {
     bool movementSkillsOnly = false;  // 自キャラは移動系のスキルだけ使える（今はどのモードでも使っていない）
@@ -92,9 +99,12 @@ public:
     /// attackRevealTime 秒だけ見えるようにする（味方を対象にした時と、もう見えている時は何もしない）
     void revealAttacker(Unit& caster, const Unit& target);
 
-    /// スキルが当たった時の共通処理（ヒット率・ドッジ率の集計、被弾の演出、自キャラの HP、ログ）
+    /// スキルが当たった時の共通処理（ヒット率・ドッジ率の集計、被弾の演出、自キャラの HP、当たった記録、ログ）
+    /// @param attacker 当てた側の陣営
     /// @param label ログに出す弾・範囲の名前
-    void registerHit(int castId, SkillSlot slot, std::string_view label, Unit& target);
+    void registerHit(int castId, Team attacker, SkillSlot slot, std::string_view label, Unit& target);
+    /// 直前の update でスキルが当たった記録（update の始めに消える）
+    const std::vector<HitRecord>& recentHits() const { return recentHits_; }
 
     // 命中を外から観察する（テスト・集計用）
     using HitObserver = std::function<void(int castId, SkillSlot slot, const Unit& target)>;
@@ -104,7 +114,8 @@ public:
     // 発動の記録（ドッジ率の集計用）。SkillCasting がスキルの処理の前後に呼ぶ
 
     /// 発動の記録を始める（この後に出す弾・範囲がすべて消えた時に、当たったかどうかが確定する）
-    void beginCast(int castId, Team team, SkillSlot slot);
+    /// @param countsForDodge 敵の発動を、ドッジ率に数えるか（敵 AI の確かめ撃ちは数えない）
+    void beginCast(int castId, Team team, SkillSlot slot, bool countsForDodge = true);
     /// 弾も範囲も出さなかった発動（ワープなど）は、ここで記録を閉じる
     void endCastIfIdle(int castId);
 
@@ -169,6 +180,7 @@ private:
         SkillSlot slot = SkillSlot::Q;
         int liveEntities = 0;
         bool hitPlayer = false;
+        bool countsForDodge = true;  // false なら、敵の発動でもドッジ率に数えない（確かめ撃ち）
     };
 
     /// キャラ 1 体を進める（状態異常・クールダウン・詠唱・移動。最後に障害物から押し出す）
@@ -214,6 +226,7 @@ private:
     DodgeCount dodge_;
     std::unordered_map<int, CastRecord> casts_;
     HitObserver hitObserver_;
+    std::vector<HitRecord> recentHits_;  // 直前の update で当たった記録
 
     std::vector<Unit> units_;
     std::vector<Projectile> projectiles_;

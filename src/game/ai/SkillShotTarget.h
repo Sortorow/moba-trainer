@@ -10,7 +10,8 @@
 //         ランダム 自キャラの周りのランダムな位置へ動く
 //         停止     立ち止まる
 // 反応の遅れ（避け始め・接近からの切り返し）は、どの賢さでも 0.15 秒より短くならない（AiConfig.h）。
-// 自キャラからは maxDistance より離れず、minDistance より近づかない。
+// 自キャラからは maxDistance より離れず、minDistance より近づかない。自キャラが動いて maxDistance より離れたら、
+// 今のパターンをやめて近づき直す。maxDistance は、Match が視界の内側に収めてから渡す（SkillShotConfig::maxDistanceWithin）。
 // 賢さごとの数値は data/ai.jsonc の "skillShot" で調整できる。
 
 #include <cstdint>

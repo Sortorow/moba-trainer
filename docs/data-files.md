@@ -85,7 +85,7 @@ data/
 | `cameraViewHeight` | `1500` | 画面の縦方向に映るゲーム内の距離。大きいほど引いた視点（400〜6000） | `src/app/App.cpp`（カメラの拡大率）<br>`src/ui/DebugPanel.cpp`（一時的に変えるスライダー） |
 | `cameraEdgeScrollSpeed` | `2500` | カメラを固定しない時に、画面の端でカメラが動く速さ（ゲーム内の距離 / 秒。0 以上） | `src/app/App.cpp` → `src/render/CameraControl.cpp` |
 | `cameraEdgeMargin` | `12` | カメラを固定しない時に、画面の端からこの幅まで近づくとカメラが動く（Windows の拡大率 100% の時のピクセル。1〜100） | `src/app/App.cpp`（Windows の拡大率と `uiScale` を掛ける）→ `src/render/CameraControl.cpp` |
-| `visionRadius` | `1150` | 視界の半径（ゲーム内の距離。全キャラ共通。100〜5000）。詳しくは [6 章](#6-stagesjsoncステージ)の「視界とブッシュの見え方」 | `src/game/World.cpp`（`canSeePoint`・`visionPolygon`）<br>→ 見えるかどうかを使う所: `src/render/Renderer.cpp`、`src/render/Hud.cpp`、`src/game/World.cpp`（対象の選択）、`src/game/SkillCasting.cpp`、`src/game/ai/EnemyAI.cpp`<br>`src/game/ai/EnemyAI.cpp`（敵が自キャラと保つ距離の上限） |
+| `visionRadius` | `1000` | 視界の半径（ゲーム内の距離。全キャラ共通。100〜5000）。詳しくは [6 章](#6-stagesjsoncステージ)の「視界とブッシュの見え方」 | `src/game/World.cpp`（`canSeePoint`・`visionPolygon`）<br>→ 見えるかどうかを使う所: `src/render/Renderer.cpp`、`src/render/Hud.cpp`、`src/game/World.cpp`（対象の選択）、`src/game/SkillCasting.cpp`、`src/game/ai/EnemyAI.cpp`<br>`src/game/ai/EnemyAI.cpp`（敵が自キャラと保つ距離の上限） |
 | `attackRevealTime` | `3` | 相手から見えていない時に、対象指定のスキルで相手を撃つと、相手の陣営から見えるようになる時間（秒。0〜30）。ブッシュの中から撃った時も同じ | `src/game/World.cpp`（`revealAttacker`。`src/game/SkillCasting.cpp` から呼ばれる） |
 | `fogDarkness` | `0.6` | 視界の外を暗くする強さ（0 = 暗くしない、1 = 真っ黒） | `src/app/App.cpp` → `src/render/Renderer.cpp` |
 | `fullVision.sandbox` / `fullVision.dodge` / `fullVision.shot` | `true` / `false` / `false` | モードごとの視界の初期値。`true` = 全視界（敵も味方もステージのすべてが見える）、`false` = 通常。メニューの「視界」と、コマンドライン引数 `--vision` でも選べる | `src/game/MatchConfig.h`（`defaultFullVision`）<br>→ `src/ui/MainMenu.cpp`（メニューの初期値・モードを選び直した時）、`src/app/App.cpp`（コマンドラインで開始する時の初期値）<br>→ `src/game/Match.cpp`（`World` のルールにする）→ `src/game/World.cpp`（`canSee`・`canSeePoint`）、`src/render/Renderer.cpp`（暗さを描かない）、`src/render/Hud.cpp`（操作説明に「視界: 全視界」）、`src/game/ResultStore.cpp`（結果に保存）、`src/ui/RecordsPanel.cpp`・`src/ui/ResultScreen.cpp`（表示） |
@@ -111,7 +111,7 @@ data/
 | `firstCastDelay` | `1.5` | 開始してから、敵が最初にスキルを撃つまでの時間（秒） | `src/game/ai/EnemyAI.cpp` |
 | `punishMinInterval` | `1.0` | `punishCC` で、動けない自キャラへ間隔を待たずに撃つ時も、最低限空ける間隔（秒。0 以上）。クールダウンの無いスキルで撃ち続けないように | `src/game/ai/EnemyAI.cpp` |
 | `maxEngageRange` | `1000` | 敵が自キャラと取ろうとする距離の上限（200 以上） | `src/game/ai/EnemyAI.cpp` |
-| `visionMargin` | `150` | 敵が自キャラと取ろうとする距離を、視界の半径（`settings.jsonc` の `visionRadius`）からこの値だけ内側までに抑える（0 以上）。敵は自キャラが見えない間は撃たないので、射程の長いスキルの敵が視界の外で止まらないように | `src/game/ai/EnemyAI.cpp` |
+| `visionMargin` | `250` | 敵が自キャラと取ろうとする距離を、視界の半径（`settings.jsonc` の `visionRadius`）からこの値だけ内側までに抑える（0 以上）。敵は自キャラが見えない間は撃たないので、射程の長いスキルの敵が視界の外で止まらないように | `src/game/ai/EnemyAI.cpp` |
 | `playerReactionTime` | `0.25` | AI が想定する「プレイヤーが弾を見てから避け始めるまでの時間」（秒） | `src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp` |
 | `levels` | （必須） | 賢さ 1〜5 の設定。上から順に 1, 2, 3, 4, 5 | 下の表と、表の後の説明を参照 |
 | `skillShot` | （必須） | スキルショットの的の設定 | [skillShot の項目](#skillshot-の項目スキルショットの的)を参照 |
@@ -133,6 +133,8 @@ data/
 | `flank` | 他の敵と離れて、囲むように動く | `true` / `false` |
 | `punishCC` | 自キャラが動けない時（拘束・スタン・打ち上げ）は、間隔を待たずにすぐ撃つ（ただし `punishMinInterval` 秒は空ける） | `true` / `false` |
 | `engageRangeRatio` | 自キャラとの距離を「使うスキルの最短の射程 × この値」に保とうとする | 0.3〜1.0 |
+| `chasePredict` | 自キャラを見失った時に、消えた方向の先を読む時間（秒）。最後に見えた位置 + その時の速度 × この時間 の所へ追いかける（0 なら最後に見えた位置へ向かうだけ）。着いても見つからなければ、下の `search` のとおりに探す | 0〜5 |
+| `probe` | 見失っている間に、ブッシュの中や壁の向こうへ方向指定のスキル（当たると消える弾）を撃って、いるかを確かめる（1 エリアに 1 回。途中で当たったら、その位置へ向かう。ドッジ率には数えない）。既定では賢さ 4・5 が `true` | `true` / `false` |
 
 `predict` の 3 つは割合なので、合計が 1 でなくてもかまいません（重みの比で扱います）。狙いの計算方法は `src/game/ai/Aim.h` の先頭に書いてあります。
 
@@ -141,9 +143,21 @@ data/
 | コード | 使い方 |
 |---|---|
 | `src/game/Match.cpp` | メニューで選んだ賢さの段階を `src/game/ai/EnemyAI.cpp` に渡す。リザルト用に `name` を取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
-| `src/game/ai/EnemyAI.cpp` | すべての項目を、敵の動きとスキル選びに使う |
+| `src/game/ai/EnemyAI.cpp` | すべての項目を、敵の動きとスキル選び・見失った時の追跡と確かめ撃ちに使う |
 | `src/ui/MainMenu.cpp` | `name`（敵の賢さのスライダーの表示）と、段階の数 |
 | `src/ui/DebugPanel.cpp` | `name`・`reactionTime`・`castInterval`・`aimError`・`predict`・`adaptive` を表示 |
+
+### search（見失った自キャラを探す）
+
+追いかけた先でも自キャラが見つからなかった時に、敵全員で手分けして、まだ見ていない所を探します。ステージを「エリア」（ブッシュ 1 つ（重なり合うブッシュは 1 つ）と、それ以外の地面を `areaSize` 四方に分けたマス 1 つ）に分け、エリアの中の「確かめる点」がすべて敵の誰かの視界に一度入ったら、そのエリアは探索済みです。全エリアを探しても見つからなければ、最初から探し直します。
+
+| 項目 | 既定値 | 意味 | 範囲 |
+|---|---|---|---|
+| `areaSize` | `500` | 地面を何四方のエリアに分けるか | 200〜2000 |
+| `pointSpacing` | `125` | エリアの中に置く「確かめる点」の間隔。小さいほど、物陰に隠れた自キャラを見落としにくい | 50〜`areaSize` |
+| `giveUpTime` | `4` | 探しに向かう敵が、動けない（たどり着けない）ままこの秒数たったら、そのエリアをあきらめて探索済みにする | 1〜30 |
+
+書かなければ、上の既定値になります。使うコードは `src/game/ai/SearchMap.cpp`（エリア分け）と `src/game/ai/EnemyAI.cpp`（`giveUpTime`）です。
 
 ### skillShot の項目（スキルショットの的）
 
@@ -154,7 +168,8 @@ data/
 | `sizes` | （必須） | 的の大きさの選択肢。`name`（メニューに出す名前）と `radius`（当たり判定の半径。10〜300）の組の配列。練習場のダミーのプリセット（小さい的 40 / 標準 65 / 大きい的 100）と同じ段階 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ半径は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（当たり判定）、`src/game/ai/SkillShotTarget.cpp`（避ける距離）、`src/render/Renderer.cpp`（大きさ）で使われる。`src/game/Match.cpp` はリザルト用に `name` も取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
 | `moveSpeeds` | （必須） | 的の移動速度の選択肢（0〜1500）の配列 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ速度は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（移動）、`src/game/ai/SkillShotTarget.cpp`（避けるのに間に合うかの見積もり）で使われる |
 | `minDistance` | `300` | 自キャラにこれより近づかない | `src/game/ai/SkillShotTarget.cpp` |
-| `maxDistance` | `1100` | 自キャラからこれより離れない（11m）。離れすぎていたら、次のパターンは接近になる | `src/game/ai/SkillShotTarget.cpp` |
+| `maxDistance` | `1100` | 自キャラからこれより離れない（11m）。ただし視界の内側に収めるため、実際の上限は下の `visionMargin` で決まる（視界 1000 なら 900）。自キャラが動いて上限より離れたら、的はすぐに近づき直す | `src/data/AiConfig.cpp`（`maxDistanceWithin`）→ `src/game/Match.cpp`（的の AI に渡す前に上限を決める）→ `src/game/ai/SkillShotTarget.cpp` |
+| `visionMargin` | `100` | 自キャラとの距離の上限を、視界の半径（`settings.jsonc` の `visionRadius`）からこの値だけ内側までに抑える（0 以上）。上限は `maxDistance` と「`visionRadius` − `visionMargin`」の小さい方（`minDistance` + 100 より小さくはしない） | 同上 |
 | `dodgeMargin` | `25` | 避ける時に、弾の幅・範囲の端から、さらにこの距離だけ離れる | `src/game/ai/SkillShotTarget.cpp` |
 | `levels` | （必須） | 賢さ 1〜5 の設定。上から順に 1, 2, 3, 4, 5 | 下の表を参照 |
 
@@ -190,7 +205,7 @@ data/
 |---|---|
 | `src/data/AiConfig.cpp` | 読み込む。`reactionTime` を 0.15 秒（`AiConfig.h` の `kMinTargetReactionTime`）以上に収める |
 | `src/game/Match.cpp` | メニューで選んだ大きさ・移動速度で的を置く。的の賢さの段階を `src/game/ai/SkillShotTarget.cpp` に渡す。リザルト用に、賢さの `name` と大きさの `name` を取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
-| `src/game/ai/SkillShotTarget.cpp` | `minDistance`・`maxDistance`・`dodgeMargin` と `levels` のすべての項目を、的の移動と回避に使う。詠唱を見る時と、接近で「射程に入った」かを見る時は、キャラの設定（スキルの `targeting` / `castTime` / `range` / `countsForHitRate` と、`params` の `speed` / `width` / `radius` / `delay`）を `src/game/ai/Aim.cpp` を通して使う |
+| `src/game/ai/SkillShotTarget.cpp` | `minDistance`・`maxDistance`（視界の内側に収めたもの）・`dodgeMargin` と `levels` のすべての項目を、的の移動と回避に使う。詠唱を見る時と、接近で「射程に入った」かを見る時は、キャラの設定（スキルの `targeting` / `castTime` / `range` / `countsForHitRate` と、`params` の `speed` / `width` / `radius` / `delay`）を `src/game/ai/Aim.cpp` を通して使う |
 | `src/ui/MainMenu.cpp` | 的の賢さの `name` と段階の数、`sizes`（名前と半径）、`moveSpeeds` を表示して選ぶ |
 | `src/ui/DebugPanel.cpp` | `levels` の項目と、的の状態（今のパターン・避けているか・避けた回数）を表示 |
 
@@ -276,7 +291,7 @@ data/
 
 | 場面 | 見え方 |
 |---|---|
-| 視界 | 陣営のキャラのどれかから `settings.jsonc` の `visionRadius`（初期値 1150）以内で、視線が遮られていない所が見える。キャラが見えるかどうかは、キャラの中心で決める |
+| 視界 | 陣営のキャラのどれかから `settings.jsonc` の `visionRadius`（初期値 1000）以内で、視線が遮られていない所が見える。キャラが見えるかどうかは、キャラの中心で決める |
 | 視線を遮る物 | 建物・壁・木（`"building"` / `"wall"` / `"tree"`）と、見る側が入っていないブッシュ。箱（`"crate"`）は低いので遮らない |
 | ブッシュの中のキャラを、ブッシュの外から見る | 見えない。ブッシュの陰になる範囲（ブッシュの奥）も見えない |
 | 同じブッシュの中にいる | 見える。自分が入っているブッシュ（重なり合うブッシュは同じブッシュ）は視線を遮らないので、ブッシュの奥も見える |
@@ -285,7 +300,7 @@ data/
 | 視界の外の地面・障害物 | 暗く描く（強さは `settings.jsonc` の `fogDarkness`） |
 | 相手から見えていない時に、対象指定のスキル（`targeting` が `"unit"`。エマの E など。兎を対象にしたエマの R も含む）で相手を撃った | `settings.jsonc` の `attackRevealTime` 秒（初期値 3 秒）だけ、相手の陣営から見える。ブッシュの中から撃った時も同じ。方向指定・地点指定のスキルでは見えない |
 | 自キャラがブッシュの中にいる時と、撃って見えるようになっている時 | 頭上の下に「隠れている」または「見えている」と出る（ブッシュの中なら「ブッシュ: 」が付く） |
-| 敵 AI から自キャラが見えない | 敵は撃たない。最後に見えた位置を基準に動く（避け方の学習もしない） |
+| 敵 AI から自キャラが見えない | 敵は撃たない（避け方の学習もしない）。最後に見えた位置と動きから今いそうな位置を読んで追いかけ（`ai.jsonc` の `chasePredict`）、着いても見つからなければ、敵全員で手分けしてまだ見ていない所を探す（`ai.jsonc` の `search`）。賢さ 4・5 は、ブッシュの中や壁の向こうへ確かめ撃ちをする（`probe`。ドッジ率に数えない） |
 | 全視界（メニューの「視界」・`settings.jsonc` の `fullVision`） | 上の決まりはすべて無くなり、敵も味方もステージのすべてが見える。視界の外の暗さも無い |
 
 見え方の判定は `World::canSee`・`World::canSeePoint`（`src/game/World.cpp`）で、視線の計算は `src/game/Vision.cpp` です。使っているのは `src/render/Renderer.cpp`（描くかどうか・視界の外を暗くする・相手の陣営の物を視界の中だけ描く）、`src/render/Hud.cpp`（名前・矢印・文字の演出・自キャラの表示）、`src/game/World.cpp`（対象の選択）、`src/game/SkillCasting.cpp`（兎の選択・撃った時に見えるようにする処理・近づいている途中の中止）、`src/game/ai/EnemyAI.cpp`（敵 AI の認識）です。
@@ -581,7 +596,8 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `EnemyAI.cpp` / `EnemyAI.h` | 敵の動きとスキル選び（`usedByEnemy`・`aiPriority`・射程・賢さごとの設定）。自キャラが見えない間は撃たず、最後に見えた位置を基準に動く。自キャラと保つ距離は `maxEngageRange` と「`visionRadius` − `visionMargin`」の小さい方まで | settings、ai、stages、characters |
+| `EnemyAI.cpp` / `EnemyAI.h` | 敵の動きとスキル選び（`usedByEnemy`・`aiPriority`・射程・賢さごとの設定）。自キャラが見えない間は撃たず、最後に見えた位置と動きから今いそうな位置を読んで追いかけ（`chasePredict`）、そこにもいなければ探す（`search`）。確かめ撃ち（`probe`）には、方向指定で `pierce` でないスキルを使う。自キャラがブッシュの中にいる時は、最も近い敵だけがそのブッシュに留まる。自キャラと保つ距離は `maxEngageRange` と「`visionRadius` − `visionMargin`」の小さい方まで | settings、ai、stages、characters |
+| `SearchMap.cpp` / `SearchMap.h` | 見失った自キャラを探す時の、エリア分け（ステージの広さ・障害物・ブッシュ、`search` の `areaSize`・`pointSpacing`）と探索済みの記録（`visionRadius` の中で見えた所）。確かめ撃ちの先も選ぶ | settings、ai、stages |
 | `SkillShotTarget.cpp` / `SkillShotTarget.h` | スキルショットの的の移動（動き方のパターン）と回避（`skillShot` の距離と `levels` の項目）。詠唱を見て避ける時は、スキルの当たり方を `Aim.cpp` の `aimModelFor` で作る。移動先は立てる位置に収め、ランダムな移動ではブッシュの中を選ばない | ai、stages、characters |
 | `Aim.cpp` / `Aim.h` | 狙いの計算。スキルの `targeting` / `castTime` / `range` と、`params` の `speed` / `width` / `radius` / `delay` / `flightTime` を使う | characters |
 | `PlayerObserver.cpp` / `PlayerObserver.h` | 使わない | — |
@@ -650,6 +666,7 @@ data/
 | `test_ui_scale.cpp` | 使わない（`UiScale.cpp` の計算を、テスト用の値で確かめる） | — |
 | `test_camera.cpp` | 使わない（`CameraControl.cpp` の計算を、テスト用の値で確かめる） | — |
 | `test_sandbox.cpp` | sandbox.jsonc が読み込めること、プリセットを選ぶと `"preset"` だけが書き換わること、練習場のダミーが置き直されることのテスト（data フォルダを一時フォルダへ写して使う） | sandbox、characters |
-| `test_stage.cpp` | ステージのファイルが読み込めること、壁を回り込むこと、立てない場所を指定した時・たどり着けない時の動き、ブッシュの見え方、路地裏・森でスキルドッジを遊んでも障害物に入り込まないことのテスト | stages、characters |
+| `test_stage.cpp` | ステージのファイルが読み込めること、半径 65 のキャラが立てる場所にはすべて (0, 0) からたどり着けること、壁を回り込むこと、立てない場所を指定した時・たどり着けない時の動き、ブッシュの見え方、路地裏・森でスキルドッジを遊んでも障害物に入り込まないことのテスト | stages、characters |
 | `test_vision.cpp` | 視線を遮る物（箱は遮らない）、視界の半径、ブッシュの奥、撃った時に見える時間、近づいている途中の中止、見えない時に敵が撃たないこと、敵が保つ距離、視界の形と視線の判定が一致することのテスト | settings、ai、stages、characters |
+| `test_search.cpp` | 探索のエリア分け・探索済みの記録・確かめ撃ちの先の選び方、見失った自キャラを敵が探して見つけること、全エリアを探し終えたら探し直すこと、確かめ撃ち（賢さ 4 は撃ち、賢さ 3 は撃たない。ドッジ率に数えない）、ブッシュの中の自キャラを見つけたら最も近い敵が留まることのテスト | settings、ai、characters |
 | `scripts/brand_tour.txt`、`scripts/camera_tour.txt`、`scripts/dodge_tour.txt`、`scripts/emma_tour.txt`、`scripts/ezreal_tour.txt`、`scripts/shot_tour.txt`、`scripts/stage_tour.txt`、`scripts/vision_tour.txt` | 使わない（`--script` で使う入力スクリプト） | — |

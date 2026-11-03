@@ -18,6 +18,10 @@ public:
     void record(float time, Vector2 pos);
     /// 位置の記録が 1 つでもあるか（自キャラが一度も見えていなければ false）
     bool hasSamples() const { return !samples_.empty(); }
+    /// 最後に見えた時刻（最後に記録した時刻）。先に hasSamples() で確かめる
+    float lastSeenTime() const { return samples_.back().time; }
+    /// 最後に見えた位置（最後に記録した位置）。先に hasSamples() で確かめる
+    Vector2 lastSeenPosition() const { return samples_.back().pos; }
     /// ある時刻の位置（記録の間は補間する。記録より前・後なら最初・最後の位置）。
     /// 記録が無ければ (0, 0) なので、先に hasSamples() で確かめる
     Vector2 positionAt(float time) const;

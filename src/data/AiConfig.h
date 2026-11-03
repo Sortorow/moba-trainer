@@ -27,6 +27,18 @@ struct AiLevel {
     bool flank = false;              // 他の敵と離れて、囲むように動く
     bool punishCC = false;           // 自キャラが動けない時は、間隔を待たずにすぐ撃つ
     float engageRangeRatio = 0.85f;  // 自キャラとの距離を「スキルの射程 × この値」に保とうとする
+    // 自キャラを見失った時に、消えた方向の先を読む時間（秒）。最後に見えた位置 + その時の速度 × この時間まで追いかける。
+    // 0 なら最後に見えた位置へ向かうだけ
+    float chasePredict = 0.0f;
+    // 自キャラを見失った時に、ブッシュの中や壁の向こうへ方向指定のスキルを撃って、いるかを確かめる（1 エリアに 1 回）
+    bool probe = false;
+};
+
+/// 見失った自キャラを探す時の設定（ai.jsonc の "search"）
+struct SearchConfig {
+    float areaSize = 500.0f;      // ブッシュ以外の地面を、この大きさの四角いエリアに分ける
+    float pointSpacing = 125.0f;  // エリアの中に置く「確かめる点」の間隔
+    float giveUpTime = 4.0f;      // 探しに向かう敵が、動けないままこの秒数たったら、そのエリアをあきらめる
 };
 
 /// 的の反応の遅れの下限（秒）。人が見てから反応できる速さの限界と言われる 0.15 秒より速くは反応させない
@@ -66,9 +78,14 @@ struct SkillShotConfig {
     std::vector<TargetSize> sizes;       // 的の大きさの選択肢（メニューで選ぶ）
     std::vector<float> moveSpeeds;       // 的の移動速度の選択肢（メニューで選ぶ）
     float minDistance = 300.0f;          // 自キャラにこれより近づかない
-    float maxDistance = 1100.0f;         // 自キャラからこれより離れない
+    float maxDistance = 1100.0f;         // 自キャラからこれより離れない（視界の内側に収める上限は maxDistanceWithin）
+    float visionMargin = 100.0f;         // 自キャラとの距離の上限を、視界の半径からこの値だけ内側までに抑える
     float dodgeMargin = 25.0f;           // 避ける時に、弾・範囲の端からさらに離れる距離
     std::vector<SkillShotLevel> levels;  // 賢さ 1〜5
+
+    /// 視界の半径が visionRadius の時の、自キャラとの距離の上限（maxDistance と「visionRadius − visionMargin」の
+    /// 小さい方。ただし minDistance + 100 より小さくはしない）
+    float maxDistanceWithin(float visionRadius) const;
 
     /// 半径 radius の的の大きさの名前（選択肢に無ければ空）
     std::string sizeName(float radius) const;
@@ -83,9 +100,10 @@ struct AiConfig {
     float firstCastDelay = 1.5f;       // 開始から最初にスキルを撃つまでの時間
     float punishMinInterval = 1.0f;    // punishCC で動けない自キャラへ撃つ時も、最低限空ける間隔（秒）
     float maxEngageRange = 1000.0f;    // 自キャラと取る距離の上限
-    float visionMargin = 150.0f;       // 自キャラと取る距離を、視界の半径（visionRadius）からこの値だけ内側までに抑える
+    float visionMargin = 250.0f;       // 自キャラと取る距離を、視界の半径（visionRadius）からこの値だけ内側までに抑える
     float playerReactionTime = 0.25f;  // AI が想定する、プレイヤーが弾を見て避け始めるまでの時間
     std::vector<AiLevel> levels;       // 賢さ 1〜5
+    SearchConfig search;               // 見失った自キャラを探す時の設定
     SkillShotConfig skillShot;         // スキルショットの的
 
     /// 賢さ（1 始まり）の設定。範囲外なら端の値を使う。levels が空なら既定値の設定

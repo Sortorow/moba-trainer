@@ -23,6 +23,10 @@ const SkillShotLevel& SkillShotConfig::level(int aiLevel) const {
     return levels[static_cast<std::size_t>(i)];
 }
 
+float SkillShotConfig::maxDistanceWithin(float visionRadius) const {
+    return std::max(minDistance + 100.0f, std::min(maxDistance, visionRadius - visionMargin));
+}
+
 std::string SkillShotConfig::sizeName(float radius) const {
     for (const TargetSize& size : sizes) {
         if (std::fabs(size.radius - radius) < 0.5f) return size.name;
@@ -53,6 +57,7 @@ std::string loadSkillShot(const nlohmann::json& j, SkillShotConfig& c) {
         c.moveSpeeds.push_back(std::clamp(item.get<float>(), 0.0f, 1500.0f));
     c.minDistance = std::max(0.0f, j.value("minDistance", c.minDistance));
     c.maxDistance = std::max(c.minDistance + 100.0f, j.value("maxDistance", c.maxDistance));
+    c.visionMargin = std::max(0.0f, j.value("visionMargin", c.visionMargin));
     c.dodgeMargin = std::max(0.0f, j.value("dodgeMargin", c.dodgeMargin));
     for (const nlohmann::json& item : j.at("levels")) {
         SkillShotLevel level;
@@ -115,11 +120,19 @@ AiConfigLoadResult loadAiConfig(const std::filesystem::path& file) {
             level.flank = item.value("flank", level.flank);
             level.punishCC = item.value("punishCC", level.punishCC);
             level.engageRangeRatio = std::clamp(item.value("engageRangeRatio", level.engageRangeRatio), 0.3f, 1.0f);
+            level.chasePredict = std::clamp(item.value("chasePredict", level.chasePredict), 0.0f, 5.0f);
+            level.probe = item.value("probe", level.probe);
             c.levels.push_back(std::move(level));
         }
         if (c.levels.empty()) {
             result.error = std::format("{}: \"levels\" が空です", toUtf8(file.filename()));
             return result;
+        }
+        if (const auto it = j.find("search"); it != j.end() && it->is_object()) {
+            SearchConfig& s = c.search;
+            s.areaSize = std::clamp(it->value("areaSize", s.areaSize), 200.0f, 2000.0f);
+            s.pointSpacing = std::clamp(it->value("pointSpacing", s.pointSpacing), 50.0f, s.areaSize);
+            s.giveUpTime = std::clamp(it->value("giveUpTime", s.giveUpTime), 1.0f, 30.0f);
         }
         if (const std::string error = loadSkillShot(j.at("skillShot"), c.skillShot); !error.empty())
             result.error = std::format("{}: {}", toUtf8(file.filename()), error);

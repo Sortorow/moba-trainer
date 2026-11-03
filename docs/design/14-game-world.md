@@ -22,6 +22,7 @@
 | 型 | 種類 | 定義 |
 |---|---|---|
 | `WorldRules` | 構造体 | World.h |
+| `HitRecord` | 構造体 | World.h |
 | `World` | クラス | World.h |
 | `World::CastRecord` | 構造体（private） | World.h |
 | `PropTargetKind` | 列挙型 | Unit.h |
@@ -111,7 +112,7 @@
 | `vector<vision::VisionRay> visionPolygon(const Unit& viewer) const` | `viewer` から見える範囲の形（描画用。`vision::visionPolygon` に `visionRadius` と、`viewer` のいるブッシュを渡す） |
 | `void revealAttacker(Unit& caster, const Unit& target)` | 対象指定のスキルを `target` に撃った時に呼ぶ（`casting::runSkill` から）。`caster` が `target` の陣営から見えていなければ、`attackRevealTime` 秒だけ見えるようにする。同じ陣営が対象の時と、もう見えている時は何もしない |
 
-**背景**（根拠: 指示書「視界」「ステージ」、claude_improve_and_answer.txt の 2026/11/03）: MOBA の基本のルールとして、視界の半径（1150。最初は 900 だったが、敵や的と自キャラが取る距離が視界の外になるため、同じ日に変更）の中で、建物・壁・木と、自分が入っていないブッシュに遮られていない所だけが見えます。箱は低い物なので遮りません。ブッシュの中が外から見えない決まり（手順 3）は、「ブッシュも視線を遮る」に含まれます。
+**背景**（根拠: 指示書「視界」「ステージ」、claude_improve_and_answer.txt の 2026/11/03）: MOBA の基本のルールとして、視界の半径（1000。同じ日に 900 → 1150 → 1000 と訂正）の中で、建物・壁・木と、自分が入っていないブッシュに遮られていない所だけが見えます。箱は低い物なので遮りません。ブッシュの中が外から見えない決まり（手順 3）は、「ブッシュも視線を遮る」に含まれます。
 
 撃って見えるようになる決まりは、もとは「ブッシュの中で対象指定のスキルを使うと見える」でしたが、視界を入れた時に「相手から見えていない時に、対象指定のスキルで相手を撃つと見える」にそろえました。将来オートアタックや視界を得る道具を入れた時に、壁の向こうから一方的に殴られた側が相手を見つけられるようにするための決まりです（根拠: 同上）。
 
@@ -125,14 +126,15 @@
 
 | 関数 | 説明 |
 |---|---|
-| `void registerHit(int castId, SkillSlot slot, string_view label, Unit& target)` | スキルが当たった時の共通処理。ヒット率に記録（`stats_.recordHit`）、被弾の光、ログ、命中の観察（テスト用）。**敵の発動が自キャラに当たったら**、その発動で 1 回目なら HP を 1 減らす |
+| `void registerHit(int castId, Team attacker, SkillSlot slot, string_view label, Unit& target)` | スキルが当たった時の共通処理。ヒット率に記録（`stats_.recordHit`）、被弾の光、当たった記録（`recentHits_`）、ログ、命中の観察（テスト用）。**敵の発動が自キャラに当たったら**、その発動で 1 回目なら HP を 1 減らす |
+| `const vector<HitRecord>& recentHits() const` | 直前の `update` でスキルが当たった記録（`attacker`・`target`・当たった時の `pos`）。`update` の始めに消える。敵 AI が、見えない自キャラに自分たちのスキルが当たったことを知るために読む（[16-game-ai.md](16-game-ai.md) の 4.1） |
 | `void setHitObserver(HitObserver observer)` | 命中のたびに呼ばれる関数を登録する（テストで命中を数える時用） |
-| `void beginCast(int castId, Team team, SkillSlot slot)` | 発動の記録を始める（`casting::runSkill` が handler の前に呼ぶ） |
+| `void beginCast(int castId, Team team, SkillSlot slot, bool countsForDodge = true)` | 発動の記録を始める（`casting::runSkill` が handler の前に呼ぶ）。`countsForDodge` が `false`（敵 AI の確かめ撃ち。`CastRequest::probe`）なら、敵の発動でもドッジ率に数えない |
 | `void endCastIfIdle(int castId)` | 弾も範囲も出さなかった発動（ワープなど）は、ここで記録を閉じる（`runSkill` が handler の後に呼ぶ） |
 
 #### 発動の記録（`CastRecord`）の仕組み
 
-ドッジ率は「敵の 1 回の発動で出た弾・範囲が**すべて消えた**時点で、1 つでも自キャラに当たっていれば被弾、当たっていなければ回避」と数えます（根拠: 指示書「ドッジ率は、敵の 1 回の発動で出た弾や範囲がすべて消えた時点で回避／被弾を確定する」）。
+ドッジ率は「敵の 1 回の発動で出た弾・範囲が**すべて消えた**時点で、1 つでも自キャラに当たっていれば被弾、当たっていなければ回避」と数えます（根拠: 指示書「ドッジ率は、敵の 1 回の発動で出た弾や範囲がすべて消えた時点で回避／被弾を確定する」）。敵 AI の確かめ撃ち（`countsForDodge` が `false` の発動）は、結果をログに出すだけで、ドッジ率に数えません。
 
 ```mermaid
 sequenceDiagram
@@ -184,7 +186,7 @@ sequenceDiagram
 | `void flushSpawns()` | `pending*` の弾・範囲・設置物を本体の配列へ移す |
 | `void removeDead()` | 消えた弾・範囲は `releaseCastEntity` してから取り除く。設置物・演出も取り除く |
 | `void releaseCastEntity(int castId)` | 発動で出た物が 1 つ消えた。0 になったら `finishCastRecord` |
-| `void finishCastRecord(int castId)` | 発動の結果を確定する。ヒット率の「外れ」を確定（`stats_.settle`）し、敵の発動ならドッジ率に加える |
+| `void finishCastRecord(int castId)` | 発動の結果を確定する。ヒット率の「外れ」を確定（`stats_.settle`）し、敵の発動ならドッジ率に加える（確かめ撃ちは加えない） |
 | `void damagePlayer(Unit& player)` | 自キャラの HP を 1 減らす。0 になったらダウン数を増やして全回復（演出「ダウン!」）。`maxHp` が 0（HP を使わないモード）なら何もしない |
 
 ### 2.10 メンバ変数
@@ -202,6 +204,7 @@ sequenceDiagram
 | `dodge_` | ドッジ率（`DodgeCount`） |
 | `casts_` | `unordered_map<int, CastRecord>`。結果が確定していない発動 |
 | `hitObserver_` | 命中の観察（テスト用） |
+| `recentHits_` | 直前の `update` で当たった記録 |
 | `units_` / `projectiles_` / `areas_` / `props_` / `vfx_` | 中身 |
 | `pendingProjectiles_` / `pendingAreas_` / `pendingProps_` | 刻みの区切りで加える物 |
 
@@ -244,6 +247,7 @@ sequenceDiagram
 | `targetUnit` | 対象指定のスキルの対象（兎になった敵もここ） |
 | `propKind` / `propId` | 鳩・帽子を対象にする場合の種類と番号 |
 | `doveCardOrigin` | エマの Q の溜めの間に R で鳩と入れ替わった時の、鳩の元の位置（鳩のカードは入れ替わる前の位置から出る。根拠: `e05707e`） |
+| `probe` | 敵 AI の確かめ撃ち（見えない自キャラがいるかを確かめる撃ち方）。ドッジ率に数えない（`World::beginCast` の `countsForDodge`。根拠: claude_improve_and_answer.txt の 2026/11/03 の Q3） |
 
 ### 4.3 `CastState`（構造体）: 詠唱中の状態
 

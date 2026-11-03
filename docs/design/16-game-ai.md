@@ -14,6 +14,7 @@
 | [Aim.h](../../src/game/ai/Aim.h) / [.cpp](../../src/game/ai/Aim.cpp) | 狙いの計算（どこへ撃てば当たりやすいか）。`World` に依存しない |
 | [PlayerObserver.h](../../src/game/ai/PlayerObserver.h) / [.cpp](../../src/game/ai/PlayerObserver.cpp) | 敵 AI が見ている自キャラの動き（位置の履歴・避けた向きの記録） |
 | [EnemyAI.h](../../src/game/ai/EnemyAI.h) / [.cpp](../../src/game/ai/EnemyAI.cpp) | `EnemyDirector`（スキルドッジの敵 AI） |
+| [SearchMap.h](../../src/game/ai/SearchMap.h) / [.cpp](../../src/game/ai/SearchMap.cpp) | `SearchMap`（見失った自キャラを探す時の、エリア分けと探索済みの記録） |
 | [SkillShotTarget.h](../../src/game/ai/SkillShotTarget.h) / [.cpp](../../src/game/ai/SkillShotTarget.cpp) | `SkillShotTarget`（スキルショットの的の AI） |
 
 ### 型の一覧
@@ -27,7 +28,11 @@
 | `PlayerObserver` | クラス | PlayerObserver.h |
 | `PlayerObserver::Sample`・`Shot` | 構造体（private） | PlayerObserver.h |
 | `EnemyDirector` | クラス | EnemyAI.h |
+| `EnemyDirector::Mode` | 列挙型 | EnemyAI.h |
 | `EnemyDirector::Brain` | 構造体（private） | EnemyAI.h |
+| `SearchMap` | クラス | SearchMap.h |
+| `SearchMap::Point`・`ProbeTarget` | 構造体 | SearchMap.h |
+| `SearchMap::Area` | 構造体（private） | SearchMap.h |
 | `TargetPattern` | 列挙型 | SkillShotTarget.h |
 | `SkillShotTarget` | クラス | SkillShotTarget.h |
 | `SkillShotTarget::Threat`・`PatternState` | 構造体（private） | SkillShotTarget.h |
@@ -112,7 +117,11 @@ flowchart LR
 | `rightCount_` / `leftCount_` | 右・左へ避けた回数（1 から数える。0 で割らないように） |
 | `kHistorySeconds = 2`・`kDodgeCheckDelay = 0.4`・`kDodgeThreshold = 40`（.cpp） | 履歴の長さ・避けた向きを調べるまでの時間・「避けた」とみなす横の距離 |
 
-**注意事項**: 自キャラが敵の陣営から見えない間（視界の外・ブッシュの中）は記録しないので、`positionAt` は最後に見えた位置を返し続けます。敵は見えない自キャラには撃たないので、これは移動先を決める時だけに使われ、「最後に見えた位置を基準に動く」動きになります（根拠: 指示書「視界」）。
+**注意事項**: 自キャラが敵の陣営から見えない間（視界の外・ブッシュの中）は記録しません。古い記録を捨てるのは新しく記録した時だけなので、見えない間も、見失った時の位置と速度は残ります。追跡（4.3）は、これを `lastSeenTime`・`lastSeenPosition`・`velocityAt` で読みます。
+
+| 関数（追跡用） | 説明 |
+|---|---|
+| `float lastSeenTime() const` / `Vector2 lastSeenPosition() const` | 最後に見えた時刻・位置（最後の記録）。先に `hasSamples()` で確かめる |
 
 ---
 
@@ -121,13 +130,12 @@ flowchart LR
 **役割**: すべての敵の移動とスキルを決めます（根拠: EnemyAI.h の先頭）。
 
 - **移動**: スキルの射程に応じた距離を保ちながら自キャラを追う。賢いほど横移動が多く、他の敵と離れて囲むように動く
-- **スキル**: 使えるスキルの中から、命中見込み × 優先度が最も高いものを選んで撃つ。**自キャラが見えない間は撃たない**
+- **スキル**: 使えるスキルの中から、命中見込み × 優先度が最も高いものを選んで撃つ。**自キャラが見えない間は撃たない**（確かめ撃ちを除く）
+- **見失った時**: まず消えた方向へ追いかけ（追跡）、そこにいなければ、敵全員で手分けして、まだ見ていないエリアを探す（探索）。賢さ 4 以上は、ブッシュの中や壁の向こうへスキルを撃って確かめる（確かめ撃ち）
 
 **背景**（根拠: `712d7d8`「敵 AI: 着弾時の自キャラの位置を予測して狙う（留まる / 移動継続 / 回避先）。数値は data/ai.jsonc」、指示書の要件「それぞれの敵は自キャラを追いかける、自分の持つスキルができるだけ当たるように動く」）。
 
 **未実装**（根拠: 指示書「地形を意識した敵の撃ち方（自キャラの背面が壁なら横に広いスキルを優先する、など）は、まだ実装していない」）: 地形を意識した撃ち方。
-
-**未実装**（根拠: 指示書「視界」、claude_improve_and_answer.txt の 2026/11/03「敵 AI に関する実装は後回しに」）: 自キャラを見失った時に探しに行く動き。予定している内容は、ブッシュの中や壁の向こう（視界の外）へ向かう、賢さ 4 以上はブッシュの中や壁の向こうへ方向指定のスキルを 1 か所 1 回だけ撃って、途中で当たればそこへ向かう、全部探して見つからなければ最初から探し直す、です。今は、見失った敵は最後に見えた位置を基準に動き続けます。
 
 ### 4.1 毎刻みの処理（`update`）
 
@@ -137,27 +145,135 @@ flowchart TD
     B -->|はい| C[位置を記録]
     B --> D[避けた向きを数える]
     C --> D
-    D --> E[認識している自キャラの位置<br/>= reactionTime 秒前の位置]
+    D --> U[updateMode: 動き方を切り替える<br/>探索の記録を更新する]
+    U --> E[認識している自キャラの位置<br/>= reactionTime 秒前の位置]
     E --> F[敵ごとに]
     F --> G{replanTimer が 0?}
-    G -->|はい| H[planMovement: 移動先を決め直す<br/>次は 0.2〜0.35 秒後]
+    G -->|はい| M{動き方 mode_}
+    M -->|Fight| H[planMovement: 間合いを保つ]
+    M -->|Chase| N[planChase: 追いかける]
+    M -->|Search| S[planSearch: まだ見ていない所を探す]
+    H & N & S --> P{見失っていて probe?}
+    P -->|はい| Q[tryProbe: 確かめ撃ち]
+    P --> R[次は 0.2〜0.35 秒後]
+    Q --> R
     G --> J{自キャラが見える?}
-    H --> J
+    R --> J
     J -->|はい| I[tryCast]
     J -->|いいえ| K[撃たない]
 ```
 
 「見える」は `World::canSee(Team::Enemy, 自キャラ)` です。敵の陣営の誰か 1 人から見えていれば、すべての敵が撃てます（弾は壁を通り抜けるので、壁の陰にいる敵も撃つ）。
 
+**動き方（`Mode`）の切り替え**（`updateMode`）:
+
+| 今 | きっかけ | 次 |
+|---|---|---|
+| どれでも | 自キャラが見えた（誰か 1 体でも） | `Fight`（探索をやめて、元の動きに戻る） |
+| `Fight` | 一度見えてから見えなくなった | `Chase`（`startChase`。探索の記録を消して 1 周目から） |
+| `Chase` / `Search` | 見えない自キャラに、敵のスキルが当たった（`World::recentHits`） | `Chase`（当たった位置へ） |
+| `Chase` | どれかの敵が追いかける先に着いた・時間がかかりすぎた（`chaseFinished`） | `Search` |
+| `Search` | 全エリアが探索済みになった | `Search` のまま、探索の記録を消して次の周へ（`searchRound_` を 1 増やす） |
+
+自キャラが一度も見えていない時（最初から視界の外にいる時）は「見失った」ことになりません（`Fight` のまま）。`planMovement` が自キャラの今の位置を基準に近づきます（4.7 の `seenPlayerPosition`）。
+
+見失った時・見つけ直した時・探索に移った時・全エリアを探し終えた時・向かうエリアを決めた時・確かめ撃ちをした時は、DEBUG のログを出します（カテゴリ `ai`）。
+
 ### 4.2 移動先の決め方（`planMovement`）
 
 1. 自キャラ（認識している位置）から見た、今の敵の方向を基準にする
 2. `flank` なら、他の敵と 70 度より近い方向にいる時は、離れる向きへずらす（最大 35 度。`spreadDirection`）
-3. その方向へ `engageRange`（使うスキルの**最短の射程** × `engageRangeRatio`。350〜上限）だけ離れた位置を目標にする。上限は `maxEngageRange` と「視界の半径（`visionRadius`）− `visionMargin`」の小さい方（既定では 1150 − 150 = 1000 で、`maxEngageRange` と同じ）
+3. その方向へ `engageRange`（使うスキルの**最短の射程** × `engageRangeRatio`。350〜上限）だけ離れた位置を目標にする。上限は `maxEngageRange` と「視界の半径（`visionRadius`）− `visionMargin`」の小さい方（既定では 1000 − 250 = 750）。余裕 250 は、自キャラがランダムに歩き回る動きで、敵が自キャラを見ている時間の割合を測って決めた（150 では賢さ 1・2 で 10 秒ほど見失うことがあり、250 ではほぼ 100%）
 4. `strafe` が 0 より大きければ、横へ `300 × strafe` だけずらす。向きは 0.6〜1.6 秒ごとにランダムに変える
-5. ステージの内側に収めて `moveTarget` にする（壁の向こうなら `World` が回り込む）
+5. 自キャラ（認識している位置）がブッシュの中にいて、一度でも見えたことがあり、この敵が生きている敵の中で自キャラに最も近い（`nearestToPlayer`）なら、目標をそのブッシュの中で最も近い位置（縁から 40 内側。`nearestPointInBush`）にする。ほかの敵はそのまま
+6. ステージの内側に収めて `moveTarget` にする（壁の向こうなら `World` が回り込む）
 
-### 4.3 撃ち方（`tryCast`）
+**ブッシュに留まる背景**（根拠: claude_improve_and_answer.txt の 2026/11/03 の回答「おすすめ案で修正」）: ブッシュの中の自キャラは、同じブッシュの中からしか見えません。以前は、ブッシュに入って見つけた敵が間合いを取ってブッシュから出てしまい、見つける・見失うを 0.5 秒ほどの間隔で繰り返していました（森で 20 秒に 32 回）。最も近い敵 1 体だけが留まれば陣営の視界が保たれ、ほかの敵は共有の視界でいつもの間合いから撃てます（直した後は 0 回。テスト「ブッシュの中の自キャラを見つけたら、最も近い敵だけがブッシュに留まり、見失わない」）。一度も見えていない自キャラ（今の位置を使っている時）には、この動きをしません（見えていないのにブッシュへ入りに行かないように）。
+
+### 4.3 見失った時の追跡（`planChase`・`chaseGoal`・`chasePoint`）
+
+**背景**（根拠: claude_improve_and_answer.txt の 2026/11/03「自キャラを追跡するように動作する AI の思考を入れたい」）: 視界を入れた後、見失った敵は最後に見えた位置を基準に間合いを保つだけだったので、自キャラが逃げると見失ったままになりました。人が見失った相手を追う時のように、消えた方向へ追いかけます。探索（4.4）の前の段階です。
+
+1. 追いかける先（`chasePoint`）= 最後に見えた位置 + 見失った時の速度 × min(見失ってからの時間, `chasePredict`)。見えない自キャラにスキルが当たった時は、当たった位置（`clue_`）
+2. その位置へまっすぐ向かう（間合いは保たない。ステージの内側に収め、木や建物の中なら近くの立てる位置にする（`chaseGoal`）。壁の向こうなら `World` が回り込む）
+3. 先を読む時間（`chasePredict`）が過ぎた後に、どれかの敵が追いかける先から 30 以内に着いたら、追跡を終えて探索（4.4）に移る。先を読む時間 + 8 秒（`kChaseTimeLimit`）たっても着かなければ、たどり着けないとみなして探索に移る
+
+`chasePredict` は賢さごとの値で、既定は 0 / 0.5 / 1.0 / 1.5 / 2.0 秒です。賢さ 1 は最後に見えた位置へ向かうだけで、賢さ 5 は 2 秒先（移動速度 325 なら約 650 先）まで読みます。
+
+ブッシュに入った自キャラは、消えた方向の先がブッシュの中になるので、敵がブッシュに入って見つけ直します（同じブッシュの中なら見える）。
+
+**確かめた効果**（一時的なテストで、自キャラが敵から逃げ続ける動きを、障害物の無い 5000 × 3200 で 60 秒、乱数の種 4 つずつ）: 敵が自キャラを見ている時間の割合は、追跡なしの 87〜100%（見失う最長の時間 7〜18 秒）から、96〜100%（同 2〜4 秒）になりました（探索を入れる前の、着いたらその場で待つ動きでの値）。
+
+**注意事項**: 敵と自キャラの移動速度はほぼ同じなので、まっすぐ逃げ続ける間は差が縮まりません。ステージの端で自キャラが曲がるか止まった時に追いつきます。
+
+### 4.4 見失った時の探索（`planSearch`）
+
+**背景**（根拠: claude_improve_and_answer.txt の V5 の回答「見失った場合は、ブッシュの中に入る、壁の向こう（視界の外のエリア）に向かうなど、敵（自キャラ）を視界内におさめるように動きます」「全エリアを探索し終わったと判定し、かつ敵（自キャラ）を見つけられなかった場合、もう一度最初から探索を開始します」と、2026/11/03 の「未探索の全エリアを探索する」「探索済みの記録は共有する（全 AI で協力して未探索を埋めるイメージ）」）。
+
+ステージのエリア分けと探索済みの記録は `SearchMap`（4.5）で、敵全員で 1 つを共有します。
+
+1. 向かっているエリアが探索済みになったら（誰が見たかは問わない）、次のエリアを選ぶ。選び方は、未探索のエリアのうち、まだ見ていない点の「自分からの距離 + 見失った位置（`lostAt_`）からの距離」が最も小さいもの（`SearchMap::chooseArea`）。**他の敵が向かっているエリアは、ほかに未探索のエリアがある限り選ばない**（手分けして探す）
+2. そのエリアのまだ見ていない点のうち、自分に最も近い点へ向かう（壁の向こうなら `World` が回り込む）。点は近づく途中で見えることが多いので、0.2〜0.35 秒ごとに次の点へ向け直す
+3. 動いた距離が 100 以下で、エリアのまだ見ていない点も減らないまま `giveUpTime`（既定 4 秒）たったら、たどり着けないエリアとしてあきらめ、探索済みにする（`SearchMap::giveUp`）
+4. 全エリアが探索済みになったら、記録を消して最初から探し直す（4.1 の表）。その時に見えている所は、すぐに探索済みに戻す
+
+探索済みになるのは「見失ってから見た所」だけです。一度探索したエリアに、後から自キャラが入り込んでも考えません（全エリアを探し終えてから、最初から探し直す時に見つける）。
+
+**確かめた結果**（一時的なテストで、敵 3 体・乱数の種 6 つずつ。自キャラは見えている所から、敵から最も遠い見えない所へ消えて動かない）:
+
+| ステージ・隠れ場所 | 見つけるまで（平均・最長） |
+|---|---|
+| 森・最も近い見えないブッシュ | 2〜3 秒・3.7 秒 |
+| 森・最も遠いブッシュ | 15〜21 秒・30 秒 |
+| 森・最も遠い見えない所 | 15〜22 秒・34 秒 |
+| 路地裏・最も遠い見えない所 | 29〜36 秒（敵がたどり着けない袋小路だった 1 回を除く。この袋小路は後で無くした） |
+
+1 刻みの敵 AI と `World` の処理は、平均 0.01 ミリ秒、最大 2 ミリ秒ほどでした（経路探索と、見た点の更新が重なった刻み）。
+
+### 4.5 `SearchMap`（クラス）: エリア分けと探索済みの記録
+
+**役割**: 見失った自キャラを探す時の、ステージのエリア分けと探索済みの記録です。敵全員で 1 つを共有します（根拠: SearchMap.h の先頭）。最初に見失った時に `build` し、見失うたびに `reset` します。
+
+- **エリア**: ブッシュ 1 つ（重なり合うブッシュは 1 つ）と、それ以外の地面を `areaSize`（既定 500）四方に分けたマス 1 つ
+- **確かめる点**: `pointSpacing`（既定 125）おきの点。障害物から押し出し、押し出す量が間隔の半分より大きい所（建物の奥）と、押し出しても立てない所（敵の半径で判定）には置かない。点の間隔より小さいブッシュにも、ブッシュの中心に必ず点を置く
+- **探索済み**: エリアの中のすべての点が、一度でも敵の陣営の視界に入った（`World::canSeePoint`）。ブッシュの中の点はそのブッシュに入らないと見えないので、ブッシュは中に入った時に探索済みになる。1 か所だけで判定しないのは、マスの中の木の陰などに自キャラが隠れられるため
+
+**確かめ撃ち**（`tryProbe`。賢さの `probe` が true の時。既定は賢さ 4・5）:
+
+1. 撃つのは、使えるスキル（`usedByEnemy`・クールダウンが 0）のうち、**方向指定で、当たると消える弾**（`pierce` でない、`aimModelFor` が作れる）で、`aiPriority` が最も高いもの。途中で消えたかどうかで、いたかが分かるため。貫通する弾（Ezreal の R）は使わない
+2. 撃つ先は `SearchMap::chooseProbe` で選ぶ: 未探索で、この周回でまだ撃っていないエリアのうち、射程以内かつ視界の半径以内で、今は敵の陣営から見えていない（ブッシュの中か、何かの陰の）点を持つもの。そのうち見失った位置に最も近いエリアを選び、狙う点はその中からランダムに選ぶ。視界の半径より遠い所は、ただ遠いだけで物陰とは限らないので撃たない
+3. 撃ったら、そのエリアには、この周回ではもう撃たない（1 エリアに 1 回）。撃つ間隔は、普通に撃つ時と同じ `castInterval`
+4. 当たったら、4.1 の表のとおり、当たった位置へ全員で追いかける。当たらなかったエリアは未探索のまま（弾は線 1 本分しか確かめていないので、後で歩いて確かめる）
+5. 確かめ撃ちは自キャラを狙った撃ち方ではないので、**ドッジ率に数えない**（`CastRequest::probe` → `World::beginCast` の `countsForDodge`）。当たった時に自キャラの HP が減るのは、普通に撃った時と同じ
+
+確かめ撃ちの先を選ぶ計算は重いので、移動先を決め直す時（0.2〜0.35 秒ごと）だけ行います。
+
+**背景**（根拠: claude_improve_and_answer.txt の V5 の回答「AIの賢さが4以上の時は、ブッシュ内や壁の向こう側に方向指定スキルを1つ1回だけ放ち…スキルが途中でヒットした場合は、そこに敵がいると判断して向かいます」「あるエリアにつき1回だけ放つ。スキルでの全探索はしない」と、2026/11/03 の Q3・Q4 の回答）。「1 壁 1 回」は、壁の向こうが立つ位置で変わり、壁ごとに決まった範囲を作れないので、「1 エリア 1 回」にしています（大きな壁の向こうに未探索のエリアが 2 つあれば 2 回撃つ。必須ではないと確認済み）。
+
+| 関数 | 説明 |
+|---|---|
+| `void build(const Terrain&, const SearchConfig&, float unitRadius)` | エリアに分け、確かめる点を置く（探索済みの記録は消える）。`unitRadius` は最も大きい敵の半径 |
+| `bool built() const` | `build` 済みか |
+| `void reset()` | 探索済みの記録と、確かめ撃ちの記録を消す |
+| `void markSeen(const World&)` | 今、敵の陣営の視界に入っている点を「見た」にする。全部見たエリアは探索済み。敵 AI が 0.1 秒ごとに呼ぶ |
+| `void giveUp(int area)` | たどり着けないエリアを探索済みにする |
+| `int areaCount() const` / `int exploredCount() const` / `bool allExplored() const` | エリアの数・探索済みの数・すべて探索済みか |
+| `bool explored(int area) const` / `int unseenCount(int area) const` / `int bushOf(int area) const` | エリアが探索済みか・まだ見ていない点の数・ブッシュの番号（地面なら −1） |
+| `int areaNear(Vector2 pos) const` | pos に最も近い点のエリア（テスト用） |
+| `std::string areaName(int area) const` | ログ用の説明（「ブッシュ 3（(…) 付近）」「地面（(…) 付近）」） |
+| `const std::vector<Point>& points() const` | すべての確かめる点（`pos`・`area`・`seen`） |
+| `int chooseArea(Vector2 from, Vector2 lostAt, const std::vector<int>& avoid) const` | 次に探すエリア（4.4 の 1）。無ければ −1 |
+| `Vector2 nearestUnseenPoint(int area, Vector2 from) const` | エリアのまだ見ていない点のうち、from に最も近い点 |
+| `optional<ProbeTarget> chooseProbe(const World&, Vector2 from, float range, Vector2 lostAt, mt19937&) const` | 確かめ撃ちの先（`area`・`point`）。候補が無ければ `nullopt` |
+| `void markProbed(int area)` / `bool probed(int area) const` | この周回で、エリアに確かめ撃ちをした |
+
+| メンバ変数 | 説明 |
+|---|---|
+| `points_` | 確かめる点（`Point{pos, area, seen}`） |
+| `areas_` | エリア（`Area{bush, center, points, unseen, explored, probed}`。`center` はログ用） |
+| `built_` | `build` 済みか |
+
+### 4.6 撃ち方（`tryCast`）
 
 1. 詠唱中・行動不能なら撃たない
 2. 次に撃ってよい時刻（`nextCastTime`）の前なら撃たない。ただし `punishCC` で、**自キャラが動けない**なら待たない。その場合も、最後に撃ってから `punishMinInterval`（ai.jsonc。既定 1 秒）は空ける（クールダウンの無いスキルで撃ち続けないように。テスト「punishCC の敵は、動けない自キャラにも punishMinInterval の間隔を空けて撃つ」）
@@ -167,13 +283,13 @@ flowchart TD
 6. `casting::requestCast` で撃つ。結果が `Rejected`（使えなかった）なら、ここで終わる（次の刻みで撃ち直す）
 7. 撃てたら（`Rejected` 以外）、次の時刻を `castIntervalMin`〜`Max` 後にする。直線の弾なら `noteShot`
 
-`tryCast` は自キャラが見えている時だけ呼ばれるので、上の「動けない」「`noteShot`」で見えているかを確かめる必要はありません。
+`tryCast` は自キャラが見えている時だけ呼ばれるので、上の「動けない」「`noteShot`」で見えているかを確かめる必要はありません（見えない時に撃つのは、4.5 の確かめ撃ちだけです）。
 
 **狙う相手の位置と速度**は、`reactionTime` 秒前の位置と、その時の速度です。自キャラが動けない時は速度 0、重みは「留まる」だけにします（`aimWeights(true)`）。自キャラが一度も見えていない時（最初から視界の外やブッシュの中にいる時）は、位置の記録が無いので、自キャラの今の位置を使います（`seenPlayerPosition`。移動先を決める時も同じ）。
 
 **背景**（根拠: 報告ファイルの D4、2026-10-30 の修正）: 以前は、位置の記録が無い時に (0, 0) を自キャラの位置として狙い・移動していました。開始の位置やステージの配置が変わった時に、(0, 0) を狙い続けないようにしました。
 
-### 4.4 メンバ
+### 4.7 メンバ
 
 | 関数 | 説明 |
 |---|---|
@@ -182,8 +298,20 @@ flowchart TD
 | `void update(World& world, float dt)` | すべての敵を動かし、撃てるなら撃たせる |
 | `const AiLevel& level() const` | 使っている賢さの設定（リザルト・デバッグパネル） |
 | `size_t enemyCount() const` | 敵の数 |
+| `Mode mode() const` | 今の動き方（`Fight` / `Chase` / `Search`。テスト用） |
+| `const SearchMap& searchMap() const` | 探索のエリア分けと記録（テスト用） |
+| `int searchRound() const` | 見失ってから、全エリアを何周探し始めたか（テスト用） |
 | `void planMovement(World&, Brain&, Unit& enemy, Vector2 seenPlayer)`（private） | 4.2 |
-| `void tryCast(World&, Brain&, Unit& enemy, const Unit& player)`（private） | 4.3。自キャラが見えている時だけ呼ぶ |
+| `bool nearestToPlayer(World&, const Brain&, Vector2 seenPlayer) const`（private） | 4.2 の 5。この敵が、生きている敵の中で自キャラに最も近いか |
+| `void updateMode(World&, const Unit& player, bool playerVisible, float dt)`（private） | 4.1 の表。探索の記録も 0.1 秒ごとに更新する |
+| `void startChase(World&)`（private） | 見失った時。初めてなら `SearchMap` を作り、記録を消して追跡を始める |
+| `bool chaseFinished(World&, float now) const`（private） | 4.3 の 3 |
+| `void planChase(World&, Unit& enemy, float now)`（private） | 4.3。追いかける先へ向かう |
+| `Vector2 chaseGoal(const World&, const Unit& enemy, float now) const`（private） | 4.3。追いかける先を、その敵が立てる位置にしたもの |
+| `Vector2 chasePoint(float now) const`（private） | 4.3。見失った自キャラが今いそうな位置 |
+| `void planSearch(World&, Brain&, Unit& enemy)`（private） | 4.4 |
+| `void tryProbe(World&, Brain&, Unit& enemy)`（private） | 4.5 の確かめ撃ち |
+| `void tryCast(World&, Brain&, Unit& enemy, const Unit& player)`（private） | 4.6。自キャラが見えている時だけ呼ぶ |
 | `Vector2 spreadDirection(World&, const Brain&, Vector2 seenPlayer, Vector2 away) const`（private） | 他の敵と同じ方向から攻めないように、方向をずらす |
 | `float engageRange(const World&, const Unit& enemy) const`（private） | 自キャラと保つ距離（上限は `maxEngageRange` と「`visionRadius` − `visionMargin`」の小さい方） |
 | `AimWeights aimWeights(bool playerStuck) const`（private） | 賢さの設定から重みを作る。`adaptive` なら避ける向きの重みを `rightBias` で左右に分ける |
@@ -196,28 +324,51 @@ flowchart TD
 | `rng_` | 乱数 |
 | `observer_` | 自キャラの動き |
 | `brains_` | 敵ごとの状態 |
+| `mode_` | 今の動き方 |
+| `chaseStartTime_` | 追跡を始めた時刻 |
+| `clue_` | 見えない自キャラにスキルが当たった位置（追跡はここへ向かう） |
+| `lostAt_` | 探す順番の基準（最後に見えた位置。スキルが当たったら、当たった位置） |
+| `search_` | 探索のエリア分けと記録（`SearchMap`） |
+| `markSeenTimer_` | 次に探索の記録を更新するまでの時間 |
+| `searchRound_` | 何周目か（見失った時に 1） |
 
-### 4.5 `EnemyDirector::Brain`（構造体）
+### 4.8 `EnemyDirector::Brain`（構造体）
 
 | メンバ | 説明 |
 |---|---|
 | `unitId` | 敵の番号 |
-| `nextCastTime` | 次にスキルを撃ってよい時刻 |
+| `nextCastTime` | 次にスキルを撃ってよい時刻（確かめ撃ちも同じ間隔） |
 | `lastCastTime` | 最後にスキルを撃った時刻（`punishCC` の最低限の間隔に使う。まだ撃っていなければ −∞） |
 | `replanTimer` | 次に移動先を決め直すまでの時間 |
 | `strafeTimer` / `strafeSign` | 横移動の向きを変えるまでの時間と、向き（+1 / −1） |
+| `searchArea` | 探しに向かっているエリア（−1 なら未定） |
+| `progressPos` / `progressUnseen` / `progressTime` | 探索が進んでいるか（動いた・点を見た）を見るための、前に確かめた時の位置・まだ見ていない点の数・時刻 |
 
-### 4.6 .cpp の中だけ
+### 4.9 `EnemyDirector::Mode`（列挙型）
+
+| 値 | 説明 |
+|---|---|
+| `Fight` | 自キャラが見えている（一度も見えていない時も含む）。間合いを保って撃つ |
+| `Chase` | 見失った直後か、見えない自キャラにスキルが当たった。その位置へ追いかける |
+| `Search` | 追いかけた先にもいなかった。まだ見ていないエリアを手分けして探す |
+
+### 4.10 .cpp の中だけ
 
 | 名前 | 説明 |
 |---|---|
 | `kStrafeDistance = 300`・`kMinEngageRange = 350`・`kFlankAngle = 70°`・`kMaxFlankShift = 35°` | 横移動の幅・近づく距離の下限・囲む動きの角度 |
+| `kChaseArrived = 30`・`kChaseTimeLimit = 8` | 追いかける先に着いたとみなす距離・追跡をあきらめるまでの時間（先を読む時間は別） |
+| `kMarkSeenInterval = 0.1`・`kProgressDistance = 100` | 探索の記録を更新する間隔・探索が進んでいるとみなす移動の距離 |
+| `kBushInset = 40` | ブッシュに留まる敵が、ブッシュの縁から内側に立つ距離 |
+| `nearestPointInBush(const Terrain&, int group, Vector2 point)` | そのブッシュ（重なり合うものはまとめて）の中で、point に最も近い位置（縁から `kBushInset` 内側。小さいブッシュなら大きさの半分まで） |
 | `wrapAngle(float)` | 角度の差を −π〜π に収める |
 | `fromAngle(float)` | 角度の向きの、長さ 1 のベクトル |
 
-### 4.7 注意事項
+### 4.11 注意事項
 
-- 「撃てたか」は、`requestCast` の戻り値（`casting::CastOutcome`）で判断します。`Rejected` の時は `nextCastTime` を変えないので、次の刻みでまた撃とうとします。詠唱時間 0・クールダウン 0 のスキルでも、撃てれば `castInterval` の間隔を空けます（テスト「詠唱時間もクールダウンも 0 のスキルでも、敵は撃つ間隔（castInterval）を守る」）。- 敵は自キャラのスキルで状態異常にかかります（変身中・打ち上げ中は撃てない）。ダメージは受けません。
+- 「撃てたか」は、`requestCast` の戻り値（`casting::CastOutcome`）で判断します。`Rejected` の時は `nextCastTime` を変えないので、次の刻みでまた撃とうとします。詠唱時間 0・クールダウン 0 のスキルでも、撃てれば `castInterval` の間隔を空けます（テスト「詠唱時間もクールダウンも 0 のスキルでも、敵は撃つ間隔（castInterval）を守る」）。
+- 敵は自キャラのスキルで状態異常にかかります（変身中・打ち上げ中は撃てない）。ダメージは受けません。
+- 敵（半径 65）が通れない狭い隙間の奥に自キャラが入ると、敵はそこへたどり着けないので、見つけられずに探索を繰り返します。路地裏の右側にあった袋小路（壁と建物の隙間 110）は、2026-11-03 に隙間を 160 に広げて無くしました。どのステージでも、半径 65 のキャラが立てる場所には (0, 0) からたどり着けることを、テストで確かめています（test_stage.cpp）。
 
 ---
 
@@ -228,7 +379,9 @@ flowchart TD
 - **回避**: 自キャラの弾・範囲に気づくと（反応の遅れの後）、確率で、当たらない位置へ避ける。賢い的は、自キャラの詠唱（構え）を見た時点で、弾・範囲が出る前に避け始める
 - **移動**: 避けていない間は、動き方のパターンを 1 つずつ行う。1 つ終わるたびに、重みで次のパターンを選ぶ
 
-自キャラからは `maxDistance` より離れず、`minDistance` より近づきません。反応の遅れはどの賢さでも 0.15 秒より短くなりません。
+自キャラからは `maxDistance` より離れず、`minDistance` より近づきません。`maxDistance` は、`Match` が視界の内側に収めてから渡します（`SkillShotConfig::maxDistanceWithin`。視界 1000 なら 900）。反応の遅れはどの賢さでも 0.15 秒より短くなりません。
+
+**背景**（根拠: claude_improve_and_answer.txt の 2026/11/03、視界の規定値の訂正）: 視界を 1000 にした時、上限 1100 のままでは的が視界の外に出て見えなくなるため、視界の内側に収めました。余裕 100 は、自キャラが止まっている時・歩き回る時に的が見えている時間の割合を測って決めました（上限 1000 では境目でちらつき、歩くと見えている割合が 7〜8 割台。900 では止まっていれば 100%、歩き回っても 94〜97%）。
 
 **背景**（根拠: `d3277b8`、`a20c8d7`、指示書「スキルショット」）: 指示書の「ランダムな方向に動く / または自キャラが撃つ方向指定スキルを避けるように動く」「難しいほど賢く動くし、ランダムな動きを混ぜて」を、「避け方」と「動き方」の 2 つの軸にしたものです。接近して切り返すパターンは、ユーザーのスキルドッジの戦略の例から作りました（根拠: 指示書）。
 
@@ -281,7 +434,7 @@ flowchart TD
 | ランダム | `Wander` | 自キャラの周りの、今の方向から ±75° 以内のランダムな位置へ動く（障害物・ブッシュの中は選ばない） |
 | 停止 | `Stop` | `stopTime` の間、立ち止まる |
 
-- 次のパターンは `weightStrafe` などの重みで選びます。ただし**自キャラから `maxDistance` より離れていれば接近**にします。接近を選んでも、もう十分に近ければ往復にします。
+- 次のパターンは `weightStrafe` などの重みで選びます。ただし**自キャラから `maxDistance` より離れていれば接近**にします。パターンの途中でも、自キャラが動いて `maxDistance` より離れたら（接近の途中を除く）、そのパターンをやめて次のパターン（= 接近）を始めます（`updatePattern` の先頭。以前は次のパターンまで待っていたので、自キャラが離れると上限を超えたままになっていた）。接近を選んでも、もう十分に近ければ往復にします。
 - 6 秒より長く続いたパターンは打ち切ります（壁に引っかかった時など）。
 
 ### 5.5 メンバ関数

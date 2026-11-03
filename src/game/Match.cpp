@@ -131,8 +131,10 @@ void Match::setupSkillShot(const CharacterDef& character) {
     player.pos = world_->placeable(player.pos, player.radius);
     world_->addUnit(player);
 
-    // 的は、自キャラから離れた、ランダムな方向に置く。大きさ・移動速度はメニューで選んだもの
-    const SkillShotConfig& shot = data_.ai().skillShot;
+    // 的は、自キャラから離れた、ランダムな方向に置く。大きさ・移動速度はメニューで選んだもの。
+    // 自キャラとの距離の上限は、視界の内側に収める
+    SkillShotConfig shot = data_.ai().skillShot;
+    shot.maxDistance = shot.maxDistanceWithin(data_.settings().visionRadius);
     target_.setup(shot, config_.targetLevel, config_.seed);
 
     Unit target;

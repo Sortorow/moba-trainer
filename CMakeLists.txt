@@ -96,6 +96,7 @@ add_library(moba_lib STATIC
   src/game/ai/Aim.cpp
   src/game/ai/PlayerObserver.cpp
   src/game/ai/EnemyAI.cpp
+  src/game/ai/SearchMap.cpp
   src/game/ai/SkillShotTarget.cpp
   src/game/skills/SkillRegistry.cpp
   src/game/skills/SkillHelpers.cpp
@@ -157,6 +158,7 @@ add_executable(moba_tests
   tests/test_camera.cpp
   tests/test_sandbox.cpp
   tests/test_stage.cpp
-  tests/test_vision.cpp)
+  tests/test_vision.cpp
+  tests/test_search.cpp)
 target_link_libraries(moba_tests PRIVATE moba_lib doctest::doctest)
 target_compile_definitions(moba_tests PRIVATE MOBA_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

@@ -155,7 +155,7 @@ flowchart LR
 | `cameraViewHeight` | 1500 | 400〜6000 | 画面の縦に映るゲーム内の距離（カメラの拡大率を決める） |
 | `cameraEdgeScrollSpeed` | 2500 | 0 以上 | 画面の端でカメラが動く速さ（/秒） |
 | `cameraEdgeMargin` | 12 | 1〜100 | 画面の端からこの幅（拡大率 100% の時のピクセル）でカメラが動く |
-| `visionRadius` | 1150 | 100〜5000 | 視界の半径（全キャラ共通。2026/11/03 に 900 から変更） |
+| `visionRadius` | 1000 | 100〜5000 | 視界の半径（全キャラ共通。2026/11/03 に 900 → 1150 → 1000 と訂正） |
 | `attackRevealTime` | 3 | 0〜30 | 相手から見えていない時に、対象指定のスキルで相手を撃つと、相手の陣営から見える時間（もとは `bushRevealTime`。2026/11/03 に視界の決まりに合わせて名前を変えた） |
 | `fogDarkness` | 0.6 | 0〜1 | 視界の外を暗くする強さ |
 | `fullVisionSandbox` / `fullVisionDodge` / `fullVisionShot` | `true` / `false` / `false` | — | モードごとの視界の初期値（`true` = 全視界）。JSON では `"fullVision": { "sandbox", "dodge", "shot" }` |
@@ -387,6 +387,16 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `flank` | `false` | 他の敵と離れて、囲むように動く |
 | `punishCC` | `false` | 自キャラが動けない時は、間隔を待たずに撃つ（`AiConfig::punishMinInterval` 秒は空ける） |
 | `engageRangeRatio` | 0.85 | 自キャラとの距離を「射程 × この値」に保つ（0.3〜1.0） |
+| `chasePredict` | 0 | 自キャラを見失った時に、消えた方向の先を読む時間（秒。0〜5）。0 なら最後に見えた位置へ向かうだけ |
+| `probe` | `false` | 見失っている間に、ブッシュの中や壁の向こうへ確かめ撃ちをする（1 エリアに 1 回） |
+
+`SearchConfig`（構造体。ai.jsonc の `"search"`）: 見失った自キャラを探す時の設定です。`"search"` が無ければ既定値のままです。
+
+| メンバ | 既定値 | 説明 |
+|---|---|---|
+| `areaSize` | 500 | ブッシュ以外の地面を、この大きさの四角いエリアに分ける（200〜2000） |
+| `pointSpacing` | 125 | エリアの中に置く「確かめる点」の間隔（50〜`areaSize`） |
+| `giveUpTime` | 4 | 探しに向かう敵が、動けないままこの秒数たったら、そのエリアをあきらめる（1〜30） |
 
 ### 8.2 `kMinTargetReactionTime` と `SkillShotLevel`（構造体）: スキルショットの的の賢さ 1 段階分
 
@@ -413,6 +423,8 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `SkillShotConfig::sizes` | 大きさの選択肢（**必須**） |
 | `SkillShotConfig::moveSpeeds` | 移動速度の選択肢（**必須**） |
 | `SkillShotConfig::minDistance` / `maxDistance` | 自キャラとの距離の下限・上限（上限は下限 + 100 以上） |
+| `SkillShotConfig::visionMargin` | 自キャラとの距離の上限を、視界の半径からこの値だけ内側までに抑える（既定 100。0 以上） |
+| `float SkillShotConfig::maxDistanceWithin(float visionRadius) const` | 視界の半径が `visionRadius` の時の距離の上限。`maxDistance` と「`visionRadius` − `visionMargin`」の小さい方で、`minDistance` + 100 より小さくはしない。`Match::setupSkillShot` が的の AI に渡す前に使う |
 | `SkillShotConfig::dodgeMargin` | 避ける時に、弾・範囲の端からさらに離れる距離 |
 | `SkillShotConfig::levels` | 賢さ 1〜5（**必須**） |
 | `string sizeName(float radius) const` | 半径の大きさの名前（選択肢に無ければ空。0.5 の誤差まで同じとみなす） |
@@ -426,9 +438,10 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `firstCastDelay` | 1.5 | 開始から最初に撃つまでの時間 |
 | `punishMinInterval` | 1.0 | `punishCC` で動けない自キャラへ撃つ時も、最低限空ける間隔（0 以上）。根拠: 報告ファイルの B7（2026-10-30）。ユーザーの判断で、再発動できるスキルのリキャストに多い 0.5〜1 秒から 1 秒とした |
 | `maxEngageRange` | 1000 | 自キャラと取る距離の上限 |
-| `visionMargin` | 150 | 自キャラと取る距離を、視界の半径からこの値だけ内側までに抑える（0 以上）。敵は見えない自キャラには撃たないので、射程の長いスキルの敵（エズリアルの Q・W。射程 1200 × 0.75〜0.85）が視界の外で止まって撃たなくならないように（Claude 判断。2026/11/03） |
+| `visionMargin` | 250 | 自キャラと取る距離を、視界の半径からこの値だけ内側までに抑える（0 以上）。敵は見えない自キャラには撃たないので、射程の長いスキルの敵（エズリアルの Q・W。射程 1200 × 0.75〜0.85）が視界の外で止まって撃たなくならないように（Claude 判断。2026/11/03） |
 | `playerReactionTime` | 0.25 | AI が想定する、プレイヤーが弾を見て避け始めるまでの時間 |
 | `levels` | — | 賢さ 1〜5（**必須**。空ならエラー） |
+| `search` | — | 見失った自キャラを探す時の設定（`SearchConfig`） |
 | `skillShot` | — | スキルショットの的（**必須**） |
 | `const AiLevel& level(int aiLevel) const` | — | 賢さ（1 始まり）の設定。範囲外なら端の値 |
 

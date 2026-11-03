@@ -85,7 +85,7 @@
 | 読むもの | 分かればよいこと |
 |---|---|
 | [src/game/ai/Aim.h](../../src/game/ai/Aim.h) | 敵の狙い方。「着弾時に自キャラがいそうな位置」の候補に重みを付けて、命中見込みが最も高い所を狙う |
-| [src/game/ai/EnemyAI.h](../../src/game/ai/EnemyAI.h) | スキルドッジの敵。移動先を決め直す・撃てる時に撃つ |
+| [src/game/ai/EnemyAI.h](../../src/game/ai/EnemyAI.h) | スキルドッジの敵。移動先を決め直す・撃てる時に撃つ・見失ったら追いかけて探す（探索のエリア分けは [SearchMap.h](../../src/game/ai/SearchMap.h)） |
 | [src/game/ai/SkillShotTarget.h](../../src/game/ai/SkillShotTarget.h) の先頭のコメント | スキルショットの的。「避ける」と「パターンで動く」の 2 つ |
 
 詳しくは [16-game-ai.md](16-game-ai.md)。

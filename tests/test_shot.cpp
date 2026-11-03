@@ -179,7 +179,7 @@ TEST_CASE("スキルショット: 的が 1 体、メニューで選んだ大き�
     CHECK(target->baseMoveSpeed == doctest::Approx(shot.moveSpeeds.back()));
     const float distance = Vector2Distance(target->pos, match.world().player()->pos);
     CHECK(distance >= shot.minDistance - 1.0f);
-    CHECK(distance <= shot.maxDistance + 1.0f);
+    CHECK(distance <= shot.maxDistanceWithin(data.settings().visionRadius) + 1.0f);  // 視界の内側に置く
     CHECK(match.result().targetSizeName == shot.sizes.front().name);
 }
 
@@ -265,8 +265,8 @@ TEST_CASE("スキルショット: 何もしなくても的は動き回り（離�
     REQUIRE(match.valid());
     const Vector2 start = match.world().findUnit(match.target().unitId())->pos;
 
-    // 動き回っても、自キャラから maxDistance より離れない
-    const float maxDistance = data.ai().skillShot.maxDistance;
+    // 動き回っても、自キャラから距離の上限（視界の内側に収めた maxDistance）より離れない
+    const float maxDistance = data.ai().skillShot.maxDistanceWithin(data.settings().visionRadius);
     float farthest = 0.0f;
     const InputFrame noInput;
     for (int i = 0; i < 10 * 120 + 10 && !match.finished(); ++i) {

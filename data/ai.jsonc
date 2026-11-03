@@ -18,9 +18,9 @@
 
   // 敵が自キャラと取ろうとする距離を、視界の半径（settings.jsonc の visionRadius）からこの値だけ内側までに抑える。
   // 敵は自キャラが見えない間は撃たないので、射程の長いスキルの敵が視界の外で止まらないように。
-  // 横移動の分だけ距離が延びるので、その分の余裕を取る（保つ距離 1000 で横に 300 ずれても約 1044）。
-  // visionRadius が 1150 の間は、上限は 1150 − 150 = 1000 で maxEngageRange と同じになる
-  "visionMargin": 150,
+  // 横移動・反応の遅れ・移動先を決め直す間隔の分だけ距離が延びるので、その分の余裕を取る。
+  // visionRadius が 1000 の時、上限は 1000 − 250 = 750（150 だと、自キャラが歩き回るだけで 10 秒ほど見失うことがあった）
+  "visionMargin": 250,
 
   // AI が想定する「プレイヤーが弾を見てから避け始めるまでの時間」（秒）
   "playerReactionTime": 0.25,
@@ -37,6 +37,11 @@
   //   flank             他の敵と離れて、囲むように動く
   //   punishCC          自キャラが動けない時（拘束・スタン・打ち上げ）は、間隔を待たずにすぐ撃つ（punishMinInterval 秒は空ける）
   //   engageRangeRatio  自キャラとの距離を「スキルの射程 × この値」に保とうとする
+  //   chasePredict      自キャラを見失った時に、消えた方向の先を読む時間（秒。0〜5）。
+  //                     最後に見えた位置 + その時の速度 × この時間 の所へ追いかける（0 なら最後に見えた位置へ向かうだけ）。
+  //                     着いても見つからなければ、下の "search" のとおりに探す
+  //   probe             見失った時に、ブッシュの中や壁の向こうへ方向指定のスキル（当たると消える弾）を撃って、
+  //                     いるかを確かめる（1 エリアに 1 回。途中で当たったら、その位置へ向かう。ドッジ率には数えない）
   "levels": [
     {
       "name": "やさしい",
@@ -49,7 +54,9 @@
       "strafe": 0.0,
       "flank": false,
       "punishCC": false,
-      "engageRangeRatio": 0.85
+      "engageRangeRatio": 0.85,
+      "chasePredict": 0.0,
+      "probe": false
     },
     {
       "name": "ややかんたん",
@@ -62,7 +69,9 @@
       "strafe": 0.2,
       "flank": false,
       "punishCC": false,
-      "engageRangeRatio": 0.8
+      "engageRangeRatio": 0.8,
+      "chasePredict": 0.5,
+      "probe": false
     },
     {
       "name": "ふつう",
@@ -75,7 +84,9 @@
       "strafe": 0.4,
       "flank": true,
       "punishCC": true,
-      "engageRangeRatio": 0.8
+      "engageRangeRatio": 0.8,
+      "chasePredict": 1.0,
+      "probe": false
     },
     {
       "name": "むずかしい",
@@ -88,7 +99,9 @@
       "strafe": 0.6,
       "flank": true,
       "punishCC": true,
-      "engageRangeRatio": 0.75
+      "engageRangeRatio": 0.75,
+      "chasePredict": 1.5,
+      "probe": true
     },
     {
       "name": "とてもむずかしい",
@@ -101,9 +114,24 @@
       "strafe": 0.8,
       "flank": true,
       "punishCC": true,
-      "engageRangeRatio": 0.75
+      "engageRangeRatio": 0.75,
+      "chasePredict": 2.0,
+      "probe": true
     }
   ],
+
+  // 見失った自キャラを探す（探索）。追いかけた先でも見つからなかった時に、敵全員で手分けして、まだ見ていない所を探す。
+  // ステージを「エリア」に分け、エリアの中の「確かめる点」がすべて敵の誰かの視界に一度入ったら、そのエリアは探索済み。
+  // ブッシュ 1 つ（重なり合うブッシュは 1 つ）が 1 エリアで、それ以外の地面は areaSize 四方のマスが 1 エリア。
+  // 全エリアを探しても見つからなければ、探索済みの記録を消して最初から探し直す
+  "search": {
+    // 地面を何四方のエリアに分けるか（200〜2000）
+    "areaSize": 500,
+    // エリアの中に置く「確かめる点」の間隔（50〜areaSize）。小さいほど、物陰に隠れた自キャラを見落としにくい
+    "pointSpacing": 125,
+    // 探しに向かう敵が、動けない（たどり着けない）ままこの秒数たったら、そのエリアをあきらめて探索済みにする（1〜30）
+    "giveUpTime": 4
+  },
 
   // ===== スキルショットの的 =====
   // 的は 1 体で、スキルを撃たない。いくつかの動き方のパターンを組み合わせて動き回り、賢さに応じて自キャラのスキルを避ける
@@ -121,6 +149,11 @@
     // 自キャラとの距離。maxDistance（1100 = 11m）より離れず、minDistance より近づかない
     "minDistance": 300,
     "maxDistance": 1100,
+
+    // 自キャラとの距離の上限を、視界の半径（settings.jsonc の visionRadius）からこの値だけ内側までに抑える
+    // （的が視界の外に出て見えなくならないように）。visionRadius が 1000 の時、上限は 1000 − 100 = 900。
+    // 自キャラが動いて上限より離れたら、的はすぐに近づき直す
+    "visionMargin": 100,
 
     // 避ける時に、弾の幅・範囲の端から、さらにこの距離だけ離れる
     "dodgeMargin": 25,

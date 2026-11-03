@@ -108,6 +108,28 @@ TEST_CASE("ステージ: data/stages の 3 つが読み込め、(0, 0) から始
     CHECK(data.stage("forest")->bushes.size() > 5);
 }
 
+TEST_CASE("ステージ: 半径 65 のキャラが立てる場所には、すべて (0, 0) からたどり着ける（敵が入れない袋小路が無い）") {
+    GameData data(makeAppPaths(MOBA_SOURCE_DIR));
+    data.loadAll();
+    for (const StageDef* stage : data.stageList()) {
+        const Terrain terrain(*stage);
+        const Rectangle b = terrain.bounds();
+        int unreachable = 0;
+        for (float y = b.y + 100.0f; y < b.y + b.height; y += 200.0f) {
+            for (float x = b.x + 100.0f; x < b.x + b.width; x += 200.0f) {
+                const Vector2 p{x, y};
+                if (terrain.blocked(p, 65.0f)) continue;
+                if (terrain.findPath(Vector2{0.0f, 0.0f}, p, 65.0f).empty()) {
+                    INFO(stage->id, " (", x, ", ", y, ")");
+                    CHECK(false);
+                    ++unreachable;
+                }
+            }
+        }
+        CHECK(unreachable == 0);
+    }
+}
+
 TEST_CASE("経路探索: 壁の向こうへは、壁を回り込んで進む") {
     StageFixture f(makeStage({rect(-50.0f, -500.0f, 100.0f, 1000.0f)}));  // 縦長の壁（x -50〜50、y -500〜500）
     const EntityId id = f.addUnit(Team::Player, {-300.0f, 0.0f});
