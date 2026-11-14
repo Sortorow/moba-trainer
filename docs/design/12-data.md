@@ -96,6 +96,7 @@ flowchart LR
 | `Settings& mutableSettings()` | **デバッグパネルからの一時的な変更用**。ファイルには保存しないので、次の再読み込みで上書きされる |
 | `const AiConfig& ai() const` | ai.jsonc の内容 |
 | `const SandboxConfig& sandbox() const` | sandbox.jsonc の内容 |
+| `void saveWindowSize(int width, int height)` | メニューで選んだ解像度を、読み込んだ設定（`settings_`）と settings.jsonc の `"window"` に保存する（`moba::saveWindowSize`）。失敗したらエラーの一覧に足す（メニューに赤字で出る）。成功したら更新日時を覚え直す（自分で書いた変更で再読み込みが起きないように） |
 | `bool selectSandboxPreset(std::string_view name)` | 練習場のダミーのプリセットを選び、sandbox.jsonc の `"preset"` に書き戻す。その名前のプリセットが無ければ `false`。保存に失敗しても選択は反映して `true`（エラーは一覧に足す）。保存に成功したら更新日時を覚え直す（**自分で書いた変更で再読み込みが起きないように**） |
 | `int sandboxRevision() const` | ダミーの設定の番号。`Match` が覚えておき、変わっていたらダミーを置き直す |
 | `const CharacterDef* character(std::string_view id) const` | id でキャラを探す。無ければ `nullptr` |
@@ -152,17 +153,17 @@ flowchart LR
 |---|---|---|---|
 | `castMode` | `Quick` | — | スキルの発動方式 |
 | `cameraMode` | `Locked` | — | 起動時のカメラ |
-| `cameraViewHeight` | 1500 | 400〜6000 | 画面の縦に映るゲーム内の距離（カメラの拡大率を決める） |
+| `cameraViewHeight` | 2000 | 400〜6000 | 画面の縦に映るゲーム内の距離（カメラの拡大率を決める。2026/11/14 に 1500 → 2000。ER と同じくらい） |
 | `cameraEdgeScrollSpeed` | 2500 | 0 以上 | 画面の端でカメラが動く速さ（/秒） |
-| `cameraEdgeMargin` | 12 | 1〜100 | 画面の端からこの幅（拡大率 100% の時のピクセル）でカメラが動く |
+| `cameraEdgeMargin` | 12 | 1〜100 | 画面の端からこの幅（ウィンドウの高さが 900 の時のピクセル）でカメラが動く |
 | `visionRadius` | 1000 | 100〜5000 | 視界の半径（全キャラ共通。2026/11/03 に 900 → 1150 → 1000 と訂正） |
 | `attackRevealTime` | 3 | 0〜30 | 相手から見えていない時に、対象指定のスキルで相手を撃つと、相手の陣営から見える時間（もとは `bushRevealTime`。2026/11/03 に視界の決まりに合わせて名前を変えた） |
 | `fogDarkness` | 0.6 | 0〜1 | 視界の外を暗くする強さ |
 | `fullVisionSandbox` / `fullVisionDodge` / `fullVisionShot` | `true` / `false` / `false` | — | モードごとの視界の初期値（`true` = 全視界）。JSON では `"fullVision": { "sandbox", "dodge", "shot" }` |
 | `cooldownScale` | 0.25 | 0 以上 | クールダウン「標準」の倍率の初期値 |
 | `showHitboxes` | `true` | — | 弾・範囲の当たり判定の円を描く |
-| `uiScale` | 1.0 | 0.5〜3.0 | 文字・ボタンの倍率（拡大率にさらに掛ける） |
-| `windowWidth` / `windowHeight` | 1600 / 900 | 640 / 360 以上 | 起動時のウィンドウの大きさ（拡大率 100% の時）。JSON では `"window": { "width", "height" }` |
+| `uiScale` | 1.0 | 0.5〜3.0 | 文字・ボタンの倍率（ウィンドウの高さ ÷ 900 に、さらに掛ける） |
+| `windowWidth` / `windowHeight` | 1920 / 1080 | 640 / 360 以上 | ウィンドウの大きさ（解像度。実際のピクセル数で、Windows の拡大率は掛けない）。メニューで選んだ解像度が書き戻される。JSON では `"window": { "width", "height" }` |
 | `logLevel` | `Debug` | — | ログの最低レベル |
 
 ### 4.4 `SettingsLoadResult` と `loadSettings`
@@ -173,6 +174,14 @@ SettingsLoadResult loadSettings(const std::filesystem::path& file);
 ```
 
 知らない `castMode` / `cameraMode` / `logLevel` は既定値にして `warnings` に書きます。
+
+### 4.5 `saveWindowSize`
+
+```cpp
+std::string saveWindowSize(const std::filesystem::path& file, int width, int height);
+```
+
+settings.jsonc の `"window"` の `"width"` と `"height"` の**値だけ**を書き換えます（`rewriteJsoncValues`。[11-core.md の 4.3](11-core.md#43-コメントを残したままの値の書き換え)）。コメントや他の行はそのままです。戻り値はエラーの説明（空なら成功。どちらかが無ければ、ファイルを変えずにエラー）。メニューで解像度を選んだ時に `GameData::saveWindowSize` から呼ばれます（根拠: 2026/11/14 の回答「settings.jsonc に書き戻す」）。
 
 ---
 
@@ -492,9 +501,8 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `string saveSelectedSandboxPreset(const path& file, string_view presetName)` | sandbox.jsonc の**一番外側のオブジェクトの** `"preset"` の**値だけ**を書き換える（コメントや他の行はそのまま）。戻り値はエラーの説明（空なら成功。一番外側に `"preset"` が無ければ、ファイルを変えずにエラー） |
 | `bool sameSandboxConfig(const SandboxConfig& a, const SandboxConfig& b)` | 中身（選択と、すべてのプリセットのすべての値）が同じか。再読み込みでダミーを置き直すかの判断に使う |
 | `pointFromJson` / `parseDummy` / `samePoint` / `sameDummy` / `samePreset`（.cpp の中だけ） | 読み込みと比較の部品 |
-| `TextRange`・`skipSpaceAndComments` / `stringEnd` / `findTopLevelStringValue`（.cpp の中だけ） | 書き戻しの部品（下の「仕組み」） |
 
-**`saveSelectedSandboxPreset` の仕組み**: `findTopLevelStringValue` が、ファイルの文字を先頭から 1 つずつ、**普通の文字・文字列・行コメント（`//`）・ブロックコメント（`/* */`）を区別しながら**読みます。`{` と `[` の深さを数え、深さ 1（一番外側のオブジェクトの中）にある文字列 `"preset"` の後に `:` と文字列が続いたら、その値の文字列の位置（`TextRange`）を返します。その範囲だけを新しい名前に置き換えます。名前に `"` や `\` が含まれていても、JSON の文字列としてエスケープしてから書きます。
+**`saveSelectedSandboxPreset` の仕組み**: `rewriteJsoncValues`（[11-core.md の 4.3](11-core.md#43-コメントを残したままの値の書き換え)）で、キー `{"preset"}` の値だけを新しい名前に置き換えます。コメント・文字列・内側のオブジェクトの中にある `"preset"` は書き換えません。名前に `"` や `\` が含まれていても、JSON の文字列としてエスケープしてから書きます（2026/11/14 まではこの .cpp の中に専用の部品 `findTopLevelStringValue` がありましたが、解像度の保存と共通にするため core へ移しました）。
 
 **背景**（根拠: 報告ファイルの B6、2026-10-30 の修正）: 以前は「`//` で始まる行」だけを飛ばして、最初に見つかった `"preset": "..."` を正規表現で書き換えていました。そのため、ブロックコメントの中や、行の途中のコメントの中にある `"preset"` も書き換えてしまうことがありました。
 

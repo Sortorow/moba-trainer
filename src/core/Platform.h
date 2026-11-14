@@ -37,6 +37,16 @@ struct ScreenRect {
 /// ウィンドウがあるモニターの作業領域（タスクバーを除いた範囲。実ピクセル）。取得できなければ大きさ 0
 ScreenRect monitorWorkArea(void* nativeWindowHandle);
 
+/// ウィンドウの枠（タイトルバーを含む）の、左・上・右・下の太さ（実ピクセル）
+struct FrameInsets {
+    int left = 0;
+    int top = 0;
+    int right = 0;
+    int bottom = 0;
+};
+/// ウィンドウの枠の太さ（ウィンドウ全体と、中の部分の差）。全画面の時と、取得できない時はすべて 0
+FrameInsets windowFrameInsets(void* nativeWindowHandle);
+
 /// カーソルが動ける範囲を、ウィンドウの中（タイトルバーと枠を除いた部分）に制限する。
 /// ウィンドウの移動・大きさの変更に追従するため、制限したい間は毎フレーム呼ぶ
 void confineCursorToWindow(void* nativeWindowHandle);

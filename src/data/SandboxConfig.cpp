@@ -1,10 +1,8 @@
 #include "data/SandboxConfig.h"
 
 #include <algorithm>
-#include <cctype>
 #include <format>
-#include <fstream>
-#include <iterator>
+#include <optional>
 #include <set>
 
 #include "core/JsonFile.h"
@@ -15,69 +13,6 @@ namespace moba {
 namespace {
 
 using nlohmann::json;
-
-/// 文字列の中の範囲 [begin, end)
-struct TextRange {
-    std::size_t begin = 0;
-    std::size_t end = 0;
-};
-
-/// pos から、空白とコメント（// の行コメント・/* */ のブロックコメント）を読み飛ばした位置
-std::size_t skipSpaceAndComments(const std::string& text, std::size_t pos) {
-    while (pos < text.size()) {
-        if (std::isspace(static_cast<unsigned char>(text[pos]))) {
-            ++pos;
-        } else if (text.compare(pos, 2, "//") == 0) {
-            pos = text.find('\n', pos);
-            if (pos == std::string::npos) return text.size();
-        } else if (text.compare(pos, 2, "/*") == 0) {
-            pos = text.find("*/", pos + 2);
-            if (pos == std::string::npos) return text.size();
-            pos += 2;
-        } else {
-            break;
-        }
-    }
-    return pos;
-}
-
-/// pos の " から始まる JSON の文字列の終わり（閉じる " の次の位置。\" などのエスケープも読む）
-std::size_t stringEnd(const std::string& text, std::size_t pos) {
-    for (++pos; pos < text.size(); ++pos) {
-        if (text[pos] == '\\') ++pos;
-        else if (text[pos] == '"') return pos + 1;
-    }
-    return text.size();
-}
-
-/// コメント付き JSON の text の中で、一番外側のオブジェクトの key の値（文字列）の位置を探す。
-/// 文字列・行コメント・ブロックコメントを区別しながら読むので、それらの中にある同じ文字は無視する
-/// @return 値の文字列の範囲（両端の " を含む）。見つからなければ nullopt
-std::optional<TextRange> findTopLevelStringValue(const std::string& text, std::string_view key) {
-    int depth = 0;  // { と [ の深さ（一番外側のオブジェクトの中が 1）
-    std::size_t pos = 0;
-    while ((pos = skipSpaceAndComments(text, pos)) < text.size()) {
-        const char c = text[pos];
-        if (c != '"') {
-            if (c == '{' || c == '[') ++depth;
-            if (c == '}' || c == ']') --depth;
-            ++pos;
-            continue;
-        }
-        const std::size_t end = stringEnd(text, pos);
-        const std::string_view token = std::string_view(text).substr(pos + 1, end - pos - 2);  // 両端の " を除く
-        if (depth == 1 && token == key) {
-            // key の後に : と文字列が続けば、それが値
-            std::size_t next = skipSpaceAndComments(text, end);
-            if (next < text.size() && text[next] == ':') {
-                next = skipSpaceAndComments(text, next + 1);
-                if (next < text.size() && text[next] == '"') return TextRange{next, stringEnd(text, next)};
-            }
-        }
-        pos = end;
-    }
-    return std::nullopt;
-}
 
 /// j[key] の [x, y] を座標として読む。書かれていない・2 つの数でなければ nullopt
 std::optional<Vector2> pointFromJson(const json& j, std::string_view key) {
@@ -192,23 +127,9 @@ SandboxConfigLoadResult loadSandboxConfig(const std::filesystem::path& file) {
 }
 
 std::string saveSelectedSandboxPreset(const std::filesystem::path& file, std::string_view presetName) {
-    std::string text;
-    {
-        std::ifstream in(file, std::ios::binary);
-        if (!in) return std::format("{} を開けません", toUtf8(file));
-        text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-    }
-
-    // 一番外側の "preset": "..." の値だけを書き換える（コメント・文字列・内側のオブジェクトの中は対象外）
-    const std::optional<TextRange> value = findTopLevelStringValue(text, "preset");
-    if (!value) return std::format("{} に \"preset\" の項目がないため、保存できません", toUtf8(file.filename()));
-    const std::string quoted = json(std::string(presetName)).dump();  // " や \ を含む名前もエスケープする
-    text.replace(value->begin, value->end - value->begin, quoted);
-
-    std::ofstream out(file, std::ios::binary | std::ios::trunc);
-    if (!out) return std::format("{} に書き込めません", toUtf8(file));
-    out << text;
-    return out ? std::string{} : std::format("{} に書き込めません", toUtf8(file));
+    // 一番外側の "preset" の値だけを書き換える（コメント・文字列・内側のオブジェクトの中は対象外）。
+    // " や \ を含む名前も、JSON の文字列としてエスケープしてから書く
+    return rewriteJsoncValues(file, {{{"preset"}, json(std::string(presetName)).dump()}});
 }
 
 }  // namespace moba

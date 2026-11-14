@@ -114,7 +114,7 @@ MSVC のランタイムは静的リンク（`MultiThreaded`）で、exe 1 つで
    - 統計の計算 → `game/ResultStats`（根拠: `0498fab`「計算は game/ResultStats に分けてテストする」）
    - ログの保持ルール → `core/LogRetention`（根拠: `LogRetention.h`「ファイル操作はしない（テストしやすくするため）」）
    - 敵の狙い → `game/ai/Aim`（根拠: `Aim.h`「World に依存しない計算だけなので、テストで直接確かめられる」）
-   - ウィンドウの大きさ → `ui/UiScale` の `fitWindowSize`
+   - ウィンドウの大きさ（解像度の一覧・画面に入るかの判定） → `ui/WindowResolution`、文字の倍率 → `ui/UiScale` の `scaleForWindowHeight`
 3. **数値はコードに書かず、設定ファイルに書く**（データ駆動）。スキル・AI・ステージ・ダミーの数値は `data/` にあり、ゲームの起動中に保存すると自動で読み直されます（根拠: 指示書「数値はファイルで調整できるようにする」）。
 4. **Windows 固有の処理は `core/Platform.cpp` と `core/Log.cpp` に閉じ込める**。`windows.h` は raylib と名前（`DrawText` `CloseWindow` など）がぶつかるためです。
 
@@ -246,7 +246,7 @@ sequenceDiagram
     participant R as 描画
 
     F->>D: 1 秒ごとに reloadIfChanged（設定ファイルが変わっていれば読み直す）
-    F->>F: checkDpiChange（Windows の拡大率の変化に追従）
+    F->>F: checkWindowHeight（全画面の切り替えなどで高さが変わったら、文字の倍率を合わせ直す）
     F->>I: poll → InputFrame
     F->>F: handleGlobalKeys（F1・F5・Alt+Enter・Esc・Y）
     F->>F: updateCursorConfinement（プレイ中はカーソルを閉じ込める）

@@ -43,9 +43,9 @@ constexpr std::string_view displayName(CameraMode mode) {
 struct Settings {
     CastMode castMode = CastMode::Quick;
     CameraMode cameraMode = CameraMode::Locked;  // 起動時のカメラ（メニューと Y キーでも切り替えられる）
-    float cameraViewHeight = 1500.0f;            // 画面の縦方向に映るゲーム内の距離
+    float cameraViewHeight = 2000.0f;            // 画面の縦方向に映るゲーム内の距離
     float cameraEdgeScrollSpeed = 2500.0f;       // 固定しない時に、画面の端でカメラが動く速さ（ゲーム内の距離 / 秒）
-    // 固定しない時に、画面の端からこの幅まで近づくとカメラが動く（拡大率 100% の時のピクセル）
+    // 固定しない時に、画面の端からこの幅まで近づくとカメラが動く（ウィンドウの高さが 900 の時のピクセル。文字と同じ倍率を掛ける）
     float cameraEdgeMargin = 12.0f;
     float visionRadius = 1000.0f;  // 視界の半径（全キャラ共通）
     // 相手から見えていない時に、対象指定のスキルでその相手を撃つと、相手の陣営から見えるようになる時間（秒）
@@ -57,9 +57,10 @@ struct Settings {
     bool fullVisionShot = false;
     float cooldownScale = 0.25f;  // クールダウン「標準」モードの倍率の初期値（メニューで変更できる）
     bool showHitboxes = true;     // 弾・範囲の当たり判定の円を表示する
-    float uiScale = 1.0f;         // 文字・ボタンの大きさの倍率（Windows の拡大率に、さらに掛ける）
-    int windowWidth = 1600;       // 起動時のウィンドウの大きさ（拡大率 100% の時の大きさ）
-    int windowHeight = 900;
+    float uiScale = 1.0f;         // 文字・ボタンの大きさの倍率（ウィンドウの高さに合わせた倍率に、さらに掛ける）
+    // 起動時のウィンドウの大きさ（実際のピクセル数。Windows の拡大率は掛けない）。メニューで選んだ解像度が保存される
+    int windowWidth = 1920;
+    int windowHeight = 1080;
     log::Level logLevel = log::Level::Debug;
 };
 
@@ -73,5 +74,9 @@ struct SettingsLoadResult {
 /// data/settings.jsonc を読み込む。値は決められた範囲に収め、知らない値は既定値にして warnings に書く
 /// @return 読み込んだ設定。ファイルが読めない時は error に理由が入る
 SettingsLoadResult loadSettings(const std::filesystem::path& file);
+
+/// settings.jsonc の "window" の "width" と "height" だけを書き換える（メニューで選んだ解像度の保存。コメントや他の行はそのまま残す）
+/// @return エラーの説明（空なら成功。"window" の "width" か "height" が無ければ、ファイルを変えずにエラー）
+std::string saveWindowSize(const std::filesystem::path& file, int width, int height);
 
 }  // namespace moba

@@ -4,7 +4,6 @@
 
 #include <filesystem>
 #include <fstream>
-#include <iterator>
 #include <string>
 
 #include "TempDataCopy.h"
@@ -15,15 +14,10 @@
 
 using namespace moba;
 // プリセットを選ぶと sandbox.jsonc に書き込むので、data フォルダを一時フォルダへ写して使う
+using test::readText;
 using test::TempDataCopy;
 
 namespace {
-
-/// ファイルの中身をそのまま（文字コードや改行を変えずに）読む
-std::string readText(const std::filesystem::path& file) {
-    std::ifstream in(file, std::ios::binary);
-    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-}
 
 /// 練習場のダミー（自キャラ以外）
 std::vector<const Unit*> dummyUnits(const Match& match) {

@@ -36,7 +36,7 @@ data/
 
 | ファイル | 用途 | 読み込むコード | 値を使うコード |
 |---|---|---|---|
-| `settings.jsonc` | 画面・カメラ・クールダウン倍率の初期値・ログの詳しさ | `src/data/Settings.cpp` | `src/app/App.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ App.cpp から `src/render/Renderer.cpp`、`src/render/CameraControl.cpp`、`src/render/Hud.cpp`、`src/ui/UiScale.cpp`、`src/core/Log.cpp` へ渡される |
+| `settings.jsonc` | 画面・カメラ・クールダウン倍率の初期値・ログの詳しさ | `src/data/Settings.cpp` | `src/app/App.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ App.cpp から `src/render/Renderer.cpp`、`src/render/CameraControl.cpp`、`src/render/Hud.cpp`、`src/ui/UiScale.cpp`、`src/ui/WindowResolution.cpp`、`src/core/Log.cpp` へ渡される。メニューで選んだ解像度は `src/data/GameData.cpp` が書き戻す |
 | `ai.jsonc` | スキルドッジの敵の強さ・動き方と、スキルショットの的の大きさ・移動速度の選択肢・動き方 | `src/data/AiConfig.cpp` | `src/game/Match.cpp`、`src/game/ai/EnemyAI.cpp`、`src/game/ai/SkillShotTarget.cpp`、`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`<br>→ EnemyAI.cpp から `src/game/ai/Aim.cpp` へ、Match.cpp から `src/ui/ResultScreen.cpp` へ渡される。メニューで選んだ的の大きさ・移動速度はキャラの情報（`Unit`）へコピーされて `src/game/World.cpp`、`src/render/Renderer.cpp` などで使われる |
 | `sandbox.jsonc` | 練習場のダミーのプリセット | `src/data/SandboxConfig.cpp` | `src/data/GameData.cpp`、`src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/ui/SandboxPanel.cpp`<br>→ Sandbox.cpp から `src/game/DummyController.cpp` へ、ダミーの大きさ・移動速度・色はキャラの情報（`Unit`）へコピーされて `src/game/World.cpp`、`src/render/Renderer.cpp` などで使われる（[5 章](#5-sandboxjsonc練習場のダミー)の表を参照）。SandboxPanel.cpp は `src/ui/MainMenu.cpp` と `src/app/App.cpp` から呼ばれる |
 | `stages/*.jsonc` | ステージの広さ・障害物・ブッシュ | `src/data/StageDef.cpp` | `src/data/GameData.cpp`、`src/game/Match.cpp`、`src/game/Terrain.cpp`、`src/ui/MainMenu.cpp`<br>→ Terrain.cpp（地形）は `src/game/World.cpp` が持ち、`src/game/SkillCasting.cpp`、`src/game/skills/SkillHelpers.cpp`、`src/game/Sandbox.cpp`、`src/game/ai/EnemyAI.cpp`、`src/render/Renderer.cpp`、`src/render/Hud.cpp`、`src/render/CameraControl.cpp`（`src/app/App.cpp` から）で使われる。ステージの名前は Match.cpp から `src/ui/ResultScreen.cpp` へ渡される（[6 章](#6-stagesjsoncステージ)を参照） |
@@ -82,17 +82,17 @@ data/
 |---|---|---|---|
 | `castMode` | `"quick"` | スキルの発動方式。今は `"quick"`（キーを押した瞬間に発動）だけ | `src/data/Settings.cpp`（未対応の値を書いた時の警告だけ。値を使うコードはまだ無い） |
 | `cameraMode` | `"locked"` | 起動時のカメラ。`"locked"`（自キャラに固定）/ `"free"`（固定しない。画面の端にカーソルを置くとその方向へ動く）。メニューとプレイ中の `Y` キーでも切り替えられる。設定ファイルのこの値を書き換えて保存した時だけ、今のカメラに反映する | `src/app/App.cpp`（今のカメラとして保持する・`Y` キーでの切り替え）<br>→ `src/render/CameraControl.cpp`（カメラの動かし方）、`src/ui/MainMenu.cpp`（メニューでの選択）、`src/render/Hud.cpp`（操作説明に今のカメラを表示） |
-| `cameraViewHeight` | `1500` | 画面の縦方向に映るゲーム内の距離。大きいほど引いた視点（400〜6000） | `src/app/App.cpp`（カメラの拡大率）<br>`src/ui/DebugPanel.cpp`（一時的に変えるスライダー） |
+| `cameraViewHeight` | `2000` | 画面の縦方向に映るゲーム内の距離。大きいほど引いた視点（400〜6000）。既定の 2000（20m）は ER と同じくらい | `src/app/App.cpp`（カメラの拡大率）<br>`src/ui/DebugPanel.cpp`（一時的に変えるスライダー） |
 | `cameraEdgeScrollSpeed` | `2500` | カメラを固定しない時に、画面の端でカメラが動く速さ（ゲーム内の距離 / 秒。0 以上） | `src/app/App.cpp` → `src/render/CameraControl.cpp` |
-| `cameraEdgeMargin` | `12` | カメラを固定しない時に、画面の端からこの幅まで近づくとカメラが動く（Windows の拡大率 100% の時のピクセル。1〜100） | `src/app/App.cpp`（Windows の拡大率と `uiScale` を掛ける）→ `src/render/CameraControl.cpp` |
+| `cameraEdgeMargin` | `12` | カメラを固定しない時に、画面の端からこの幅まで近づくとカメラが動く（ウィンドウの高さが 900 の時のピクセル。1〜100） | `src/app/App.cpp`（文字と同じ倍率 `ui::px` を掛ける）→ `src/render/CameraControl.cpp` |
 | `visionRadius` | `1000` | 視界の半径（ゲーム内の距離。全キャラ共通。100〜5000）。詳しくは [6 章](#6-stagesjsoncステージ)の「視界とブッシュの見え方」 | `src/game/World.cpp`（`canSeePoint`・`visionPolygon`）<br>→ 見えるかどうかを使う所: `src/render/Renderer.cpp`、`src/render/Hud.cpp`、`src/game/World.cpp`（対象の選択）、`src/game/SkillCasting.cpp`、`src/game/ai/EnemyAI.cpp`<br>`src/game/ai/EnemyAI.cpp`（敵が自キャラと保つ距離の上限） |
 | `attackRevealTime` | `3` | 相手から見えていない時に、対象指定のスキルで相手を撃つと、相手の陣営から見えるようになる時間（秒。0〜30）。ブッシュの中から撃った時も同じ | `src/game/World.cpp`（`revealAttacker`。`src/game/SkillCasting.cpp` から呼ばれる） |
 | `fogDarkness` | `0.6` | 視界の外を暗くする強さ（0 = 暗くしない、1 = 真っ黒） | `src/app/App.cpp` → `src/render/Renderer.cpp` |
 | `fullVision.sandbox` / `fullVision.dodge` / `fullVision.shot` | `true` / `false` / `false` | モードごとの視界の初期値。`true` = 全視界（敵も味方もステージのすべてが見える）、`false` = 通常。メニューの「視界」と、コマンドライン引数 `--vision` でも選べる | `src/game/MatchConfig.h`（`defaultFullVision`）<br>→ `src/ui/MainMenu.cpp`（メニューの初期値・モードを選び直した時）、`src/app/App.cpp`（コマンドラインで開始する時の初期値）<br>→ `src/game/Match.cpp`（`World` のルールにする）→ `src/game/World.cpp`（`canSee`・`canSeePoint`）、`src/render/Renderer.cpp`（暗さを描かない）、`src/render/Hud.cpp`（操作説明に「視界: 全視界」）、`src/game/ResultStore.cpp`（結果に保存）、`src/ui/RecordsPanel.cpp`・`src/ui/ResultScreen.cpp`（表示） |
 | `cooldownScale` | `0.25` | クールダウン「標準」モードの倍率の初期値（0 以上）。メニューで変えられる | `src/ui/MainMenu.cpp`（メニューの初期値と選択肢）<br>`src/app/App.cpp`（コマンドラインで開始する時の初期値） |
 | `showHitboxes` | `true` | 弾・範囲の当たり判定の円を表示するか | `src/app/App.cpp` → `src/render/Renderer.cpp`（描画）<br>`src/ui/DebugPanel.cpp`（一時的に変えるチェックボックス） |
-| `uiScale` | `1.0` | 文字・ボタンの大きさの倍率。Windows の拡大率にさらに掛ける（0.5〜3.0）。詳しくは [dpi-scaling.md](dpi-scaling.md) | `src/app/App.cpp` → `src/ui/UiScale.cpp` |
-| `window.width` / `window.height` | `1600` / `900` | 起動時のウィンドウの大きさ（Windows の拡大率 100% の時の大きさ。最小 640×360） | `src/app/App.cpp` → `src/ui/UiScale.cpp`（画面に収める計算） |
+| `uiScale` | `1.0` | 文字・ボタンの大きさの倍率（0.5〜3.0）。ウィンドウの高さに合わせた倍率（高さ ÷ 900）に、さらに掛ける。詳しくは [dpi-scaling.md](dpi-scaling.md) | `src/app/App.cpp` → `src/ui/UiScale.cpp` |
+| `window.width` / `window.height` | `1920` / `1080` | ウィンドウの大きさ（解像度。実際のピクセル数で、Windows の拡大率は掛けない。最小 640×360）。メニューの「画面」で選ぶと、この 2 つの値だけを書き戻す（コメントや他の行は変えない）。画面に入らない大きさの時は、同じ縦横比で入る最も大きい解像度で開く。起動中にこの値を書き換えても、ウィンドウの大きさは変わらない（次の起動から） | `src/app/App.cpp`（起動時の大きさ・メニューで選んだ時）→ `src/ui/WindowResolution.cpp`（解像度の一覧・画面に入るかの判定）<br>`src/ui/MainMenu.cpp`（解像度を選ぶ UI）<br>`src/data/Settings.cpp`（`saveWindowSize`。書き戻し）← `src/data/GameData.cpp` |
 | `logLevel` | `"debug"` | ログの詳しさ。`"trace"` / `"debug"` / `"info"` / `"warn"` / `"error"` | `src/app/App.cpp` → `src/core/Log.cpp` |
 
 デバッグパネル（`F1`）から「視点の広さ」「当たり判定の円を表示」を一時的に変えられますが、設定ファイルを保存し直すと上書きされます。
@@ -544,14 +544,14 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `App.cpp` / `App.h` | ウィンドウの大きさ・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。起動時に、スキルの params を確かめる関数（`src/game/skills/SkillParams.cpp`）を `GameData` に渡す。コマンドラインで指定したキャラとステージ（`--stage`）を使う。練習場では、ダミーのプリセットを選ぶパネル（`src/ui/SandboxPanel.cpp`）を出し、選び直されたり sandbox.jsonc が書き換えられたりしたらダミーを置き直させる。カメラが動ける範囲として、ステージの範囲を渡す | settings、sandbox、stages、characters |
+| `App.cpp` / `App.h` | ウィンドウの大きさ（起動時に画面に入るかを確かめる。メニューで解像度を選んだら大きさを変えて保存させる）・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。起動時に、スキルの params を確かめる関数（`src/game/skills/SkillParams.cpp`）を `GameData` に渡す。コマンドラインで指定したキャラとステージ（`--stage`）を使う。練習場では、ダミーのプリセットを選ぶパネル（`src/ui/SandboxPanel.cpp`）を出し、選び直されたり sandbox.jsonc が書き換えられたりしたらダミーを置き直させる。カメラが動ける範囲として、ステージの範囲を渡す | settings、sandbox、stages、characters |
 | `CommandLine.cpp` / `CommandLine.h` | 使わない | — |
 
 ### src/core/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `JsonFile.cpp` / `JsonFile.h` | コメント付き JSON を読む。書き方の誤りを、行と列つきのエラーにする | すべて |
+| `JsonFile.cpp` / `JsonFile.h` | コメント付き JSON を読む。書き方の誤りを、行と列つきのエラーにする。コメントや他の行を残したまま、指定した値だけを書き換える（`sandbox.jsonc` の `preset`、`settings.jsonc` の `window`） | すべて |
 | `Log.cpp` / `Log.h` | `logLevel` で決めた詳しさでログを書く（値は `App.cpp` から受け取る） | settings |
 | `GameTypes.h` | 使わない | — |
 | `Geometry.h` | 使わない | — |
@@ -563,11 +563,11 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `GameData.cpp` / `GameData.h` | 5 種類のファイルをまとめて読み込み、変更を検知して再読み込みする。キャラのファイルは、渡された関数でスキルの params を確かめ、誤りがあればそのファイルを使わない。キャラの一覧と、敵として出られるキャラの一覧と、ステージの一覧を作る（どれも `menuOrder` の順）。練習場のダミーのプリセットを選び直して保存する | すべて |
-| `Settings.cpp` / `Settings.h` | `settings.jsonc` を読み、値の範囲をチェックする | settings |
+| `GameData.cpp` / `GameData.h` | 5 種類のファイルをまとめて読み込み、変更を検知して再読み込みする。キャラのファイルは、渡された関数でスキルの params を確かめ、誤りがあればそのファイルを使わない。キャラの一覧と、敵として出られるキャラの一覧と、ステージの一覧を作る（どれも `menuOrder` の順）。練習場のダミーのプリセットを選び直して保存する。メニューで選んだ解像度を `settings.jsonc` に保存する | すべて |
+| `Settings.cpp` / `Settings.h` | `settings.jsonc` を読み、値の範囲をチェックする。`window` の `width`・`height` だけを書き戻す（`saveWindowSize`） | settings |
 | `AiConfig.cpp` / `AiConfig.h` | `ai.jsonc` を読む | ai |
 | `StageDef.cpp` / `StageDef.h` | ステージのファイルを読む（広さ・障害物・ブッシュ） | stages |
-| `SandboxConfig.cpp` / `SandboxConfig.h` | `sandbox.jsonc` を読む。選んだプリセットの名前を、一番外側の `"preset"` に書き戻す（コメントや他の行は変えない） | sandbox |
+| `SandboxConfig.cpp` / `SandboxConfig.h` | `sandbox.jsonc` を読む。選んだプリセットの名前を、一番外側の `"preset"` に書き戻す（コメントや他の行は変えない。書き換えの部品は `src/core/JsonFile.cpp`） | sandbox |
 | `CharacterDef.cpp` / `CharacterDef.h` | キャラのファイルを読む。`params` から値を取り出す関数（`num` / `numOr` / `flagOr` / `text` / `color` / `effects`）もここ。必須の params の書き忘れを `DataWarnings.cpp` に記録する | characters |
 | `EffectSpec.cpp` / `EffectSpec.h` | 効果の配列を読む。書き方の誤りを `DataWarnings.cpp` に記録する | characters |
 | `DataWarnings.cpp` / `DataWarnings.h` | スキルを使う時に見つかった誤り（params の書き忘れ・効果の書き方の誤り）を集め、`GameData.cpp` の「設定ファイルのエラー」に加える。設定ファイルを読み直すと消える | characters |
@@ -636,14 +636,15 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前（`%` を書いても、そのまま表示する）、スキルショットの的の賢さの名前・大きさ・移動速度の選択肢、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ。練習場を選んでいる時は、ダミーのプリセットを選ぶ（`SandboxPanel.cpp` を使う）。ステージの一覧を表示して選ぶ | settings、ai、sandbox、stages、characters |
+| `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前（`%` を書いても、そのまま表示する）、スキルショットの的の賢さの名前・大きさ・移動速度の選択肢、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ。練習場を選んでいる時は、ダミーのプリセットを選ぶ（`SandboxPanel.cpp` を使う）。ステージの一覧を表示して選ぶ。解像度（`window`）を一覧から選ぶ（画面に入らない解像度・全画面の間は選べない） | settings、ai、sandbox、stages、characters |
 | `SandboxPanel.cpp` / `SandboxPanel.h` | 練習場のダミーのプリセットを選ぶ UI（メニューと、練習場の画面右下のパネル）。プリセットの名前・説明・体数・半径を表示する | sandbox |
 | `DebugPanel.cpp` / `DebugPanel.h` | 視点の広さ・当たり判定の円の表示を一時的に変える。キャラの選択、敵 AI の賢さの名前、スキルショットの的の設定、移動速度の表示 | settings、ai、characters |
 | `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名・ステージ名・敵 AI（スキルショットでは的）の賢さの名前・的の大きさの名前を表示する（値は `Match.cpp` から受け取る） |
 | `PauseDialog.cpp` / `PauseDialog.h` | 使わない（スキルドッジ・スキルショットで Esc を押した時の確認ダイアログ） | — |
 | `RecordsPanel.cpp` / `RecordsPanel.h` | 使わない（直近 10 回の順位表と、メニューから開く記録の画面） | — |
 | `StatsDashboard.cpp` / `StatsDashboard.h` | 統計の画面。絞り込みの選択肢に、キャラ・ステージの一覧、敵・的の賢さの名前、的の大きさ・移動速度の選択肢を使う | ai、stages、characters |
-| `UiScale.cpp` / `UiScale.h` | `uiScale` とウィンドウの大きさから、画面に出す大きさを計算する（値は `App.cpp` から受け取る） | settings |
+| `UiScale.cpp` / `UiScale.h` | `uiScale` とウィンドウの高さから、画面に出す大きさの倍率を計算する（値は `App.cpp` から受け取る） | settings |
+| `WindowResolution.cpp` / `WindowResolution.h` | 解像度の一覧と、`window` の大きさが画面に入るかの判定（値は `App.cpp` と `MainMenu.cpp` から受け取る） | settings |
 | `Fonts.cpp` / `Fonts.h` | 使わない | — |
 | `RecordFormat.cpp` / `RecordFormat.h` | 使わない（記録の表・リザルト画面・統計の画面に共通の表示の書き方） | — |
 | `HudLayout.h` | 使わない（スキルバーの大きさの定数。`render/Hud.cpp` と `SandboxPanel.cpp` が使う） | — |
@@ -663,7 +664,8 @@ data/
 | `test_geometry.cpp` | 使わない | — |
 | `test_log_retention.cpp` | 使わない | — |
 | `test_main.cpp` | 使わない | — |
-| `test_ui_scale.cpp` | 使わない（`UiScale.cpp` の計算を、テスト用の値で確かめる） | — |
+| `test_ui_scale.cpp` | 使わない（`UiScale.cpp` と `WindowResolution.cpp` の計算を、テスト用の値で確かめる） | — |
+| `test_settings.cpp` | `settings.jsonc` の既定値を確かめる。一時フォルダへ写したもので、`window` の書き戻しを確かめる | settings |
 | `test_camera.cpp` | 使わない（`CameraControl.cpp` の計算を、テスト用の値で確かめる） | — |
 | `test_sandbox.cpp` | sandbox.jsonc が読み込めること、プリセットを選ぶと `"preset"` だけが書き換わること、練習場のダミーが置き直されることのテスト（data フォルダを一時フォルダへ写して使う） | sandbox、characters |
 | `test_stage.cpp` | ステージのファイルが読み込めること、半径 65 のキャラが立てる場所にはすべて (0, 0) からたどり着けること、壁を回り込むこと、立てない場所を指定した時・たどり着けない時の動き、ブッシュの見え方、路地裏・森でスキルドッジを遊んでも障害物に入り込まないことのテスト | stages、characters |

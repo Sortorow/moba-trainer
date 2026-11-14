@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "data/GameData.h"
 #include "imgui.h"
@@ -110,6 +112,42 @@ void drawSkillShotOptions(MatchConfig& config, const GameData& data) {
     ImGui::TextDisabled("ヒット率に数えるのは、方向指定・地点指定の攻撃スキルだけです");
 }
 
+/// 解像度の表示名（例: 1920 × 1080）
+std::string resolutionLabel(ui::WindowSize size) { return std::format("{} × {}", size.width, size.height); }
+
+/// 解像度（ウィンドウの大きさ）を一覧から選ぶ。画面に入らない解像度は灰色にして選べなくする。
+/// 全画面の間は選べない（モニターの解像度で描くため）
+/// @return 選び直された解像度。選び直されなければ nullopt
+std::optional<ui::WindowSize> drawResolutionCombo(const DisplayState& display) {
+    const std::vector<ui::WindowSize>& list = ui::resolutionList();
+    const bool listed = std::find(list.begin(), list.end(), display.windowSize) != list.end();
+    // 一覧に無い大きさ（settings.jsonc やコマンドラインで指定した大きさ）は、その旨を添えて出す
+    const std::string current = resolutionLabel(display.windowSize) + (listed ? "" : "（一覧にない大きさ）");
+
+    std::optional<ui::WindowSize> chosen;
+    ImGui::BeginDisabled(display.fullscreen);
+    if (ImGui::BeginCombo("解像度", current.c_str())) {
+        for (const ui::WindowSize& size : list) {
+            const bool fits = ui::fitsInArea(size, display.frame, display.workArea);
+            const std::string label = resolutionLabel(size) + (fits ? "" : "（画面に入りません）");
+            ImGui::BeginDisabled(!fits);
+            if (ImGui::Selectable(label.c_str(), size == display.windowSize) && size != display.windowSize)
+                chosen = size;
+            ImGui::EndDisabled();
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::EndDisabled();
+    if (display.fullscreen) {
+        ImGui::TextDisabled(
+            "全画面の間は、モニターの解像度（%s）で表示します。Alt + Enter でウィンドウに戻すと選べます",
+            resolutionLabel(display.screenSize).c_str());
+    } else {
+        ImGui::TextDisabled("ウィンドウの大きさ（実際のピクセル数）。選ぶと settings.jsonc に保存します");
+    }
+    return chosen;
+}
+
 }  // namespace
 
 void MainMenu::setConfig(const MatchConfig& config) {
@@ -118,7 +156,8 @@ void MainMenu::setConfig(const MatchConfig& config) {
     initialized_ = true;
 }
 
-MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultStore& results) {
+MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultStore& results,
+                          const DisplayState& display) {
     if (!initialized_) {
         config_.cooldownScale = data.settings().cooldownScale;
         config_.fullVision = defaultFullVision(data.settings(), config_.mode);
@@ -211,6 +250,12 @@ MenuAction MainMenu::draw(GameData& data, CameraMode& cameraMode, const ResultSt
         cameraMode = CameraMode::Free;
     }
     ImGui::TextDisabled("プレイ中も Y キーで切り替えられます。Space を押している間は自キャラを映します");
+
+    ImGui::SeparatorText("画面");
+    if (const std::optional<ui::WindowSize> resolution = drawResolutionCombo(display)) {
+        action.kind = MenuAction::Kind::ChangeResolution;
+        action.resolution = *resolution;
+    }
 
     ImGui::Spacing();
     ImGui::Separator();

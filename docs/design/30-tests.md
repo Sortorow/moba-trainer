@@ -52,7 +52,8 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | [test_results.cpp](../../tests/test_results.cpp) | `ResultStore` | 1 日 20 件・180 日・モードごとの保存・保存して読み直しても同じ・読めないファイルを `.broken` にする・順位 |
 | [test_stats.cpp](../../tests/test_stats.cpp) | `ResultStats` | 絞り込み・平均と自己ベスト・直近 7 日の比較・移動平均・自己ベストの更新と TOP 3・自己ベストの数字 / TOP 3 / グラフの更新の印が同じプレイを指す・日ごと / 賢さごと / キーごと |
 | [test_camera.cpp](../../tests/test_camera.cpp) | `render/CameraControl` | 固定・固定しない・画面の端・ステージの外まで動かない・Space・UI の上 |
-| [test_ui_scale.cpp](../../tests/test_ui_scale.cpp) | `ui::fitWindowSize` | 拡大率を掛けて画面の 85% に収める |
+| [test_ui_scale.cpp](../../tests/test_ui_scale.cpp) | `ui::scaleForWindowHeight`・`ui::resolutionList`・`ui::fitsInArea`・`ui::startupWindowSize` | 文字の倍率は高さ ÷ 900 × `uiScale`・解像度の一覧はピクセル数の少ない順（1920×1080・2160×1440・2400×1350 を含む）・タイトルバーと枠を足して作業領域に入るか（ちょうどは入る、1 ピクセルはみ出すと入らない）・起動時は入る中で最も大きく、同じ縦横比を優先・どれも入らなければ最小 |
+| [test_settings.cpp](../../tests/test_settings.cpp) | `Settings`・`findJsoncValue`・`saveWindowSize`・`GameData::saveWindowSize` | 既定値（縦の見える範囲 2000・ウィンドウ 1920×1080）・入れ子のキーの値をコメント / 文字列 / 別のオブジェクトと区別して探す・`window` の `width`・`height` だけが書き換わりコメントが残る・どちらかが無ければファイルを変えない・保存した値を読み込んだ設定にも反映し、自分の書き込みでは読み直さない |
 | [test_ui_text.cpp](../../tests/test_ui_text.cpp) | `ui::escapeFormat` | `%` が `%%` になり、書式に入れても元の文字のまま出る |
 
 `TEST_CASE` の名前は「何を・どうすると・どうなる」の文になっています。名前を上から読むと、仕様の一覧になります。
@@ -64,9 +65,10 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | 部品 | 説明 |
 |---|---|
 | `TempDataCopy` | ソースの data フォルダを、一時フォルダの中の新しいフォルダへ丸ごと写し、終わったら消す。`paths()` で写した data の場所を返す。ファイルに書き込むテスト（プリセットの保存）や、設定ファイルの一部を書き換えて試すテストで使う（本物の data フォルダを書き換えないように） |
+| `string readText(const path& file)` | ファイルの中身をそのまま（文字コードや改行を変えずに）読む。設定ファイルの書き戻しのテストで、前後の中身を比べる時に使う（test_sandbox.cpp・test_settings.cpp） |
 | `static int TempDataCopy::rewrite(file, pattern, replacement)` | ファイルの中で正規表現 `pattern` に合う所を、すべて `replacement` に置き換える（文字コードや改行は変えない）。置き換えた数を返すので、テストで `REQUIRE(... == 1)` のように、狙った所だけが変わったことを確かめられる |
 
-**背景**（2026-10-30）: 以前は test_sandbox.cpp と test_dodge.cpp に似た部品がそれぞれあったので、報告ファイルの D2 と同じ考え方で 1 つにまとめました。
+**背景**（2026-10-30）: 以前は test_sandbox.cpp と test_dodge.cpp に似た部品がそれぞれあったので、報告ファイルの D2 と同じ考え方で 1 つにまとめました。`readText` も、2026-11-14 に test_settings.cpp で同じものが要るようになったため、test_sandbox.cpp から移しました。
 
 ### 5.2 各ファイルの部品（各ファイルの無名名前空間）
 
@@ -82,7 +84,8 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | `VisionFixture`・`rectObstacle`・`circle`・`makeStage`・`boundaryDistance` | test_vision.cpp | テスト用の 4000 × 4000 のステージ（障害物の種類を選べる）と、視界の多角形の境目までの距離（多角形の内側かどうかを調べる） |
 | `SearchFixture`・`building`・`circle`・`makeStage`・`hideAndSeek` | test_search.cpp | テスト用の正方形のステージと、見えている自キャラを隠れ場所へ消して、敵が見つけ直すまで進める部品 |
 | `NoCastTimeData` | test_dodge.cpp | `TempDataCopy` で data を写し、すべてのスキルの `castTime` と ai.jsonc の `enemyCooldownScale` を 0 に書き換える（今の設定ファイルには無い「詠唱もクールダウンも無いスキル」を作るため） |
-| `readText`・`dummyUnits` | test_sandbox.cpp | ファイルの中身をそのまま読む・練習場のダミーの一覧 |
+| `dummyUnits` | test_sandbox.cpp | 練習場のダミーの一覧 |
+| `slice` | test_settings.cpp | 文字列の中の `TextRange` の部分 |
 | `TempDir`・`dodgeResult`・`shotResult`・`at` | test_results.cpp | 一時フォルダと、テスト用の結果・日時 |
 | `containsText`・`realSkill` | test_character_data.cpp | 文の一覧に、ある文字列を含む文があるか・本物の設定ファイルのスキル定義の写し（params を書き換えて決まりの判定を試す） |
 | `makeResult`・`pointers` | test_stats.cpp | テスト用の保存した結果 |

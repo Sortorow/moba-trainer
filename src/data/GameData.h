@@ -41,6 +41,9 @@ public:
     const Settings& settings() const { return settings_; }
     /// settings.jsonc の内容を書き換えるための参照（デバッグパネルからの一時的な変更用。ファイルには保存しない）
     Settings& mutableSettings() { return settings_; }
+    /// メニューで選んだ解像度（ウィンドウの大きさ）を、settings.jsonc の "window" に保存する。
+    /// 保存できなかった時は、エラーの一覧に足す（メニューに赤字で出る）
+    void saveWindowSize(int width, int height);
     /// ai.jsonc の内容（スキルドッジの敵 AI）
     const AiConfig& ai() const { return ai_; }
     /// sandbox.jsonc の内容（練習場のダミーのプリセット）

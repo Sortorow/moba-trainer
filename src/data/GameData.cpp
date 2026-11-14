@@ -192,6 +192,20 @@ bool GameData::selectSandboxPreset(std::string_view name) {
     return true;
 }
 
+void GameData::saveWindowSize(int width, int height) {
+    settings_.windowWidth = width;
+    settings_.windowHeight = height;
+    const std::string error = moba::saveWindowSize(paths_.settingsFile, width, height);
+    if (!error.empty()) {
+        log::error("data", "解像度を保存できませんでした: {}", error);
+        errors_.push_back(error);
+        return;
+    }
+    // 自分で書き込んだ変更で、再読み込みが起きないようにする
+    fileTimes_ = scanFileTimes();
+    log::info("data", "解像度 {}x{} を settings.jsonc に保存しました", width, height);
+}
+
 std::vector<std::string> GameData::checkCharacter(const CharacterDef& def) {
     std::vector<std::string> problems;
     if (!skillValidator_) return problems;

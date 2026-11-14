@@ -62,4 +62,9 @@ SettingsLoadResult loadSettings(const std::filesystem::path& file) {
     return result;
 }
 
+std::string saveWindowSize(const std::filesystem::path& file, int width, int height) {
+    return rewriteJsoncValues(
+        file, {{{"window", "width"}, std::to_string(width)}, {{"window", "height"}, std::to_string(height)}});
+}
+
 }  // namespace moba

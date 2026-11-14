@@ -157,7 +157,8 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 | `accumulator_` | `float` | まだゲームを進めていない時間（秒） |
 | `reloadCheckTimer_` | `float` | 設定ファイルの変更を調べるまでの時間。1 秒ごと |
 | `scriptClock_` | `float` | 入力スクリプトの時刻。1 フレームごとに 1/60 秒進む |
-| `dpiScale_` | `float` | ウィンドウがあるモニターの拡大率（150% なら 1.5） |
+| `windowSize_` | `ui::WindowSize` | ウィンドウの時の大きさ（実際のピクセル数）。全画面の間も、ウィンドウに戻した時の大きさとして覚えておく（メニューの「画面」に出す） |
+| `uiScaleHeight_` | `int` | 文字の倍率を決めた時のウィンドウの高さ。変わったら倍率を合わせ直す |
 | `perf_` | `PerfCounter` | 処理時間の計測 |
 | `debugPanelVisible_` | `bool` | デバッグパネルを出すか（F1 で切り替え） |
 | `quit_` | `bool` | 終了する（メニューの「終了」・入力スクリプトの `exit`） |
@@ -202,11 +203,12 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 
 | 関数 | 説明 |
 |---|---|
-| `void initWindow()` | ウィンドウを**隠した状態で**開き（拡大率に合わせて大きさを変える時にちらつかないように）、IME を無効にし、大きさと位置を決めてから表示する。raylib のログをゲームのログに流す。rlImGui・ImPlot を準備し、`imgui.ini` を保存しない設定・キーボードでの UI 操作の無効化（Q/W/E/R が UI に取られないように）・日本語フォントの読み込み・文字の倍率の反映を行う。Esc は `SetExitKey(KEY_NULL)` でウィンドウを閉じるキーから外す |
+| `void initWindow()` | ウィンドウを**隠した状態で**開き（画面に入る大きさに変える時にちらつかないように）、IME を無効にし、大きさと位置を決めてから表示する。縁のドラッグで大きさを変えられないよう、`FLAG_WINDOW_RESIZABLE` は付けない。大きさは、コマンドラインの `--window` があればそのまま、無ければ設定の `window` を `ui::startupWindowSize` で画面に入る大きさにする（変えた時は WARN のログ）。raylib のログをゲームのログに流す。rlImGui・ImPlot を準備し、`imgui.ini` を保存しない設定・キーボードでの UI 操作の無効化（Q/W/E/R が UI に取られないように）・日本語フォントの読み込み・文字の倍率の反映を行う。Esc は `SetExitKey(KEY_NULL)` でウィンドウを閉じるキーから外す |
 | `void shutdownWindow()` | カーソルの閉じ込めを解除し、視界のための描画先（`visionLayers_`）を解放し、ImPlot・rlImGui を片付けてウィンドウを閉じる |
-| `void fitWindowToScreen(int logicalWidth, int logicalHeight)` | 設定の大きさ（拡大率 100% の時の大きさ）に拡大率を掛け、モニターの作業領域の 85% に収め、中央に置く（`ui::fitWindowSize`） |
-| `void applyUiScale()` | 文字・ボタンの倍率（拡大率 × 設定の `uiScale`）を `ui::setScale` で反映する |
-| `void checkDpiChange()` | 毎フレーム拡大率を調べ、変わっていれば（別のモニターへの移動など）`applyUiScale()` し直す。ウィンドウの大きさは変えない |
+| `void applyWindowSize(ui::WindowSize size)` | ウィンドウの中の大きさを `size`（実際のピクセル数）にし、ウィンドウ全体（タイトルバーと枠を含む）が作業領域の中央に来るように置く（`platform::windowFrameInsets`）。画面に入らない時も、タイトルバーが作業領域の上にはみ出さないようにする。文字の倍率は変えない（次のフレームの `checkWindowHeight` が合わせる。Dear ImGui の描画の途中で見た目を変えないため） |
+| `void applyUiScale()` | 文字・ボタンの倍率（`ui::scaleForWindowHeight`: ウィンドウの高さ ÷ 900 × 設定の `uiScale`）を `ui::setScale` で反映し、その時の高さを `uiScaleHeight_` に覚える |
+| `void checkWindowHeight()` | 毎フレームの始めにウィンドウの高さを調べ、`uiScaleHeight_` と違えば（解像度の変更・全画面の切り替え）`applyUiScale()` し直す |
+| `DisplayState displayState() const` | メニューの「画面」に渡す、今のウィンドウの状態（ウィンドウの時の大きさ・今描いている大きさ・枠の太さ・作業領域・全画面か） |
 | `void frame()` | 1 フレームの処理。[02-architecture.md の「1 フレームの処理」](02-architecture.md#8-1-フレームの処理) の順に行う。入力スクリプトの時は経過時間を 1/60 秒に固定する（毎回同じ結果になるように）。実際の操作の時は経過時間の上限を 0.25 秒にする（ウィンドウの移動中などで止まった後に、ゲームが一気に進まないように） |
 | `void recordPerf(double frameStart, double updateEnd, double drawEnd)` | 1 フレームの処理時間を集計し、5 秒たったら DEBUG のログに出して集計をやり直す |
 | `void handleGlobalKeys(const InputFrame& input)` | 画面に関係なく効くキーを処理する。F1 = デバッグパネル、F5 = 設定ファイルの再読み込み、Alt + Enter = ボーダーレスの全画面（`ToggleBorderlessWindowed`）、Esc = 画面ごとの処理（下の表）、Y = カメラの切り替え（プレイ中だけ）。入力スクリプトの `resetcd`（自キャラのクールダウンを 0 にする）もここで行う |
@@ -239,7 +241,7 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 1. 背景を塗る
 2. メニュー以外では、`drawWorld`（ゲーム画面。中で `BeginMode2D(camera_)` する。視界のための描画先 `visionLayers_` を渡す）
 3. `rlImGuiBegin()` の中で、画面ごとの UI
-   - `Menu`: `MainMenu::draw`。「開始」で `startMatch`、「終了」で `quit_`
+   - `Menu`: `MainMenu::draw`。「開始」で `startMatch`、「終了」で `quit_`、解像度を選んだら `applyWindowSize` と `GameData::saveWindowSize`（`settings.jsonc` に書き戻す）
    - `Playing`: `drawHud` → 練習場なら `drawSandboxPanel` と `refreshDummiesIfChanged` → デバッグパネル（F1 で表示中なら）。デバッグパネルでキャラを切り替えたら、新しい乱数の種で `startMatch`
    - `Paused`: `drawHud` → `drawPauseDialog`。はい = メニュー、いいえ = `resume`、リスタート = 新しい乱数の種で `startMatch`
    - `Result`: `drawHud` → `drawResultScreen`。もう一度 = 新しい乱数の種で `startMatch`、メニューへ = `backToMenu`

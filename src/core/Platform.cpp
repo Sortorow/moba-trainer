@@ -116,6 +116,17 @@ ScreenRect monitorWorkArea(void* nativeWindowHandle) {
                       info.rcWork.bottom - info.rcWork.top};
 }
 
+FrameInsets windowFrameInsets(void* nativeWindowHandle) {
+    const HWND window = static_cast<HWND>(nativeWindowHandle);
+    RECT outer{};
+    RECT client{};
+    if (!window || !GetWindowRect(window, &outer) || !GetClientRect(window, &client)) return FrameInsets{};
+    // GetClientRect はウィンドウ内の座標なので、画面全体の座標に直してから、ウィンドウ全体の四隅と比べる
+    MapWindowPoints(window, nullptr, reinterpret_cast<POINT*>(&client), 2);
+    return FrameInsets{client.left - outer.left, client.top - outer.top, outer.right - client.right,
+                       outer.bottom - client.bottom};
+}
+
 void confineCursorToWindow(void* nativeWindowHandle) {
     const HWND window = static_cast<HWND>(nativeWindowHandle);
     RECT client{};

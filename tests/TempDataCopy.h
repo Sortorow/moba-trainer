@@ -14,6 +14,12 @@
 
 namespace moba::test {
 
+/// ファイルの中身をそのまま（文字コードや改行を変えずに）読む。設定ファイルの書き戻しのテストで、前後の中身を比べる時に使う
+inline std::string readText(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
 /// data フォルダを一時フォルダへ写して使う。ファイルに書き込むテストや、設定ファイルの一部を書き換えて試すテストで使う
 class TempDataCopy {
 public:

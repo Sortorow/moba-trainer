@@ -112,6 +112,7 @@ add_library(moba_lib STATIC
   src/render/CameraControl.cpp
   src/ui/Fonts.cpp
   src/ui/UiScale.cpp
+  src/ui/WindowResolution.cpp
   src/ui/RecordFormat.cpp
   src/ui/MainMenu.cpp
   src/ui/SandboxPanel.cpp
@@ -154,6 +155,7 @@ add_executable(moba_tests
   tests/test_results.cpp
   tests/test_stats.cpp
   tests/test_ui_scale.cpp
+  tests/test_settings.cpp
   tests/test_ui_text.cpp
   tests/test_camera.cpp
   tests/test_sandbox.cpp

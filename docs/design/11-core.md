@@ -8,7 +8,7 @@
 |---|---|---|
 | [GameTypes.h](../../src/core/GameTypes.h) | `moba` | ゲーム全体で使う基本の型（通し番号・陣営・スキルのキー） |
 | [Geometry.h](../../src/core/Geometry.h) | `moba::geo` | 2D の幾何計算（当たり判定・向き・距離の制限） |
-| [JsonFile.h](../../src/core/JsonFile.h) / [.cpp](../../src/core/JsonFile.cpp) | `moba` | コメント付き JSON（.jsonc）の読み込み |
+| [JsonFile.h](../../src/core/JsonFile.h) / [.cpp](../../src/core/JsonFile.cpp) | `moba` | コメント付き JSON（.jsonc）の読み込みと、コメントを残したままの値の書き換え |
 | [Paths.h](../../src/core/Paths.h) / [.cpp](../../src/core/Paths.cpp) | `moba` | ゲームが使うフォルダとファイルの場所 |
 | [Log.h](../../src/core/Log.h) / [.cpp](../../src/core/Log.cpp) | `moba::log` | 開発者用ログ |
 | [LogRetention.h](../../src/core/LogRetention.h) / [.cpp](../../src/core/LogRetention.cpp) | `moba::log` | 古いログファイルを消す判断（ファイル操作はしない） |
@@ -22,6 +22,8 @@
 | `Team` | 列挙型 | — | GameTypes.h |
 | `SkillSlot` | 列挙型 | — | GameTypes.h |
 | `JsonLoadResult` | 構造体 | なし | JsonFile.h |
+| `TextRange` | 構造体 | なし | JsonFile.h |
+| `JsoncEdit` | 構造体 | なし | JsonFile.h |
 | `AppPaths` | 構造体 | なし | Paths.h |
 | `log::Level` | 列挙型 | — | Log.h |
 | `log::Config` | 構造体 | なし | Log.h |
@@ -29,6 +31,7 @@
 | `log::Timestamp` | 構造体（Log.cpp の中だけ） | なし | Log.cpp |
 | `log::LogFileEntry` | 構造体 | なし | LogRetention.h |
 | `platform::ScreenRect` | 構造体 | なし | Platform.h |
+| `platform::FrameInsets` | 構造体 | なし | Platform.h |
 
 ---
 
@@ -115,6 +118,21 @@ JsonLoadResult loadJsonFile(const std::filesystem::path& file);
 **注意事項**: JSON として読めた後の、項目の型の誤り（数のはずが文字列など）はここでは見ません。各設定の読み込み関数（`loadSettings` など）で `nlohmann::json::exception` を捕まえます。
 
 **背景**（推測）: 設定ファイルにコメントで説明を書けるように、すべての設定ファイルを .jsonc にしています。nlohmann/json の `ignore_comments` を使うための薄い包みです。
+
+### 4.3 コメントを残したままの値の書き換え
+
+ゲームの中で選んだ値（練習場のダミーのプリセット、解像度）を設定ファイルに書き戻すための部品です。nlohmann/json で読んで書き直すとコメントが消えるので、**ファイルの文字のうち、値の部分だけを置き換えます**。
+
+| 関数・型 | 説明 |
+|---|---|
+| `TextRange`（構造体） | 文字列の中の範囲 `[begin, end)` |
+| `optional<TextRange> findJsoncValue(const string& text, const vector<string>& keyPath)` | `keyPath`（外側からのキーの並び。`{"window", "width"}` なら一番外側の `"window"` の中の `"width"`）の値の位置。値は文字列・数・`true`・`false`・`null`（オブジェクト・配列の値は探さない）。文字列なら両端の `"` を含む。見つからなければ `nullopt` |
+| `JsoncEdit`（構造体） | 書き換え 1 つ。`keyPath` と、`value`（JSON の書き方の値。文字列なら `nlohmann::json(...).dump()` で `"` で囲みエスケープしたもの） |
+| `string rewriteJsoncValues(const path& file, const vector<JsoncEdit>& edits)` | ファイルの値を書き換えて保存する。**1 つでも `keyPath` が見つからなければ、ファイルを変えずに**「(ファイル名) に "window.height" の項目がないため、保存できません」を返す。成功なら空 |
+
+**`findJsoncValue` の仕組み**: ファイルの文字を先頭から 1 つずつ、**普通の文字・文字列・行コメント（`//`）・ブロックコメント（`/* */`）を区別しながら**読みます（`skipSpaceAndComments`・`stringEnd`。.cpp の中だけ）。`{` と `[` の深さを数え、深さが「入ったキーの数 + 1」の所にある文字列が次のキーと同じで、その後に `:` が続けば、キーが見つかったことにします。最後のキーなら、その後の値の範囲（`scalarValueAt`。数などは `,` `}` `]`・空白・コメントの手前まで）を返します。途中のキーなら、値の `{` の中へ入って次のキーを探します。入ったオブジェクトから出ても見つからなければ `nullopt` です。
+
+**背景**（根拠: 報告ファイルの B6、2026-11-14 の解像度の保存）: 以前は `SandboxConfig.cpp` の中に、一番外側の文字列の値だけを探す関数（`findTopLevelStringValue`）がありました。解像度の保存で `"window"` の中の数を書き換える必要ができたため、入れ子のキーと数も扱えるようにして、ここへ移しました（回答ファイルの D2「同じ役割なら共通の場所にまとめる」）。
 
 ---
 
@@ -266,6 +284,10 @@ JsonLoadResult loadJsonFile(const std::filesystem::path& file);
 
 モニターの作業領域（タスクバーを除いた範囲。実ピクセル）。`x` `y` `width` `height`。取れなければ大きさ 0。
 
+### 8.1.1 `FrameInsets`（構造体）
+
+ウィンドウの枠（タイトルバーを含む）の太さ（実ピクセル）。`left` `top` `right` `bottom`。
+
 ### 8.2 公開関数
 
 | 関数 | 説明 | 背景 |
@@ -274,8 +296,9 @@ JsonLoadResult loadJsonFile(const std::filesystem::path& file);
 | `vector<string> commandLineArgs()` | コマンドライン引数（exe の名前を除く）を UTF-8 で返す（`GetCommandLineW` → `CommandLineToArgvW` → UTF-8）。取れなければ空（ERROR のログ） | 根拠: 報告ファイルの B5。`main` の `argv` は Shift_JIS で、書けない文字が `?` になるため |
 | `void installCrashHandler()` | 未処理の例外（アクセス違反など）と `std::terminate` の時に、原因をログへ書く仕組みを入れる。起動時に 1 回 | 根拠: Platform.h。クラッシュの原因を後から調べられるように |
 | `void disableIme(void* nativeWindowHandle)` | ウィンドウの IME を無効にする（`ImmAssociateContext(hwnd, nullptr)`） | 根拠: 指示書「ゲームのウィンドウでは、日本語入力（IME）を無効にする」。日本語入力がオンのままでも Q/W/E/R が届くように |
-| `float windowDpiScale(void* nativeWindowHandle)` | ウィンドウがあるモニターの拡大率（`GetDpiForWindow` ÷ 96） | 根拠: Platform.h。raylib の `GetWindowScaleDPI()` は `FLAG_WINDOW_HIGHDPI` を付けないと常に 1.0 を返すため |
-| `ScreenRect monitorWorkArea(void* nativeWindowHandle)` | ウィンドウがあるモニターの作業領域 | ウィンドウを画面に収めるため |
+| `float windowDpiScale(void* nativeWindowHandle)` | ウィンドウがあるモニターの拡大率（`GetDpiForWindow` ÷ 96） | 根拠: Platform.h。raylib の `GetWindowScaleDPI()` は `FLAG_WINDOW_HIGHDPI` を付けないと常に 1.0 を返すため。2026-11-14 から、文字の倍率には使わず、起動時のログに出すだけ（[dpi-scaling.md](../dpi-scaling.md) の 6 章） |
+| `ScreenRect monitorWorkArea(void* nativeWindowHandle)` | ウィンドウがあるモニターの作業領域 | 解像度が画面に入るかの判定と、ウィンドウを中央に置くため |
+| `FrameInsets windowFrameInsets(void* nativeWindowHandle)` | ウィンドウの枠（タイトルバーを含む）の左・上・右・下の太さ（`GetWindowRect` と、画面の座標に直した `GetClientRect` の差）。全画面の時と、取れない時はすべて 0 | 解像度は中の大きさなので、画面に入るかはタイトルバーと枠を足して判定する。`SetWindowPosition` は中の部分の左上を決めるので、中央に置く時に枠の太さを足す |
 | `void confineCursorToWindow(void* nativeWindowHandle)` | カーソルをウィンドウの中（タイトルバーと枠を除く）に閉じ込める（`ClipCursor`）。ウィンドウの移動に追従するため、閉じ込めたい間は毎フレーム呼ぶ | 根拠: `0575b7f` |
 | `void releaseCursor()` | 閉じ込めを解除する | |
 | `void showErrorDialog(std::string_view titleUtf8, std::string_view messageUtf8)` | エラーのダイアログを出して、閉じるまで待つ。ウィンドウを開く前の致命的なエラー用 | |

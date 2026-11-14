@@ -1,6 +1,6 @@
 #pragma once
 // 画面下中央のスキルバーの大きさ。render/Hud.cpp がスキルバーを描き、ui/SandboxPanel.cpp がその上にパネルをそろえる。
-// どれも拡大率 100% の時のピクセルなので、使う時に ui::px() を掛ける
+// どれもウィンドウの高さが 900 の時のピクセルなので、使う時に ui::px() を掛ける
 
 namespace moba::ui {
 

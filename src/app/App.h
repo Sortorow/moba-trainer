@@ -34,16 +34,19 @@ private:
     // ゲームの時間は 1/120 秒刻みで進める（描画のフレームレートに左右されないように）
     static constexpr float kFixedDt = 1.0f / 120.0f;
 
-    /// ウィンドウを開き、Windows の拡大率に合わせて大きさと文字の倍率を決め、日本語フォントを読み込む
+    /// ウィンドウを開き、大きさ（解像度）と文字の倍率を決め、日本語フォントを読み込む
     void initWindow();
     /// カーソルの閉じ込めを解除し、ウィンドウを閉じる
     void shutdownWindow();
-    /// 設定の大きさ（拡大率 100% の時の大きさ）に Windows の拡大率を掛け、画面に収まるようにして中央に置く
-    void fitWindowToScreen(int logicalWidth, int logicalHeight);
-    /// 文字・ボタンの倍率（Windows の拡大率 × 設定の uiScale）を反映する
+    /// ウィンドウの中の大きさを size（実際のピクセル数）にし、モニターの作業領域の中央に置く。
+    /// 文字の倍率は、次のフレームの始めに checkWindowHeight() が合わせる
+    void applyWindowSize(ui::WindowSize size);
+    /// 文字・ボタンの倍率（ウィンドウの高さ ÷ 900 × 設定の uiScale）を反映する
     void applyUiScale();
-    /// 別のモニターへの移動などで Windows の拡大率が変わったら追従する
-    void checkDpiChange();
+    /// 全画面の切り替えなどでウィンドウの高さが変わったら、文字の倍率を合わせ直す
+    void checkWindowHeight();
+    /// メニューの「画面」に出す、今のウィンドウの状態
+    DisplayState displayState() const;
     /// 1 フレームの処理（設定ファイルの確認 → 入力 → ゲームの更新 → 描画 → 処理時間の記録）
     void frame();
     /// 画面に関係なく効くキー（F1・F5・Alt + Enter・Esc・Y）と、入力スクリプトの指示を処理する
@@ -97,8 +100,9 @@ private:
     InputFrame pendingInput_;                             // まだゲームの更新に渡していない入力
     float accumulator_ = 0.0f;
     float reloadCheckTimer_ = 0.0f;
-    float scriptClock_ = 0.0f;  // 入力スクリプトの時刻（1 フレームごとに 1/60 秒進む）
-    float dpiScale_ = 1.0f;     // ウィンドウがあるモニターの Windows の拡大率（150% なら 1.5）
+    float scriptClock_ = 0.0f;   // 入力スクリプトの時刻（1 フレームごとに 1/60 秒進む）
+    ui::WindowSize windowSize_;  // ウィンドウの時の大きさ（全画面の間も、ウィンドウに戻した時の大きさを覚えておく）
+    int uiScaleHeight_ = 0;      // 文字の倍率を決めた時のウィンドウの高さ（変わったら倍率を合わせ直す）
 
     /// 処理時間の計測（一定間隔でログに出す）
     struct PerfCounter {

@@ -1,7 +1,5 @@
 #include "ui/UiScale.h"
 
-#include <algorithm>
-#include <cmath>
 #include <optional>
 
 namespace moba::ui {
@@ -24,17 +22,9 @@ void setScale(float scale) {
     style.FontScaleDpi = scale;  // 文字の大きさ
 }
 
-WindowSize fitWindowSize(int logicalWidth, int logicalHeight, float dpiScale, int areaWidth, int areaHeight,
-                         float maxFraction) {
-    float width = static_cast<float>(logicalWidth) * dpiScale;
-    float height = static_cast<float>(logicalHeight) * dpiScale;
-    if (areaWidth > 0 && areaHeight > 0) {
-        const float fit = std::min({1.0f, static_cast<float>(areaWidth) * maxFraction / width,
-                                    static_cast<float>(areaHeight) * maxFraction / height});
-        width *= fit;
-        height *= fit;
-    }
-    return WindowSize{static_cast<int>(std::lround(width)), static_cast<int>(std::lround(height))};
+float scaleForWindowHeight(int windowHeight, float uiScale) {
+    if (windowHeight <= 0) return uiScale;
+    return static_cast<float>(windowHeight) / kBaseWindowHeight * uiScale;
 }
 
 }  // namespace moba::ui

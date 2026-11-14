@@ -79,19 +79,27 @@ int App::run() {
 void App::initWindow() {
     SetTraceLogCallback(raylibLogCallback);
     SetTraceLogLevel(LOG_INFO);
-    // 大きさを決めるまではウィンドウを隠しておく（Windows の拡大率に合わせて大きさを変える時に、ちらつかないように）
-    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE | FLAG_WINDOW_HIDDEN);
+    // 大きさを決めるまではウィンドウを隠しておく（画面に入る大きさに変える時に、ちらつかないように）。
+    // 縁をドラッグして大きさを変えることはできない（FLAG_WINDOW_RESIZABLE を付けない。大きさはメニューの解像度で選ぶ）
+    SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT | FLAG_WINDOW_HIDDEN);
     const Settings& settings = data_.settings();
     InitWindow(settings.windowWidth, settings.windowHeight, "MOBA Trainer");
     SetExitKey(KEY_NULL);  // Esc はメニューに戻るキーとして使う
     platform::disableIme(GetWindowHandle());
 
-    dpiScale_ = platform::windowDpiScale(GetWindowHandle());
+    // 大きさは実際のピクセル数（Windows の拡大率は掛けない）
+    const ui::WindowSize wanted{settings.windowWidth, settings.windowHeight};
     if (options_.windowWidth && options_.windowHeight) {
-        // コマンドラインで指定された大きさは、拡大率を掛けずに実ピクセルとしてそのまま使う（自動での確認用）
-        SetWindowSize(*options_.windowWidth, *options_.windowHeight);
+        // コマンドラインで指定された大きさは、画面に入るかを確かめずにそのまま使う（自動での確認用）
+        applyWindowSize(ui::WindowSize{*options_.windowWidth, *options_.windowHeight});
     } else {
-        fitWindowToScreen(settings.windowWidth, settings.windowHeight);
+        const DisplayState display = displayState();
+        const ui::WindowSize size = ui::startupWindowSize(wanted, display.frame, display.workArea);
+        if (size != wanted) {
+            log::warn("app", "settings.jsonc のウィンドウの大きさ {}x{} は画面に入らないため、{}x{} で開きます",
+                      wanted.width, wanted.height, size.width, size.height);
+        }
+        applyWindowSize(size);
     }
     ClearWindowState(FLAG_WINDOW_HIDDEN);
 
@@ -104,34 +112,53 @@ void App::initWindow() {
     ui::loadJapaneseFont(18.0f);
     applyUiScale();
 
-    log::info("app", "ウィンドウを開きました: {}x{}（Windows の拡大率 {:.0f}%）", GetScreenWidth(), GetScreenHeight(),
-              dpiScale_ * 100.0f);
+    log::info("app", "ウィンドウを開きました: {}x{}（実際のピクセル数。Windows の拡大率 {:.0f}% は使わない）",
+              GetScreenWidth(), GetScreenHeight(), platform::windowDpiScale(GetWindowHandle()) * 100.0f);
 }
 
-// 設定の大きさ（拡大率 100% の時の大きさ）に Windows の拡大率を掛け、画面に収まるようにして中央に置く
-void App::fitWindowToScreen(int logicalWidth, int logicalHeight) {
-    const platform::ScreenRect area = platform::monitorWorkArea(GetWindowHandle());
-    const ui::WindowSize size = ui::fitWindowSize(logicalWidth, logicalHeight, dpiScale_, area.width, area.height);
+void App::applyWindowSize(ui::WindowSize size) {
     SetWindowSize(size.width, size.height);
+    windowSize_ = size;
+    // ウィンドウ全体（中の大きさ + タイトルバーと枠）が、作業領域の中央に来るように置く。
+    // SetWindowPosition はウィンドウの中の部分の左上を決めるので、枠の左・上の太さを足す
+    const platform::ScreenRect area = platform::monitorWorkArea(GetWindowHandle());
+    const platform::FrameInsets frame = platform::windowFrameInsets(GetWindowHandle());
     if (area.width > 0 && area.height > 0) {
-        SetWindowPosition(area.x + (area.width - size.width) / 2, area.y + (area.height - size.height) / 2);
+        const int outerWidth = size.width + frame.left + frame.right;
+        const int outerHeight = size.height + frame.top + frame.bottom;
+        // 画面に入らない時も、タイトルバーが作業領域の上にはみ出さないようにする（ウィンドウを動かせるように）
+        const int x = area.x + std::max(0, (area.width - outerWidth) / 2) + frame.left;
+        const int y = area.y + std::max(0, (area.height - outerHeight) / 2) + frame.top;
+        SetWindowPosition(x, y);
     }
+    // 文字の倍率は、次のフレームの始めに checkWindowHeight() が合わせる（描画の途中で Dear ImGui の見た目を変えないように）
 }
 
 void App::applyUiScale() {
-    const float scale = dpiScale_ * data_.settings().uiScale;
+    uiScaleHeight_ = GetScreenHeight();
+    const float scale = ui::scaleForWindowHeight(uiScaleHeight_, data_.settings().uiScale);
     ui::setScale(scale);
-    log::info("ui", "文字・ボタンの倍率を {:.2f} にしました（Windows の拡大率 {:.0f}% × 設定の uiScale {:.2f}）", scale,
-              dpiScale_ * 100.0f, data_.settings().uiScale);
+    log::info("ui", "文字・ボタンの倍率を {:.2f} にしました（ウィンドウの高さ {} ÷ {:.0f} × 設定の uiScale {:.2f}）",
+              scale, uiScaleHeight_, ui::kBaseWindowHeight, data_.settings().uiScale);
 }
 
-void App::checkDpiChange() {
-    const float dpi = platform::windowDpiScale(GetWindowHandle());
-    if (std::fabs(dpi - dpiScale_) < 0.001f) return;
-    log::info("app", "Windows の拡大率が {:.0f}% から {:.0f}% に変わりました（別のモニターへの移動など）",
-              dpiScale_ * 100.0f, dpi * 100.0f);
-    dpiScale_ = dpi;
+void App::checkWindowHeight() {
+    if (GetScreenHeight() == uiScaleHeight_) return;
+    log::info("app", "ウィンドウの高さが {} から {} に変わりました（全画面の切り替えなど）", uiScaleHeight_,
+              GetScreenHeight());
     applyUiScale();
+}
+
+DisplayState App::displayState() const {
+    const platform::ScreenRect area = platform::monitorWorkArea(GetWindowHandle());
+    const platform::FrameInsets frame = platform::windowFrameInsets(GetWindowHandle());
+    DisplayState display;
+    display.windowSize = windowSize_;
+    display.screenSize = ui::WindowSize{GetScreenWidth(), GetScreenHeight()};
+    display.frame = ui::WindowSize{frame.left + frame.right, frame.top + frame.bottom};
+    display.workArea = ui::WindowSize{area.width, area.height};
+    display.fullscreen = IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
+    return display;
 }
 
 void App::shutdownWindow() {
@@ -153,7 +180,7 @@ void App::frame() {
         reloadCheckTimer_ = 0.0f;
         reloadData(false);
     }
-    checkDpiChange();
+    checkWindowHeight();
 
     const double frameStart = GetTime();
     const ImGuiIO& io = ImGui::GetIO();
@@ -363,9 +390,14 @@ void App::draw() {
     rlImGuiBegin();
     switch (screen_) {
         case Screen::Menu: {
-            const MenuAction action = menu_.draw(data_, cameraMode_, results_);
+            const MenuAction action = menu_.draw(data_, cameraMode_, results_, displayState());
             if (action.kind == MenuAction::Kind::Start) startMatch(action.config);
             if (action.kind == MenuAction::Kind::Quit) quit_ = true;
+            if (action.kind == MenuAction::Kind::ChangeResolution) {
+                log::info("app", "解像度を {}x{} にします", action.resolution.width, action.resolution.height);
+                applyWindowSize(action.resolution);
+                data_.saveWindowSize(action.resolution.width, action.resolution.height);
+            }
             break;
         }
         case Screen::Playing: {

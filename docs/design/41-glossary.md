@@ -103,7 +103,9 @@ CC（Crowd Control）は、相手の行動を妨げる効果のことです。
 | 刻み（固定の時間刻み） | ゲームを進める単位の時間（1/120 秒） | `App::kFixedDt` |
 | 入力スクリプト | 操作を時刻つきで書いたテキストファイル。自動での動作確認に使う | `ScriptInput`、`tests/scripts/` |
 | 乱数の種（seed） | 乱数の始まりの値。同じ種なら同じ展開になる | `MatchConfig::seed` |
-| 拡大率（DPI） | Windows の「拡大/縮小」の設定（150% など） | `platform::windowDpiScale`、`ui::scale()` |
+| 拡大率（DPI） | Windows の「拡大/縮小」の設定（150% など）。2026-11-14 から、文字の倍率・ウィンドウの大きさには使わない（起動時のログに出すだけ） | `platform::windowDpiScale` |
+| 解像度 | ウィンドウの中の大きさ（実際のピクセル数）。メニューの「画面」で一覧から選ぶ | `ui::WindowSize`、`ui::resolutionList`、settings.jsonc の `window` |
+| 文字の倍率 | 画面に出す文字・ボタン・余白の大きさの倍率（ウィンドウの高さ ÷ 900 × `uiScale`） | `ui::scale()`、`ui::px()` |
 | 再読み込み | 設定ファイルを読み直すこと（保存すると自動、F5 で手動） | `GameData::reloadIfChanged`、`App::reloadData` |
 | 手順 N | 指示書にある開発の段階（1 練習場 → 2 スキルドッジ → 3 ステージ → 4 スキルショット → 5 リザルトの保存 → 6 統計 → 7 キャラの追加） | — |
 | 指示書 | `claude_directive.txt`。要件と、開発中に決まった仕様 | — |
