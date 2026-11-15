@@ -176,7 +176,7 @@ flowchart LR
 
 **役割**: 保存した結果を条件で絞り込み、集計します。画面に依存しない計算だけなので、テストで直接確かめられます（根拠: ResultStats.h の先頭、`0498fab`）。
 
-**平均の考え方**（根拠: ResultStats.h、指示書「平均は数を合計してから割る」）: プレイごとの割合の平均ではなく、数を合計してから割ります。総数の少ないプレイに引っぱられないようにするためです。
+**平均の考え方**（根拠: ResultStats.h、指示書「平均は数を合計してから割る」「成績の推移の『直近10回の平均』の線も…数を合計してから割る」）: プレイごとの割合の平均ではなく、数を合計してから割ります。総数の少ないプレイに引っぱられないようにするためです。数字の欄の平均だけでなく、成績の推移の「直近 10 回の平均」の線（`movingAverage`）も同じです（2026-11-15 に変更。以前は線だけが割合の平均だった）。
 
 **自己ベストの考え方**（根拠: 同上「自己ベストは総数 10 以上のプレイから選ぶ（1 / 1 = 100% のようなプレイを除くため）」）。どの成績が上かは、記録の順位表と同じ `rankedHigher`（割合 → 総数 → 新しい順）で決めます。数字の欄の自己ベスト・TOP 3・グラフの「自己ベストを更新」の印は、すべてこの決まりに揃えています（根拠: `0220ef3` の修正、2026-10-30。以前はグラフの印だけが「割合が上がった時」で、同じ割合のプレイの扱いが食い違っていた）。
 
@@ -204,7 +204,7 @@ flowchart LR
 | `bool matchesFilter(const SavedResult&, const StatsFilter&, int today)` | 条件に合うか。賢さはスキルドッジなら `aiLevel`、スキルショットなら `targetLevel`。的の大きさ・速さは 0.5 の誤差まで同じとみなす。期間は今日を含めて `periodDays` 日 |
 | `vector<const SavedResult*> filterResults(const vector<SavedResult>& all, const StatsFilter&, int today)` | 条件に合う結果（古い順）。**`all` の要素へのポインタ**を返す |
 | `StatsSummary summarize(const vector<const SavedResult*>&, int today)` | 要約する。直近 7 日は今日を含む 0〜6 日前、その前の 7 日は 7〜13 日前。自己ベストは `rankedHigher` で最も上のもの |
-| `vector<float> movingAverage(const vector<float>& values, size_t window)` | 移動平均（それまでの最大 `window` 回の平均。最初の方は、ある分だけで平均する） |
+| `vector<float> movingAverage(const vector<ResultScore>& scores, size_t window)` | 成績の移動平均。それぞれの位置で、そこまでの最大 `window` 回の数（`count`・`total`）を**合計してから割った**割合（0〜1）。最初の方は、ある分だけで計算する。**割合の平均ではない**（1 / 1 と 9 / 20 なら 72.5% ではなく 10 / 21 = 47.6%） |
 | `vector<size_t> personalBestUpdates(const vector<const SavedResult*>&)` | 自己ベストを更新したプレイの位置。それまでの自己ベストより `rankedHigher` で上なら更新とする（割合が同じでも総数が多ければ更新、割合も総数も同じなら新しい方が上なので更新）。**最後の更新が、必ず `summarize` の自己ベスト・`topResults` の 1 位と同じプレイになる** |
 | `vector<const SavedResult*> topResults(const vector<const SavedResult*>&, size_t n)` | 成績の高い順（`rankedHigher`）に `n` 件 |
 | `vector<DayStat> dailyStats(const vector<const SavedResult*>&)` | 日ごとの集計（古い順。プレイした日だけ） |

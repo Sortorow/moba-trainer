@@ -182,15 +182,16 @@ void drawTrendPlot(const std::vector<const SavedResult*>& results, GameMode mode
     }
     std::vector<double> xs;
     std::vector<double> ys;
-    std::vector<float> rates;
+    std::vector<ResultScore> scores;
     for (std::size_t i = 0; i < plays.size(); ++i) {
-        const float rate = scoreOf(plays[i]->result).rate() * 100.0f;
+        const ResultScore score = scoreOf(plays[i]->result);
         xs.push_back(static_cast<double>(i + 1));
-        ys.push_back(rate);
-        rates.push_back(rate);
+        ys.push_back(score.rate() * 100.0);
+        scores.push_back(score);
     }
-    const std::vector<float> average = movingAverage(rates, kMovingAverageWindow);
-    const std::vector<double> averageYs(average.begin(), average.end());
+    // 直近 10 回の平均は、割合の平均ではなく、数を合計してから割る（数字の欄の平均と同じ決まり）
+    std::vector<double> averageYs;
+    for (const float rate : movingAverage(scores, kMovingAverageWindow)) averageYs.push_back(rate * 100.0);
     std::vector<double> bestXs;
     std::vector<double> bestYs;
     for (const std::size_t i : personalBestUpdates(plays)) {
@@ -265,7 +266,7 @@ void drawTrendPlot(const std::vector<const SavedResult*>& results, GameMode mode
             ring.Flags = ImPlotItemFlags_NoLegend;
             ImPlot::PlotScatter("##hover", &xs[i], &ys[i], 1, ring);
             const std::string heading =
-                std::format("{} 回目（直近 {} 回の平均 {:.1f}%）", i + 1, kMovingAverageWindow, average[i]);
+                std::format("{} 回目（直近 {} 回の平均 {:.1f}%）", i + 1, kMovingAverageWindow, averageYs[i]);
             resultTooltip(*plays[i], heading.c_str());
         }
     }

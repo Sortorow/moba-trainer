@@ -161,6 +161,7 @@ add_executable(moba_tests
   tests/test_sandbox.cpp
   tests/test_stage.cpp
   tests/test_vision.cpp
-  tests/test_search.cpp)
+  tests/test_search.cpp
+  tests/test_status_effects.cpp)
 target_link_libraries(moba_tests PRIVATE moba_lib doctest::doctest)
 target_compile_definitions(moba_tests PRIVATE MOBA_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

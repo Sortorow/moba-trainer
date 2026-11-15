@@ -87,7 +87,12 @@ void drawUnitLabels(ImDrawList* dl, const World& world, const Camera2D& camera) 
             if (!status.empty()) status += "  ";
             const std::string_view name =
                 effect.type == EffectType::Mark ? std::string_view("マーク") : displayName(effect.type);
-            status += std::format("{} {:.1f}", name, effect.remaining);
+            // スロウは強さの違うものが並ぶことがあるので、強さも出す（「スロウ 50% 0.3  スロウ 40% 1.0」）
+            if (effect.type == EffectType::Slow) {
+                status += std::format("{} {:.0f}% {:.1f}", name, effect.amount * 100.0f, effect.remaining);
+            } else {
+                status += std::format("{} {:.1f}", name, effect.remaining);
+            }
         }
         if (!status.empty()) drawCenteredText(dl, below, 14.0f, IM_COL32(255, 230, 140, 255), status);
     }

@@ -6,10 +6,10 @@ namespace moba {
 
 void StatusEffects::apply(const EffectSpec& spec, EntityId source) {
     for (StatusEffect& effect : effects_) {
-        if (effect.type == spec.type && effect.tag == spec.tag) {
+        // 強さが違うものはまとめない（まとめると、強い方の強さが長い方の長さだけ続いてしまう）
+        if (effect.type == spec.type && effect.tag == spec.tag && effect.amount == spec.amount) {
             effect.remaining = std::max(effect.remaining, spec.duration);
             effect.duration = std::max(effect.duration, spec.duration);
-            effect.amount = std::max(effect.amount, spec.amount);
             effect.source = source;
             return;
         }

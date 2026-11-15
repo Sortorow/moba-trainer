@@ -95,13 +95,13 @@ TEST_CASE("統計の要約: 直近 7 日（今日を含む）と、その前の 
     CHECK(s.previous.count == 9);
 }
 
-TEST_CASE("移動平均: それまでの最大 window 回の平均") {
-    const std::vector<float> averages = movingAverage({10, 20, 30, 40}, 2);
+TEST_CASE("移動平均: それまでの最大 window 回の数を合計してから割る（割合の平均ではない）") {
+    const std::vector<float> averages = movingAverage({{1, 1}, {9, 20}, {3, 10}, {10, 10}}, 2);
     REQUIRE(averages.size() == 4);
-    CHECK(averages[0] == doctest::Approx(10.0f));
-    CHECK(averages[1] == doctest::Approx(15.0f));
-    CHECK(averages[2] == doctest::Approx(25.0f));
-    CHECK(averages[3] == doctest::Approx(35.0f));
+    CHECK(averages[0] == doctest::Approx(1.0f));           // 1 回目だけ: 1 / 1
+    CHECK(averages[1] == doctest::Approx(10.0f / 21.0f));  // (1 + 9) / (1 + 20)。割合の平均なら 72.5%
+    CHECK(averages[2] == doctest::Approx(12.0f / 30.0f));  // 1 回目は外れる: (9 + 3) / (20 + 10)
+    CHECK(averages[3] == doctest::Approx(13.0f / 20.0f));  // (3 + 10) / (10 + 10)
 }
 
 TEST_CASE("自己ベストの更新と TOP 3: 総数の少ないプレイは数えず、成績の高い順に並べる") {

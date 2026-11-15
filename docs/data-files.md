@@ -515,7 +515,7 @@ data/
 
 | type | 効果 | 使う項目 |
 |---|---|---|
-| `"slow"` | 移動速度低下。重ねがけせず、最も強いものだけが効く | `amount`（低下率）、`duration` |
+| `"slow"` | 移動速度低下。重ねがけせず、その時に残っている中で最も強いものだけが効く（強さの違うスロウは長さを別々に数えるので、強い方が切れたら弱い方が残りの長さだけ効く） | `amount`（低下率）、`duration` |
 | `"snare"` | 移動できない（スキルは使える） | `duration` |
 | `"stun"` | 移動もスキルもできない | `duration` |
 | `"knockup"` | 打ち上げ。移動もスキルもできない | `duration` |
@@ -663,6 +663,7 @@ data/
 | `test_dodge.cpp` | スキルドッジのテスト。設定ファイルを読み込み、`src/game/Match.cpp` を通してキャラと敵 AI の設定を使う。一部のテストは、写しの `castTime` と `enemyCooldownScale` を 0 に書き換えて試す | ai、characters |
 | `test_results.cpp` | 使わない（リザルトの保存のテスト。一時フォルダを使う） | — |
 | `test_stats.cpp` | 使わない（統計の計算のテスト） | — |
+| `test_status_effects.cpp` | 使わない（状態異常の一覧のテスト。スロウの強さと長さは、character_traits.txt の例に合わせてテストの中に書いている） | — |
 | `test_shot.cpp` | スキルショットのテスト。的の置き方（`sizes`・`moveSpeeds`・`minDistance`・`maxDistance`）、`reactionTime` の下限（ai.jsonc の写しを一時フォルダに作って読む）、動き方のパターン（往復・リズムを崩す・接近）、的の回避（`skillShot.levels` を書き換えて確かめる）、賢さとヒット率、飛んでいる途中の発動を数えないこと | ai、stages、characters |
 | `test_geometry.cpp` | 使わない | — |
 | `test_log_retention.cpp` | 使わない | — |

@@ -66,15 +66,17 @@ StatsSummary summarize(const std::vector<const SavedResult*>& results, int today
     return s;
 }
 
-std::vector<float> movingAverage(const std::vector<float>& values, std::size_t window) {
+std::vector<float> movingAverage(const std::vector<ResultScore>& scores, std::size_t window) {
     std::vector<float> averages;
-    averages.reserve(values.size());
-    float sum = 0.0f;
-    for (std::size_t i = 0; i < values.size(); ++i) {
-        sum += values[i];
-        if (window > 0 && i >= window) sum -= values[i - window];
-        const std::size_t count = window > 0 ? std::min(i + 1, window) : i + 1;
-        averages.push_back(sum / static_cast<float>(count));
+    averages.reserve(scores.size());
+    ResultScore sum;  // 直近 window 回の数の合計（整数なので、足し引きしても誤差がたまらない）
+    for (std::size_t i = 0; i < scores.size(); ++i) {
+        add(sum, scores[i]);
+        if (window > 0 && i >= window) {
+            sum.count -= scores[i - window].count;
+            sum.total -= scores[i - window].total;
+        }
+        averages.push_back(sum.rate());
     }
     return averages;
 }

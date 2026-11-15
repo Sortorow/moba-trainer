@@ -4,6 +4,7 @@
 //
 // 成績（スコア）は、スキルドッジがドッジ率、スキルショットがヒット率（ResultStore.h の scoreOf）。
 // 平均は、プレイごとの割合の平均ではなく、数を合計してから割る（総数の少ないプレイに引っぱられないように）。
+// 数字の欄の平均だけでなく、成績の推移の「直近 10 回の平均」（movingAverage）も同じ。
 
 #include <array>
 #include <cstddef>
@@ -53,8 +54,10 @@ struct StatsSummary {
 /// @param results 古い順
 StatsSummary summarize(const std::vector<const SavedResult*>& results, int today);
 
-/// values の移動平均（それまでの最大 window 回の平均。最初の方は、ある分だけで平均する）
-std::vector<float> movingAverage(const std::vector<float>& values, std::size_t window);
+/// 成績の移動平均。scores のそれぞれの位置で、そこまでの最大 window 回の数（count・total）を合計してから割った割合（0〜1）。
+/// 最初の方は、ある分だけで計算する。割合の平均ではないので、総数の少ないプレイに引っぱられない
+/// （例: 1 / 1 と 9 / 20 なら、(100% + 45%) / 2 = 72.5% ではなく 10 / 21 = 47.6%）
+std::vector<float> movingAverage(const std::vector<ResultScore>& scores, std::size_t window);
 
 /// 自己ベストを更新したプレイの番号（results の中の位置）。総数が kMinTotalForBest 未満のプレイは数えない。
 /// 自己ベスト（summarize の best・topResults の 1 位）と同じ rankedHigher の順で比べるので、

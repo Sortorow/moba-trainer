@@ -50,7 +50,8 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | [test_search.cpp](../../tests/test_search.cpp) | `ai::SearchMap`・`EnemyDirector` の探索と確かめ撃ち | ブッシュは 1 エリア・地面は 500 四方・立てない所に点を置かない・小さいブッシュにも点がある・見えた点だけ見た扱い・探索済みとあきらめ・`reset`・次のエリアは見失った位置の近くで他の敵の行き先を避ける・確かめ撃ちの先は見えない所だけで 1 エリア 1 回・視界の半径より遠い所は選ばない・離れたブッシュの自キャラを探して見つける・建物の陰の自キャラを回り込んで見つける・たどり着けない部屋はあきらめて最初から探し直す・賢さ 4 は確かめ撃ちが当たって向かい、賢さ 3 は撃たない・確かめ撃ちはドッジ率に数えない・見つけたら元の動きに戻る・ブッシュの中の自キャラを見つけたら最も近い敵だけが留まって見失わない |
 | [test_sandbox.cpp](../../tests/test_sandbox.cpp) | `SandboxConfig`・練習場 | プリセットが読める・`"preset"` だけが書き換わりコメントが残る・コメント / 文字列 / 内側のオブジェクトの `"preset"` は書き換えない・一番外側に無ければ保存しない・プリセットの切り替えでダミーが置き直される・キャラのファイルを保存した後にプリセットを選んでも、キャラの変更を読んだことにしない |
 | [test_results.cpp](../../tests/test_results.cpp) | `ResultStore` | 1 日 20 件・180 日・モードごとの保存・保存して読み直しても同じ・読めないファイルを `.broken` にする・順位 |
-| [test_stats.cpp](../../tests/test_stats.cpp) | `ResultStats` | 絞り込み・平均と自己ベスト・直近 7 日の比較・移動平均・自己ベストの更新と TOP 3・自己ベストの数字 / TOP 3 / グラフの更新の印が同じプレイを指す・日ごと / 賢さごと / キーごと |
+| [test_status_effects.cpp](../../tests/test_status_effects.cpp) | `StatusEffects` | スロウを 2 つ受けた時、強い方が先に切れたら残っている弱い方が効く（character_traits.txt の例 1〜3）・範囲の中で同じスロウを毎刻み付け直しても 1 つにまとまる・同じ強さの付け直しで残り時間が縮まない |
+| [test_stats.cpp](../../tests/test_stats.cpp) | `ResultStats` | 絞り込み・平均と自己ベスト・直近 7 日の比較・移動平均（数を合計してから割り、割合の平均にならない）・自己ベストの更新と TOP 3・自己ベストの数字 / TOP 3 / グラフの更新の印が同じプレイを指す・日ごと / 賢さごと / キーごと |
 | [test_camera.cpp](../../tests/test_camera.cpp) | `render/CameraControl` | 固定・固定しない・画面の端・ステージの外まで動かない・Space・UI の上 |
 | [test_ui_scale.cpp](../../tests/test_ui_scale.cpp) | `ui::scaleForWindowHeight`・`ui::resolutionList`・`ui::fitsInArea`・`ui::startupWindowSize` | 文字の倍率は高さ ÷ 900 × `uiScale`・解像度の一覧はピクセル数の少ない順（1920×1080・2160×1440・2400×1350 を含む）・タイトルバーと枠を足して作業領域に入るか（ちょうどは入る、1 ピクセルはみ出すと入らない）・起動時は入る中で最も大きく、同じ縦横比を優先・どれも入らなければ最小 |
 | [test_settings.cpp](../../tests/test_settings.cpp) | `Settings`・`findJsoncValue`・`saveWindowSize`・`GameData::saveWindowSize`・`GameData::hasChangedFiles` | 既定値（縦の見える範囲 2000・ウィンドウ 1920×1080）・入れ子のキーの値をコメント / 文字列 / 別のオブジェクトと区別して探す・`window` の `width`・`height` だけが書き換わりコメントが残る・どちらかが無ければファイルを変えない・保存した値を読み込んだ設定にも反映し、自分の書き込みでは読み直さない・ファイルの変更は読み込まずに分かる（確かめただけでは読み込んだことにならない）・解像度を保存しても、まだ読んでいない別のファイルの変更を読んだことにしない・保存する前に settings.jsonc が書き換えられていたら、保存した後に読み直す |
@@ -91,6 +92,7 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | `TempDir`・`dodgeResult`・`shotResult`・`at` | test_results.cpp | 一時フォルダと、テスト用の結果・日時 |
 | `containsText`・`realSkill` | test_character_data.cpp | 文の一覧に、ある文字列を含む文があるか・本物の設定ファイルのスキル定義の写し（params を書き換えて決まりの判定を試す） |
 | `makeResult`・`pointers` | test_stats.cpp | テスト用の保存した結果 |
+| `slow`・`advance`・`kQDoubleHit`・`kCaltrops` | test_status_effects.cpp | スロウの効果と、World と同じ順（残り時間を減らしてから、範囲の効果を付け直す）で 1 刻みずつ進める |
 | `inputAt` | test_camera.cpp | カーソルの位置だけを決めた `CameraControlInput` |
 | `makeFiles`・`contains` | test_log_retention.cpp | テスト用のログファイルの一覧 |
 
