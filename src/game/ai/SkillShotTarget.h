@@ -10,7 +10,8 @@
 //         ランダム 自キャラの周りのランダムな位置へ動く
 //         停止     立ち止まる
 // 反応の遅れ（避け始め・接近からの切り返し）は、どの賢さでも 0.15 秒より短くならない（AiConfig.h）。
-// 自キャラからは maxDistance より離れず、minDistance より近づかない。自キャラが動いて maxDistance より離れたら、
+// 自キャラとの距離: maxDistance より離れた位置へは、移動も回避もしない。minDistance は移動先（パターン）を選ぶ時だけの
+// 下限で、回避の時は使わない（避けた先が minDistance より近くてもよい）。自キャラが動いて maxDistance より離れたら、
 // 今のパターンをやめて近づき直す。maxDistance は、Match が視界の内側に収めてから渡す（SkillShotConfig::maxDistanceWithin）。
 // 賢さごとの数値は data/ai.jsonc の "skillShot" で調整できる。
 
@@ -121,7 +122,7 @@ private:
     bool endangers(const Threat& threat, Vector2 pos, Vector2 destination, float speed, float radius,
                    float margin) const;
     /// threat を避けられる移動先を選ぶ（他の弾・範囲にも当たらず、障害物で止まらず、自キャラから maxDistance 以内の位置）。
-    /// 見つからなければ nullopt
+    /// minDistance は見ない（避けることを優先し、自キャラに minDistance より近い位置へも避ける）。見つからなければ nullopt
     std::optional<Vector2> chooseDodge(const World& world, const Unit& self, const std::vector<Threat>& threats,
                                        const Threat& threat);
 
@@ -138,7 +139,8 @@ private:
     /// self から、自キャラに対して横（side = +1 なら右）へ distance だけ動く移動先。壁などで動けなければ反対側
     /// @param side 動いた向きを書き戻す（反対側へ動くことにした時は符号が変わる）
     Vector2 sideStep(const World& world, const Unit& self, const Unit& player, float& side, float distance) const;
-    /// 移動先を、自キャラとの距離（minDistance〜maxDistance）・ステージの範囲・立てる位置に収める
+    /// 移動先を、自キャラとの距離（minDistance〜maxDistance）・ステージの範囲・立てる位置に収める。
+    /// パターンの移動先に使う（回避の移動先には使わない。chooseDodge は maxDistance だけを確かめる）
     Vector2 keepInRange(const World& world, const Unit& self, Vector2 playerPos, Vector2 destination) const;
     /// 自キャラのヒット率に数えるスキルの、最も長い射程（maxDistance まで。接近で「射程に入った」の判定に使う）
     float playerSkillRange(const World& world, const Unit& player) const;

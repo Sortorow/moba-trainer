@@ -170,8 +170,8 @@ data/
 |---|---|---|---|
 | `sizes` | （必須） | 的の大きさの選択肢。`name`（メニューに出す名前）と `radius`（当たり判定の半径。10〜300）の組の配列。練習場のダミーのプリセット（小さい的 40 / 標準 65 / 大きい的 100）と同じ段階 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ半径は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（当たり判定）、`src/game/ai/SkillShotTarget.cpp`（避ける距離）、`src/render/Renderer.cpp`（大きさ）で使われる。`src/game/Match.cpp` はリザルト用に `name` も取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
 | `moveSpeeds` | （必須） | 的の移動速度の選択肢（0〜1500）の配列 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ速度は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（移動）、`src/game/ai/SkillShotTarget.cpp`（避けるのに間に合うかの見積もり）で使われる |
-| `minDistance` | `300` | 自キャラにこれより近づかない | `src/game/ai/SkillShotTarget.cpp` |
-| `maxDistance` | `1100` | 自キャラからこれより離れない（11m）。ただし視界の内側に収めるため、実際の上限は下の `visionMargin` で決まる（視界 1000 なら 900）。自キャラが動いて上限より離れたら、的はすぐに近づき直す | `src/data/AiConfig.cpp`（`maxDistanceWithin`）→ `src/game/Match.cpp`（的の AI に渡す前に上限を決める）→ `src/game/ai/SkillShotTarget.cpp` |
+| `minDistance` | `300` | 的が移動先（往復・接近・ランダム）を選ぶ時に、自キャラからこれより近い位置を選ばない。弾・範囲を避ける時は使わない（避けた先は、これより近くてもよい） | `src/game/ai/SkillShotTarget.cpp` |
+| `maxDistance` | `1100` | 自キャラからこれより離れない（11m）。弾・範囲を避ける時も、これより離れた位置へは避けない。ただし視界の内側に収めるため、実際の上限は下の `visionMargin` で決まる（視界 1000 なら 900）。自キャラが動いて上限より離れたら、的はすぐに近づき直す | `src/data/AiConfig.cpp`（`maxDistanceWithin`）→ `src/game/Match.cpp`（的の AI に渡す前に上限を決める）→ `src/game/ai/SkillShotTarget.cpp` |
 | `visionMargin` | `100` | 自キャラとの距離の上限を、視界の半径（`settings.jsonc` の `visionRadius`）からこの値だけ内側までに抑える（0 以上）。上限は `maxDistance` と「`visionRadius` − `visionMargin`」の小さい方（`minDistance` + 100 より小さくはしない） | 同上 |
 | `dodgeMargin` | `25` | 避ける時に、弾の幅・範囲の端から、さらにこの距離だけ離れる | `src/game/ai/SkillShotTarget.cpp` |
 | `levels` | （必須） | 賢さ 1〜5 の設定。上から順に 1, 2, 3, 4, 5 | 下の表を参照 |

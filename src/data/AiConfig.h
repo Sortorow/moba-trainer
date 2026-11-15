@@ -75,10 +75,12 @@ struct TargetSize {
 
 /// スキルショットの的の設定（ai.jsonc の "skillShot"）。的の大きさ・移動速度の選択肢、自キャラとの距離と、賢さ 1〜5 ごとの設定
 struct SkillShotConfig {
-    std::vector<TargetSize> sizes;       // 的の大きさの選択肢（メニューで選ぶ）
-    std::vector<float> moveSpeeds;       // 的の移動速度の選択肢（メニューで選ぶ）
-    float minDistance = 300.0f;          // 自キャラにこれより近づかない
-    float maxDistance = 1100.0f;         // 自キャラからこれより離れない（視界の内側に収める上限は maxDistanceWithin）
+    std::vector<TargetSize> sizes;  // 的の大きさの選択肢（メニューで選ぶ）
+    std::vector<float> moveSpeeds;  // 的の移動速度の選択肢（メニューで選ぶ）
+    /// 移動先（パターン）を選ぶ時、自キャラにこれより近い位置を選ばない。回避の時は使わない（避けた先は、これより近くてもよい）
+    float minDistance = 300.0f;
+    /// 自キャラからこれより離れない。回避の時も（視界の内側に収める上限は maxDistanceWithin）
+    float maxDistance = 1100.0f;
     float visionMargin = 100.0f;         // 自キャラとの距離の上限を、視界の半径からこの値だけ内側までに抑える
     float dodgeMargin = 25.0f;           // 避ける時に、弾・範囲の端からさらに離れる距離
     std::vector<SkillShotLevel> levels;  // 賢さ 1〜5

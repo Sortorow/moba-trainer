@@ -439,7 +439,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `TargetSize::name` / `radius` | 的の大きさの選択肢 1 つ（メニューの名前と半径） |
 | `SkillShotConfig::sizes` | 大きさの選択肢（**必須**） |
 | `SkillShotConfig::moveSpeeds` | 移動速度の選択肢（**必須**） |
-| `SkillShotConfig::minDistance` / `maxDistance` | 自キャラとの距離の下限・上限（上限は下限 + 100 以上） |
+| `SkillShotConfig::minDistance` / `maxDistance` | 自キャラとの距離の下限・上限（上限は下限 + 100 以上）。下限は移動先（パターン）を選ぶ時だけに使い、回避の時は使わない。上限は回避の時も守る |
 | `SkillShotConfig::visionMargin` | 自キャラとの距離の上限を、視界の半径からこの値だけ内側までに抑える（既定 100。0 以上） |
 | `float SkillShotConfig::maxDistanceWithin(float visionRadius) const` | 視界の半径が `visionRadius` の時の距離の上限。`maxDistance` と「`visionRadius` − `visionMargin`」の小さい方で、`minDistance` + 100 より小さくはしない。`Match::setupSkillShot` が的の AI に渡す前に使う |
 | `SkillShotConfig::dodgeMargin` | 避ける時に、弾・範囲の端からさらに離れる距離 |

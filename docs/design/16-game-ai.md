@@ -379,7 +379,7 @@ flowchart TD
 - **回避**: 自キャラの弾・範囲に気づくと（反応の遅れの後）、確率で、当たらない位置へ避ける。賢い的は、自キャラの詠唱（構え）を見た時点で、弾・範囲が出る前に避け始める
 - **移動**: 避けていない間は、動き方のパターンを 1 つずつ行う。1 つ終わるたびに、重みで次のパターンを選ぶ
 
-自キャラからは `maxDistance` より離れず、`minDistance` より近づきません。`maxDistance` は、`Match` が視界の内側に収めてから渡します（`SkillShotConfig::maxDistanceWithin`。視界 1000 なら 900）。反応の遅れはどの賢さでも 0.15 秒より短くなりません。
+自キャラとの距離は、`maxDistance` より離れた位置へは移動も回避もしません。`minDistance` は、移動先（パターン）を選ぶ時だけの下限で、回避の時は使いません。避けた先は `minDistance` より近くてもかまいません（根拠: 指示書「スキルショット」の「的と自キャラの距離」。2026-11-15 に、以前の「（避ける時も）」は 1100 だけに掛かると確認）。`maxDistance` は、`Match` が視界の内側に収めてから渡します（`SkillShotConfig::maxDistanceWithin`。視界 1000 なら 900）。反応の遅れはどの賢さでも 0.15 秒より短くなりません。
 
 **背景**（根拠: claude_improve_and_answer.txt の 2026/11/03、視界の規定値の訂正）: 視界を 1000 にした時、上限 1100 のままでは的が視界の外に出て見えなくなるため、視界の内側に収めました。余裕 100 は、自キャラが止まっている時・歩き回る時に的が見えている時間の割合を測って決めました（上限 1000 では境目でちらつき、歩くと見えている割合が 7〜8 割台。900 では止まっていれば 100%、歩き回っても 94〜97%）。
 
@@ -418,7 +418,7 @@ flowchart TD
 ### 5.3 避け方（`endangers`・`chooseDodge`）
 
 - `endangers`: 的が今の移動先へ進み続けると、弾・範囲に当たるか。直線の弾は「弾が届く時刻の的の位置」で判定する（届く時刻は、動いた先までの距離で 2 回見積もり直す）
-- `chooseDodge`: 避ける先の候補を作り、**障害物で止まらず・自キャラから離れすぎず・着くまでに他の弾・範囲にも当たらない**候補を選ぶ
+- `chooseDodge`: 避ける先の候補を作り、**障害物で止まらず・自キャラから離れすぎず（`maxDistance` 以内）・着くまでに他の弾・範囲にも当たらない**候補を選ぶ。`minDistance` は見ない（自キャラに 300 より近い位置へも避ける）
   - 直線の弾: 左右の 2 か所（近い順）。`sideRandom` の確率で遠い側
   - 円の範囲: 中心から外へ向かう方向と、その ±35°・±70°・±110°
   - 安全な候補が無ければ、せめて障害物で止まらない候補。それも無ければ避けない
@@ -452,7 +452,7 @@ flowchart TD
 | `collectThreats`・`decide`・`endangers`・`chooseDodge`（private） | 5.2・5.3 |
 | `startPattern`・`updatePattern`・`nextSwing`・`updateApproach`・`wander`（private） | 5.4 |
 | `Vector2 sideStep(const World&, const Unit& self, const Unit& player, float& side, float distance) const`（private） | 自キャラに対して横へ `distance` 動く移動先。壁際などでほとんど動けなければ反対側（`side` の符号を変える） |
-| `Vector2 keepInRange(const World&, const Unit& self, Vector2 playerPos, Vector2 destination) const`（private） | 移動先を、自キャラとの距離・ステージの範囲・立てる位置に収める |
+| `Vector2 keepInRange(const World&, const Unit& self, Vector2 playerPos, Vector2 destination) const`（private） | 移動先を、自キャラとの距離・ステージの範囲・立てる位置に収める。パターンの移動先に使い、回避の移動先には使わない |
 | `float playerSkillRange(const World&, const Unit& player) const`（private） | 自キャラのヒット率に数えるスキルの、最も長い射程（`maxDistance` まで）。接近の「射程に入った」に使う |
 | `float uniform(float min, float max)`（private） | 乱数 |
 | `string_view displayName(TargetPattern)`（自由関数） | 「往復」「接近」「ランダム」「停止」 |

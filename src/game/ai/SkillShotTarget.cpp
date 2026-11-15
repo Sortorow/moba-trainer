@@ -213,7 +213,8 @@ std::optional<Vector2> SkillShotTarget::chooseDodge(const World& world, const Un
             candidates.push_back(threat.center + Vector2Rotate(out, degrees * DEG2RAD) * clear);
     }
 
-    // 障害物で止まらず、自キャラから離れすぎず、着くまでに他の弾・範囲にも当たらない候補を、上の順に選ぶ
+    // 障害物で止まらず、自キャラから離れすぎず、着くまでに他の弾・範囲にも当たらない候補を、上の順に選ぶ。
+    // 自キャラに minDistance より近づくのは構わない（minDistance はパターンの移動先だけの下限。指示書「スキルショット」）
     const Unit* player = world.player();
     std::vector<Vector2> safe;
     std::optional<Vector2> reachable;  // 安全な候補が無い時の、せめて障害物で止まらない候補
