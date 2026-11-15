@@ -238,6 +238,38 @@ TEST_CASE("敵 AI: 追いかけた先にいなければ探索に移り、離れ�
     MESSAGE("ブッシュに隠れた自キャラを見つけるまで ", result.foundAfter, " 秒");
 }
 
+TEST_CASE("敵 AI: プレイの始めに見えない自キャラは、開始位置で見失ったことにして追いかけ、いなければ探索で見つける") {
+    // 3000 × 3000。自キャラは (0, 0) のブッシュの中から始まり（敵 (-1100, 0) からは見えない）、最初の刻みの後に、
+    // 見えないまま右上のブッシュへ移る。敵は本当の位置ではなく開始位置へ追いかけ、そこにいないので探索に移る
+    SearchFixture f(makeStage(3000.0f, {}, {circle(0.0f, 0.0f, 250.0f), circle(1100.0f, -1100.0f, 200.0f)}));
+    const EntityId playerId = f.addPlayer({0.0f, 0.0f});
+    const EntityId enemy = f.addEnemy({-1100.0f, 0.0f});
+    REQUIRE_FALSE(f.world().canSee(Team::Enemy, f.unit(playerId)));
+    ai::EnemyDirector director;
+    director.setup(f.data().ai(), 3, 7);
+    director.addEnemy(enemy);
+    f.step(director);
+    CHECK(director.mode() == Mode::Chase);  // 一度も見えていなくても、すぐに追跡になる
+    f.unit(playerId).pos = {1100.0f, -1100.0f};
+
+    bool searched = false;
+    float chaseEndDistance = -1.0f;  // 探索に移った時の、敵と開始位置の距離
+    float foundAfter = -1.0f;
+    for (int i = 1; i <= 90 * 120 && foundAfter < 0.0f; ++i) {
+        f.step(director);
+        if (!searched && director.mode() == Mode::Search) {
+            searched = true;
+            chaseEndDistance = Vector2Distance(f.unit(enemy).pos, Vector2{0.0f, 0.0f});
+        }
+        if (f.world().canSee(Team::Enemy, f.unit(playerId))) foundAfter = static_cast<float>(i) * kDt;
+    }
+    CHECK(searched);
+    CHECK(chaseEndDistance >= 0.0f);
+    CHECK(chaseEndDistance <= 50.0f);  // 開始位置に着いてから、探索に移った
+    CHECK(foundAfter > 0.0f);
+    MESSAGE("開始位置から移った自キャラを見つけるまで ", foundAfter, " 秒");
+}
+
 TEST_CASE("敵 AI: ブッシュの中の自キャラを見つけたら、最も近い敵だけがブッシュに留まり、見失わない") {
     // 半径 250 のブッシュに自キャラが隠れる。敵 2 体のうち、見つけた後も 1 体はブッシュの中に留まる
     SearchFixture f(makeStage(3000.0f, {}, {circle(800.0f, -600.0f, 250.0f)}));
@@ -318,9 +350,9 @@ TEST_CASE("敵 AI: 全エリアを探しても見つからなければ、たど�
 
 TEST_CASE(
     "敵 AI: 賢さ 4 は見えないブッシュへ確かめ撃ちをし、当たったら向かう。賢さ 3 "
-    "は撃たない。確かめ撃ちはドッジ率に数えない") {
+    "は撃たない。確かめ撃ちは、外れたらドッジ率に数えず、当たったら被弾として数える") {
     // 敵 (-700, 0) から離れた (0, -800) に、半径 100 の小さいブッシュ。自キャラはブッシュの中心へ消える
-    const auto probeRun = [](int aiLevel, int& hiddenHits, bool& shotWhileHidden, int& dodgeTotal) {
+    const auto probeRun = [](int aiLevel, int& hiddenHits, bool& shotWhileHidden, DodgeCount& dodge) {
         SearchFixture f(makeStage(3000.0f, {}, {circle(0.0f, -800.0f, 100.0f)}));
         const EntityId playerId = f.addPlayer({0.0f, 0.0f});
         const EntityId enemy = f.addEnemy({-700.0f, 0.0f});
@@ -345,20 +377,23 @@ TEST_CASE(
             if (hiddenHits > 0 && director.mode() == Mode::Chase) chasedHit = true;
         }
         CHECK(found);
-        dodgeTotal = f.world().dodge().total;  // 見つけるまでは、自キャラを狙って撃っていない
+        dodge = f.world().dodge();  // 見つけるまでは、自キャラを狙って撃っていない（撃ったのは確かめ撃ちだけ）
         return chasedHit;
     };
 
     int hiddenHits = 0;
     bool shotWhileHidden = false;
-    int dodgeTotal = -1;
-    const bool chasedHit = probeRun(4, hiddenHits, shotWhileHidden, dodgeTotal);
+    DodgeCount dodge;
+    const bool chasedHit = probeRun(4, hiddenHits, shotWhileHidden, dodge);
     CHECK(shotWhileHidden);
     CHECK(hiddenHits >= 1);  // 確かめ撃ちが、ブッシュの中の自キャラに当たった
     CHECK(chasedHit);        // 当たった位置へ追いかけた
-    CHECK(dodgeTotal == 0);  // 確かめ撃ちはドッジ率に数えない
+    // 当たった確かめ撃ちは被弾として数え（被弾の数が HP・ダウンと合う）、外れたものは「回避」に数えない
+    CHECK(dodge.hit == hiddenHits);
+    CHECK(dodge.dodged == 0);
+    CHECK(dodge.total == hiddenHits);
 
-    probeRun(3, hiddenHits, shotWhileHidden, dodgeTotal);
+    probeRun(3, hiddenHits, shotWhileHidden, dodge);
     CHECK_FALSE(shotWhileHidden);
     CHECK(hiddenHits == 0);
 }

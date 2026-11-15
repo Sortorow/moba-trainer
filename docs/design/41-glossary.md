@@ -28,7 +28,7 @@
 | 追跡 | 敵が自キャラを見失った直後に、消えた方向の先（賢いほど先まで読む）へ追いかける動き | `EnemyDirector::Mode::Chase`、`AiLevel::chasePredict` |
 | 探索 | 追いかけた先にもいなかった時に、敵全員で手分けして、まだ見ていないエリアを探す動き。全エリアを探しても見つからなければ最初から探し直す | `EnemyDirector::Mode::Search`、`ai::SearchMap`、`SearchConfig` |
 | エリア（探索） | 探索の単位。ブッシュ 1 つか、地面を 500 四方に分けたマス 1 つ。中の「確かめる点」がすべて敵の視界に一度入ったら探索済み | `SearchMap::Area`、`SearchMap::Point` |
-| 確かめ撃ち | 賢さ 4・5 の敵が、見失っている間に、ブッシュの中や壁の向こうへスキルを撃って、自キャラがいるかを確かめること。1 エリアに 1 回。ドッジ率に数えない | `EnemyDirector::tryProbe`、`AiLevel::probe`、`CastRequest::probe` |
+| 確かめ撃ち | 賢さ 4・5 の敵が、見失っている間に、ブッシュの中や壁の向こうへスキルを撃って、自キャラがいるかを確かめること。1 エリアに 1 回。外れたものはドッジ率に数えず、当たったものは被弾として数える | `EnemyDirector::tryProbe`、`AiLevel::probe`、`CastRequest::probe` |
 | リザルト | 制限時間まで遊んだ結果 | `MatchResult`、`SavedResult` |
 | 記録 | 保存したリザルトの直近 10 回の順位表 | `drawRecordTable`、`drawRecordsWindow` |
 | 統計 | 保存したリザルトを集計したダッシュボード | `StatsDashboard`、`ResultStats` |

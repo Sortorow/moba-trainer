@@ -133,12 +133,12 @@
 | `void registerHit(int castId, Team attacker, SkillSlot slot, string_view label, Unit& target)` | スキルが当たった時の共通処理。ヒット率に記録（`stats_.recordHit`）、被弾の光、当たった記録（`recentHits_`）、ログ、命中の観察（テスト用）。**敵の発動が自キャラに当たったら**、その発動で 1 回目なら HP を 1 減らす |
 | `const vector<HitRecord>& recentHits() const` | 直前の `update` でスキルが当たった記録（`attacker`・`target`・当たった時の `pos`）。`update` の始めに消える。敵 AI が、見えない自キャラに自分たちのスキルが当たったことを知るために読む（[16-game-ai.md](16-game-ai.md) の 4.1） |
 | `void setHitObserver(HitObserver observer)` | 命中のたびに呼ばれる関数を登録する（テストで命中を数える時用） |
-| `void beginCast(int castId, Team team, SkillSlot slot, bool countsForDodge = true)` | 発動の記録を始める（`casting::runSkill` が handler の前に呼ぶ）。`countsForDodge` が `false`（敵 AI の確かめ撃ち。`CastRequest::probe`）なら、敵の発動でもドッジ率に数えない |
+| `void beginCast(int castId, Team team, SkillSlot slot, bool probe = false)` | 発動の記録を始める（`casting::runSkill` が handler の前に呼ぶ）。`probe`（敵 AI の確かめ撃ち。`CastRequest::probe`）なら、外れた時はドッジ率に数えず、当たった時は普通の発動と同じく被弾として数える |
 | `void endCastIfIdle(int castId)` | 弾も範囲も出さなかった発動（ワープなど）は、ここで記録を閉じる（`runSkill` が handler の後に呼ぶ） |
 
 #### 発動の記録（`CastRecord`）の仕組み
 
-ドッジ率は「敵の 1 回の発動で出た弾・範囲が**すべて消えた**時点で、1 つでも自キャラに当たっていれば被弾、当たっていなければ回避」と数えます（根拠: 指示書「ドッジ率は、敵の 1 回の発動で出た弾や範囲がすべて消えた時点で回避／被弾を確定する」）。敵 AI の確かめ撃ち（`countsForDodge` が `false` の発動）は、結果をログに出すだけで、ドッジ率に数えません。
+ドッジ率は「敵の 1 回の発動で出た弾・範囲が**すべて消えた**時点で、1 つでも自キャラに当たっていれば被弾、当たっていなければ回避」と数えます（根拠: 指示書「ドッジ率は、敵の 1 回の発動で出た弾や範囲がすべて消えた時点で回避／被弾を確定する」）。敵 AI の確かめ撃ち（`probe` の発動）は、外れた時は結果をログに出すだけで、ドッジ率に数えません。当たった時は、普通の発動と同じく敵の発動 1・被弾 1 として数えます（根拠: 指示書「確かめ撃ちは、外れたものはドッジ率に数えない…」。2026-11-15 に変更。以前は当たっても数えず、被弾の数が HP・ダウンの数と合わないことがあった。外れたものまで数えると、確かめ撃ちをする賢さ 4・5 と隠れる場所のあるステージのドッジ率だけが高く出るので、数えない）。
 
 ```mermaid
 sequenceDiagram
@@ -250,7 +250,7 @@ sequenceDiagram
 | `targetUnit` | 対象指定のスキルの対象（兎になった敵もここ） |
 | `propKind` / `propId` | 鳩・帽子を対象にする場合の種類と番号 |
 | `doveCardOrigin` | エマの Q の溜めの間に R で鳩と入れ替わった時の、鳩の元の位置（鳩のカードは入れ替わる前の位置から出る。根拠: `e05707e`） |
-| `probe` | 敵 AI の確かめ撃ち（見えない自キャラがいるかを確かめる撃ち方）。ドッジ率に数えない（`World::beginCast` の `countsForDodge`。根拠: claude_improve_and_answer.txt の 2026/11/03 の Q3） |
+| `probe` | 敵 AI の確かめ撃ち（見えない自キャラがいるかを確かめる撃ち方）。外れたらドッジ率に数えず、当たったら被弾として数える（`World::beginCast` の `probe`。根拠: claude_improve_and_answer.txt の 2026/11/03 の Q3、2026-11-15 に当たった時の扱いを変更） |
 
 ### 4.3 `CastState`（構造体）: 詠唱中の状態
 

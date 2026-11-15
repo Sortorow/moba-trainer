@@ -103,13 +103,20 @@ void EnemyDirector::update(World& world, float dt) {
     const Unit* player = world.player();
     if (!player) return;
     const float now = world.time();
-    // 自キャラが視界の外にいる間は、位置を記録しない（見失った時は、追跡・探索で探す）
+    // 自キャラが視界の外にいる間は、位置を記録しない（見失った時は、追跡・探索で探す）。
+    // ただしプレイの始め（最初の update）だけは、見えていなくても開始位置を記録する（敵は自キャラの開始位置だけを
+    // 知っている）。始めに見えていなければ、すぐに開始位置で見失ったことになり、そこへ追いかけてから探す。
+    // この後は、見えていない自キャラの本当の位置を使わない
     const bool playerVisible = world.canSee(Team::Enemy, *player);
-    if (playerVisible) observer_.record(now, player->pos);
+    if (!playerVisible && !observer_.hasSamples()) {
+        log::debug("ai", "敵は自キャラの開始位置 {} だけを知っています（見えていないので、追いかけて探します）",
+                   geo::str(player->pos));
+    }
+    if (playerVisible || !observer_.hasSamples()) observer_.record(now, player->pos);
     observer_.update(now);
     updateMode(world, *player, playerVisible, dt);
 
-    const Vector2 seenPlayer = seenPlayerPosition(*player, now);
+    const Vector2 seenPlayer = seenPlayerPosition(now);
     for (Brain& brain : brains_) {
         Unit* enemy = world.findUnit(brain.unitId);
         if (!enemy || !enemy->alive) continue;
@@ -174,10 +181,9 @@ void EnemyDirector::planMovement(World& world, Brain& brain, Unit& enemy, Vector
         desired = desired + geo::perpendicular(away) * (brain.strafeSign * kStrafeDistance * level_.strafe);
     }
     // 自キャラがブッシュの中にいる時は、自キャラに最も近い敵だけが、そのブッシュの中に留まって陣営の視界を保つ
-    // （外へ間合いを取ると、見つける・見失うを繰り返すため。ほかの敵は、共有の視界でいつもの間合いから撃てる）。
-    // 一度も見えていない自キャラ（今の位置を使っている）には、この動きをしない
+    // （外へ間合いを取ると、見つける・見失うを繰り返すため。ほかの敵は、共有の視界でいつもの間合いから撃てる）
     const int bush = world.terrain().bushAt(seenPlayer);
-    if (bush >= 0 && observer_.hasSamples() && nearestToPlayer(world, brain, seenPlayer))
+    if (bush >= 0 && nearestToPlayer(world, brain, seenPlayer))
         desired = nearestPointInBush(world.terrain(), bush, desired);
     enemy.moveTarget = world.clampToBounds(desired, enemy.radius);
 }
@@ -205,8 +211,7 @@ void EnemyDirector::updateMode(World& world, const Unit& player, bool playerVisi
         clue_.reset();
         return;
     }
-    // 一度も見えていない時（最初から視界の外にいる時）は、見失ったことにしない
-    if (!observer_.hasSamples()) return;
+    // 見えていなければ、見失ったことにする（プレイの始めに見えていない時も、update が開始位置を記録しているので同じ）
     const float now = world.time();
     if (mode_ == Mode::Fight) startChase(world);
 
@@ -356,7 +361,7 @@ void EnemyDirector::tryProbe(World& world, Brain& brain, Unit& enemy) {
     if (!target) return;
 
     CastRequest request{probeSkill->slot, target->point};
-    request.probe = true;  // 自キャラを狙った撃ち方ではないので、ドッジ率に数えない
+    request.probe = true;  // 自キャラを狙った撃ち方ではないので、外れたらドッジ率に数えない（当たったら被弾）
     if (casting::requestCast(world, enemy, request) == casting::CastOutcome::Rejected) return;
     search_.markProbed(target->area);
     brain.lastCastTime = now;
@@ -365,9 +370,8 @@ void EnemyDirector::tryProbe(World& world, Brain& brain, Unit& enemy) {
                toString(probeSkill->slot), probeSkill->name, geo::str(target->point));
 }
 
-Vector2 EnemyDirector::seenPlayerPosition(const Unit& player, float now) const {
-    // 一度も見えていなければ、位置の記録が無い（positionAt は (0, 0) を返してしまう）ので、今の位置を使う
-    if (!observer_.hasSamples()) return player.pos;
+Vector2 EnemyDirector::seenPlayerPosition(float now) const {
+    // update の始めに必ず記録がある（最初の update で開始位置を記録する）ので、記録が無いことはない
     return observer_.positionAt(now - level_.reactionTime);
 }
 
@@ -396,7 +400,7 @@ void EnemyDirector::tryCast(World& world, Brain& brain, Unit& enemy, const Unit&
 
     // AI が認識している自キャラ（反応の遅れの分だけ前の位置・速度）
     AimTarget target;
-    target.pos = seenPlayerPosition(player, now);
+    target.pos = seenPlayerPosition(now);
     target.velocity = playerStuck ? Vector2{} : observer_.velocityAt(now - level_.reactionTime);
     target.moveSpeed = player.moveSpeed();
     target.radius = player.radius;

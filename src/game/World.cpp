@@ -236,8 +236,8 @@ void World::damagePlayer(Unit& player) {
 // ---------------------------------------------------------------------------
 // 発動の記録（ドッジ率の集計）
 // ---------------------------------------------------------------------------
-void World::beginCast(int castId, Team team, SkillSlot slot, bool countsForDodge) {
-    casts_[castId] = CastRecord{team, slot, 0, false, countsForDodge};
+void World::beginCast(int castId, Team team, SkillSlot slot, bool probe) {
+    casts_[castId] = CastRecord{team, slot, 0, false, probe};
 }
 
 void World::endCastIfIdle(int castId) {
@@ -258,9 +258,11 @@ void World::finishCastRecord(int castId) {
     casts_.erase(it);
     stats_.settle(castId);  // 自キャラの発動なら、ヒット率の「外れ」もここで確定する
     if (record.team != Team::Enemy) return;
-    if (!record.countsForDodge) {
-        log::debug("dodge", "castId={} [{}] の結果: {}（確かめ撃ちなので、ドッジ率に数えない）", castId,
-                   toString(record.slot), record.hitPlayer ? "被弾" : "当たらなかった");
+    // 確かめ撃ちは、自キャラを狙った撃ち方ではない。外れたものは数えない（いない所へ撃った弾を「回避」にしない）。
+    // 当たったものは HP が減るので、敵の発動 1・被弾 1 として数える（被弾の数が HP・ダウンの数と合うように）
+    if (record.probe && !record.hitPlayer) {
+        log::debug("dodge", "castId={} [{}] の結果: 当たらなかった（確かめ撃ちなので、ドッジ率に数えない）", castId,
+                   toString(record.slot));
         return;
     }
 
@@ -270,8 +272,8 @@ void World::finishCastRecord(int castId) {
     } else {
         ++dodge_.dodged;
     }
-    log::debug("dodge", "castId={} [{}] の結果: {}（ドッジ {} / {}）", castId, toString(record.slot),
-               record.hitPlayer ? "被弾" : "回避", dodge_.dodged, dodge_.total);
+    log::debug("dodge", "castId={} [{}] の結果: {}{}（ドッジ {} / {}）", castId, toString(record.slot),
+               record.hitPlayer ? "被弾" : "回避", record.probe ? "（確かめ撃ち）" : "", dodge_.dodged, dodge_.total);
 }
 
 Vector2 World::clampToBounds(Vector2 point, float radius) const {

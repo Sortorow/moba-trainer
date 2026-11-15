@@ -114,8 +114,8 @@ public:
     // 発動の記録（ドッジ率の集計用）。SkillCasting がスキルの処理の前後に呼ぶ
 
     /// 発動の記録を始める（この後に出す弾・範囲がすべて消えた時に、当たったかどうかが確定する）
-    /// @param countsForDodge 敵の発動を、ドッジ率に数えるか（敵 AI の確かめ撃ちは数えない）
-    void beginCast(int castId, Team team, SkillSlot slot, bool countsForDodge = true);
+    /// @param probe 敵 AI の確かめ撃ちか（外れたらドッジ率に数えない。当たったら、普通の発動と同じく被弾として数える）
+    void beginCast(int castId, Team team, SkillSlot slot, bool probe = false);
     /// 弾も範囲も出さなかった発動（ワープなど）は、ここで記録を閉じる
     void endCastIfIdle(int castId);
 
@@ -178,7 +178,7 @@ private:
         SkillSlot slot = SkillSlot::Q;
         int liveEntities = 0;
         bool hitPlayer = false;
-        bool countsForDodge = true;  // false なら、敵の発動でもドッジ率に数えない（確かめ撃ち）
+        bool probe = false;  // 敵 AI の確かめ撃ち（外れたらドッジ率に数えない。当たったら被弾として数える）
     };
 
     /// キャラ 1 体を進める（状態異常・クールダウン・詠唱・移動。最後に障害物から押し出す）

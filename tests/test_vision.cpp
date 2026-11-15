@@ -3,6 +3,7 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <memory>
 #include <optional>
@@ -234,7 +235,13 @@ TEST_CASE("視界: 射程外の対象へ近づいている途中で対象が見�
 }
 
 TEST_CASE("敵 AI: 自キャラが見えない間は撃たない") {
-    // 自キャラはブッシュの中。ブッシュの外の敵からは見えない
+    // 自キャラはブッシュの中から始まる。ブッシュの外の敵からは見えないが、開始位置で見失ったことになるので、
+    // 敵はブッシュへ入ってきて見つけ、見えてから撃つ。見えていない刻みに撃ち始めないことを確かめる。
+    // 確かめ撃ちをしない賢さ 3 で確かめる（賢さ 4・5 の確かめ撃ちは、見えなくても撃つ。test_search.cpp）
+    struct Casts {
+        int whileHidden = 0;  // 自キャラが見えていない刻みに撃ち始めた回数
+        int total = 0;        // 撃ち始めた回数
+    };
     const auto enemyCasts = [](bool withBush, float seconds) {
         VisionFixture f(
             makeStage({}, withBush ? std::vector<Shape>{circle(0.0f, 0.0f, 250.0f)} : std::vector<Shape>{}));
@@ -242,26 +249,38 @@ TEST_CASE("敵 AI: 自キャラが見えない間は撃たない") {
         REQUIRE(def != nullptr);
         Unit player = makePlayerUnit(*def);
         player.pos = {0.0f, 0.0f};
-        f.world().addUnit(player);
+        const EntityId playerId = f.world().addUnit(player);
         const EntityId enemy = f.addUnit(Team::Enemy, {800.0f, 0.0f}, "like_ezreal");
+        REQUIRE_FALSE(f.data().ai().level(3).probe);
 
         ai::EnemyDirector director;
-        director.setup(f.data().ai(), 5, 7);
+        director.setup(f.data().ai(), 3, 7);
         director.addEnemy(enemy);
-        bool cast = false;
+        Casts casts;
         const int steps = static_cast<int>(seconds * 120.0f);
         for (int i = 0; i < steps; ++i) {
-            director.update(f.world(), 1.0f / 120.0f);
-            f.world().update(1.0f / 120.0f);
-            // 詠唱を始めたか、クールダウンが入っていれば撃った
+            // 敵 AI は、update の始めに見えているかで撃つかを決める。詠唱が始まるか、クールダウンが入れば撃ち始めた
+            const bool visible = f.world().canSee(Team::Enemy, f.unit(playerId));
             const Unit& u = f.unit(enemy);
-            cast = cast || u.cast.active ||
-                   std::any_of(u.cooldowns.begin(), u.cooldowns.end(), [](float c) { return c > 0.0f; });
+            const bool wasCasting = u.cast.active;
+            const std::array<float, kSkillSlotCount> cooldowns = u.cooldowns;
+            director.update(f.world(), 1.0f / 120.0f);
+            bool started = !wasCasting && u.cast.active;
+            for (std::size_t slot = 0; slot < cooldowns.size(); ++slot) {
+                if (u.cooldowns[slot] > cooldowns[slot]) started = true;
+            }
+            if (started) {
+                ++casts.total;
+                if (!visible) ++casts.whileHidden;
+            }
+            f.world().update(1.0f / 120.0f);
         }
-        return cast;
+        return casts;
     };
-    CHECK(enemyCasts(false, 6.0f));  // 見えていれば撃つ
-    CHECK_FALSE(enemyCasts(true, 6.0f));
+    CHECK(enemyCasts(false, 6.0f).total > 0);  // 見えていれば撃つ
+    const Casts hidden = enemyCasts(true, 10.0f);
+    CHECK(hidden.whileHidden == 0);
+    CHECK(hidden.total > 0);  // ブッシュへ入ってきて見つけた後は撃つ
 }
 
 TEST_CASE("敵 AI: 自キャラと保つ距離は、視界の半径より内側") {

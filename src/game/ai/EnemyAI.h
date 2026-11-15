@@ -9,6 +9,8 @@
 //               着いても見つからなければ、敵全員で手分けして、まだ見ていないエリアを探す（探索。SearchMap.h）。
 //               全エリアを探しても見つからなければ、最初から探し直す。誰か 1 体でも見つけたら、全員が元の動きに戻る。
 //               賢さ 4 以上（probe）は、ブッシュの中や壁の向こうへ方向指定のスキルを撃って確かめ、当たればその位置へ向かう
+//   プレイの始め: 敵は自キャラの開始位置だけを知っている。始めに見えていなければ、開始位置で見失ったことにして、
+//               追跡・探索をする（見えていない自キャラの本当の位置は使わない）
 // 賢さごとの数値は data/ai.jsonc で調整できる。
 
 #include <cstdint>
@@ -35,8 +37,8 @@ class EnemyDirector {
 public:
     /// 敵全員の動き方
     enum class Mode {
-        Fight,   // 自キャラが見えている（一度も見えていない時も含む）: 間合いを保って撃つ
-        Chase,   // 見失った直後か、見えない自キャラにスキルが当たった: その位置へ追いかける
+        Fight,  // 自キャラが見えている: 間合いを保って撃つ
+        Chase,  // 見失った直後（プレイの始めに見えていない時も）か、見えない自キャラにスキルが当たった: その位置へ追いかける
         Search,  // 追いかけた先にもいなかった: まだ見ていないエリアを手分けして探す
     };
 
@@ -113,8 +115,8 @@ private:
     /// @param playerStuck 自キャラが動けないか（動けないなら、今の位置だけを狙う）
     AimWeights aimWeights(bool playerStuck) const;
     /// AI が認識している自キャラの位置（反応の遅れの分だけ前の、見えていた位置）。
-    /// 一度も見えていない時（最初から視界の外にいる時）は、位置の記録が無いので今の位置
-    Vector2 seenPlayerPosition(const Unit& player, float now) const;
+    /// プレイの始めに見えていなかった時は、見えるまで開始位置
+    Vector2 seenPlayerPosition(float now) const;
     /// min 以上 max 未満の乱数（max が min 以下なら min）
     float uniform(float min, float max);
 

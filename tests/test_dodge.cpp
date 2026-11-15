@@ -139,6 +139,29 @@ TEST_CASE("5 回当たると、ダウン数が 1 増えて全回復する") {
     CHECK(f.world().dodge().hit == 5);
 }
 
+TEST_CASE("確かめ撃ちは、外れたらドッジ率に数えず、当たったら HP が減って「被弾」として数える") {
+    DodgeFixture f("like_ezreal");
+    const EntityId brand = f.addEnemy("like_brand", {700, 0});
+    // 外れた確かめ撃ち: いない所へ撃った弾を「回避」にしない
+    CastRequest miss{SkillSlot::Q, {700, 600}};
+    miss.probe = true;
+    casting::requestCast(f.world(), f.unit(brand), miss);
+    f.run(1.4f);
+    CHECK(f.world().dodge().total == 0);
+    CHECK(f.player().hp == 5);
+
+    // 当たった確かめ撃ち: 普通の発動と同じく、敵の発動 1・被弾 1（被弾の数が、HP・ダウンの数と合うように）
+    f.unit(brand).cooldowns = {};
+    CastRequest hit{SkillSlot::Q, {0, 0}};
+    hit.probe = true;
+    casting::requestCast(f.world(), f.unit(brand), hit);
+    f.run(1.0f);
+    CHECK(f.player().hp == 4);
+    CHECK(f.world().dodge().total == 1);
+    CHECK(f.world().dodge().hit == 1);
+    CHECK(f.world().dodge().dodged == 0);
+}
+
 TEST_CASE("遅れて爆発するスキルは、予告の間に範囲から出れば当たらない") {
     DodgeFixture f("like_ezreal");
     const EntityId brand = f.addEnemy("like_brand", {700, 0});
@@ -428,45 +451,39 @@ TEST_CASE("punishCC の敵は、動けない自キャラにも punishMinInterval
     CHECK(casts <= maxCasts);
 }
 
-TEST_CASE("敵 AI: 自キャラが最初からブッシュに隠れていて一度も見えていなければ、(0, 0) ではなく今の位置を基準に動く") {
+TEST_CASE("敵 AI: プレイの始めから森のブッシュに隠れたままの自キャラを、開始位置へ追いかけて見つけ、撃つ") {
+    // 照合の報告（2026-11-15）の Q1 の場面。以前は、一度も見えていない自キャラには追跡・探索をせず、
+    // 本当の位置の周りを回り続けて、見つけられず撃てなかった
     GameData data(makeAppPaths(MOBA_SOURCE_DIR));
     data.loadAll();
-    const CharacterDef* def = data.character("like_ezreal");
-    REQUIRE(def != nullptr);
+    const InputFrame noInput;
+    for (const std::uint32_t seed : {1u, 2u, 3u, 4u}) {
+        CAPTURE(seed);
+        MatchConfig config;
+        config.mode = GameMode::SkillDodge;
+        config.characterId = "like_ezreal";
+        config.stageId = "forest";
+        config.enemyCount = 3;
+        config.aiLevel = 5;
+        config.timeLimitSeconds = 60.0f;
+        config.seed = seed;
+        Match match(data, config);
+        REQUIRE(match.valid());
+        // 最初の刻みの前に、自キャラを (-450, 450) のブッシュ（半径 220）の中へ移す。何も入力しない
+        Unit& player = *match.world().player();
+        player.pos = Vector2{-450.0f, 450.0f};
+        REQUIRE(match.world().terrain().bushAt(player.pos) >= 0);
 
-    // (1500, 0) にブッシュがあるステージ。自キャラはその中から始まる
-    StageDef stage;
-    stage.id = "bush_test";
-    stage.bounds = kSandboxBounds;
-    Shape bush;
-    bush.kind = Shape::Kind::Circle;
-    bush.center = Vector2{1500.0f, 0.0f};
-    bush.radius = 250.0f;
-    stage.bushes.push_back(bush);
-    World world(data, Terrain(stage));
-    Unit player = makePlayerUnit(*def);
-    player.pos = bush.center;
-    world.addUnit(player);
-
-    // 敵は自キャラの向こう側（原点から見て、自キャラより遠い所）
-    Unit enemy;
-    enemy.team = Team::Enemy;
-    enemy.name = "敵";
-    enemy.characterId = def->id;
-    enemy.radius = def->hitboxRadius;
-    enemy.baseMoveSpeed = def->moveSpeed;
-    enemy.pos = Vector2{2200.0f, 0.0f};
-    const EntityId enemyId = world.addUnit(enemy);
-    REQUIRE_FALSE(world.canSee(Team::Enemy, *world.player()));
-
-    ai::EnemyDirector director;
-    director.setup(data.ai(), 1, 42);
-    director.addEnemy(enemyId);
-    director.update(world, 1.0f / 120.0f);
-
-    // 自キャラから見て敵のいる側（+X）に、保つ距離だけ離れた所へ向かう。
-    // (0, 0) を自キャラの位置と思っていると、原点から敵の方へ保つ距離だけの所（自キャラより手前）になる
-    const std::optional<Vector2> target = world.findUnit(enemyId)->moveTarget;
-    REQUIRE(target.has_value());
-    CHECK(target->x > bush.center.x);
+        float foundAfter = -1.0f;
+        constexpr int kTicks = 30 * 120;
+        for (int i = 1; i <= kTicks && foundAfter < 0.0f; ++i) {
+            match.update(1.0f / 120.0f, noInput);
+            if (match.world().canSee(Team::Enemy, *match.world().player())) foundAfter = static_cast<float>(i) / 120.0f;
+        }
+        MESSAGE(std::format("種 {}: 見つけるまで {:.1f} 秒", seed, foundAfter));
+        REQUIRE(foundAfter > 0.0f);
+        // 見つけた後は、撃ってくる
+        for (int i = 0; i < 10 * 120; ++i) match.update(1.0f / 120.0f, noInput);
+        CHECK(match.world().dodge().total > 0);
+    }
 }

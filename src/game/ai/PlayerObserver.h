@@ -16,7 +16,7 @@ public:
     void clear();
     /// 自キャラの位置を記録する（自キャラが見えている間、毎刻み呼ぶ。2 秒より古い記録は捨てる）
     void record(float time, Vector2 pos);
-    /// 位置の記録が 1 つでもあるか（自キャラが一度も見えていなければ false）
+    /// 位置の記録が 1 つでもあるか（新しいプレイの最初の記録の前だけ false。敵 AI は、最初の update で必ず記録する）
     bool hasSamples() const { return !samples_.empty(); }
     /// 最後に見えた時刻（最後に記録した時刻）。先に hasSamples() で確かめる
     float lastSeenTime() const { return samples_.back().time; }
