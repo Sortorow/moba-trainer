@@ -140,7 +140,7 @@
 | `World& world()`（const 版もある） | ゲームの中身 |
 | `DummyController& dummies()` | 練習場のダミーの動き（デバッグパネルが変える） |
 | `const ai::EnemyDirector& enemies() const` / `const ai::SkillShotTarget& target() const` | AI（デバッグパネル・リザルト） |
-| `void refreshDummiesIfChanged()` | 練習場で、ダミーの設定（プリセットの選択や sandbox.jsonc の中身）が変わっていれば、ダミーを置き直す。`GameData::sandboxRevision()` と、置いた時の番号を比べる |
+| `void refreshDummiesIfChanged()` | 練習場で、画面のパネルでプリセットを選び直していれば、ダミーを置き直す。`GameData::sandboxRevision()` と、置いた時の番号を比べる。プレイ中は設定ファイルを読み直さないので、sandbox.jsonc を書き換えても、このプレイのダミーは変わらない（次のプレイから。2026-11-15） |
 
 ### 4.3 非公開メンバ関数
 

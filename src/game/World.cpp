@@ -284,22 +284,10 @@ void World::setCooldownScale(Team team, float scale) {
     (team == Team::Player ? playerCooldownScale_ : enemyCooldownScale_) = std::max(0.0f, scale);
 }
 
-void World::refreshUnitsFromData() {
-    for (Unit& unit : units_) {
-        const CharacterDef* def = characterOf(unit);
-        if (!def) continue;
-        unit.radius = def->hitboxRadius;
-        unit.baseMoveSpeed = def->moveSpeed;
-        unit.color = def->color;
-        unit.name = def->displayName;
-    }
-}
-
 // ---------------------------------------------------------------------------
 // キャラ
 // ---------------------------------------------------------------------------
 void World::updateUnit(Unit& unit, float dt) {
-    unit.status.update(dt);
     for (float& cooldown : unit.cooldowns) cooldown = std::max(0.0f, cooldown - dt);
     unit.hitFlash = std::max(0.0f, unit.hitFlash - dt);
     unit.revealTime = std::max(0.0f, unit.revealTime - dt);
@@ -315,6 +303,11 @@ void World::updateUnit(Unit& unit, float dt) {
     }
     // ワープなどで障害物やステージの外にかかっていたら押し出す
     unit.pos = terrain_.pushOut(unit.pos, unit.radius);
+
+    // 状態異常の残り時間を減らすのは、詠唱と移動の後にする。状態異常を付けるのは、この後の弾と範囲の処理だけなので、
+    // 付いた効果は次の刻みの詠唱・移動に必ず効く。先に減らすと、長さ 1 刻み以下の効果（鉄菱の lingerTime 0 など）が
+    // 移動の前に消えてしまう。AI・入力・HUD から見た状態異常とも、同じ刻みで効くようになる
+    unit.status.update(dt);
 }
 
 // 目的地（moveTarget）へ、壁を回り込む道のり（path）に沿って進む

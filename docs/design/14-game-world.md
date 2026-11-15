@@ -63,7 +63,7 @@
 ゲームを `dt` 秒進めます。固定の刻み（1/120 秒）で呼びます。
 
 1. `time_ += dt`
-2. すべてのキャラを進める（`updateUnit`）: 状態異常 → クールダウン → 被弾の光 → 撃って見えるようになっている時間（`revealTime`） → 詠唱（`casting::update`）→ 移動 → 障害物から押し出す
+2. すべてのキャラを進める（`updateUnit`）: クールダウン → 被弾の光 → 撃って見えるようになっている時間（`revealTime`） → 詠唱（`casting::update`）→ 移動 → 障害物から押し出す → 状態異常の残り時間を減らす
 3. `flushSpawns`: 2 で出た弾・範囲・設置物を加える
 4. `updateProjectiles`: 弾を進めて当てる
 5. `updateAreas`: 範囲を進めて当てる
@@ -73,6 +73,10 @@
 9. `removeDead`: 消えた物を取り除き、発動の結果を確定する
 
 **注意事項**: キャラの更新はキャラを加えた順です。上の 2 の中でスキルが出た場合、その弾は同じ刻みの 4 で 1 回目の移動をします。
+
+**注意事項**: 状態異常の残り時間を減らすのは、キャラの更新の最後です。状態異常を付けるのは 4・5（弾と範囲が当たった時）だけなので、付いた効果は、長さが 0 でも次の刻みの詠唱と移動に必ず効きます。AI・入力（`Match::update` で `World::update` より前に動く）と HUD から見た効果とも、同じ刻みで効きます。
+
+**背景**（2026-11-15）: 以前は最初に減らしていたので、長さが 1 刻み（1/120 秒）以下の効果は移動の前に消えていました（鉄菱の `lingerTime` を 0 にすると、範囲の中でもスロウが効かなかった）。また、効果が切れる直前の 1 刻みは、AI と HUD からは効いて見えるのに、移動には効いていませんでした。
 
 ### 2.3 追加・削除
 
@@ -161,7 +165,6 @@ sequenceDiagram
 |---|---|
 | `Vector2 clampToBounds(Vector2 point, float radius) const` | 点をステージの内側（半径 `radius` の円がはみ出さない位置）に収める。障害物は考えない |
 | `Vector2 placeable(Vector2 point, float radius) const` | 点の近くで、キャラが立てる位置（`Terrain::pushOut`）。ワープ先・キャラの初期位置に使う |
-| `void refreshUnitsFromData()` | 設定ファイルを読み直した後に、キャラの大きさ・移動速度・色・名前を反映する（ダミー・的は対象外） |
 | `void setCooldownScale(Team team, float scale)` / `float cooldownScale(Team) const` / `float cooldownScaleFor(const Unit&) const` | 陣営ごとのクールダウンの倍率。0 ならクールダウンなし。負の値は 0 にする |
 | `void setRules(const WorldRules&)` / `const WorldRules& rules() const` | モードごとのルール |
 
@@ -394,7 +397,7 @@ sequenceDiagram
 | 関数 | 説明 |
 |---|---|
 | `void apply(const EffectSpec& spec, EntityId source)` | 効果を付ける。同じ種類（印は同じ `tag`）が既にあれば、**残り時間と強さの大きい方**に更新する（重ねがけしない） |
-| `void update(float dt)` | 残り時間を減らし、時間切れの効果を消す |
+| `void update(float dt)` | 残り時間を減らし、時間切れの効果を消す。`World::updateUnit` が、詠唱と移動の後に呼ぶ（2.2 の注意事項） |
 | `void clear()` | すべて消す |
 | `bool has(EffectType) const` | その種類がかかっているか |
 | `float remaining(EffectType) const` | 残り時間（最も長いもの）。無ければ 0 |

@@ -123,8 +123,6 @@ public:
     Vector2 clampToBounds(Vector2 point, float radius) const;
     /// point の近くで、半径 radius のキャラが立てる位置（障害物とステージの外から押し出す）
     Vector2 placeable(Vector2 point, float radius) const { return terrain_.pushOut(point, radius); }
-    /// 設定ファイルの再読み込み後に、キャラの大きさ・移動速度・色・名前を反映する（ダミーは対象外）
-    void refreshUnitsFromData();
 
     // クールダウンの倍率（自キャラと敵で別々に持つ。0 ならクールダウンなし）
 

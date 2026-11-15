@@ -31,9 +31,11 @@ public:
     /// 前回の内容をそのまま使う
     void loadAll();
 
-    /// 前回の読み込みからファイルが更新されていれば loadAll() する（1 秒ごとに App から呼ばれる）
+    /// 前回の読み込みからファイルが更新されていれば loadAll() する（プレイ中でなければ、1 秒ごとに App から呼ばれる）
     /// @return 再読み込みしたかどうか
     bool reloadIfChanged();
+    /// 前回の読み込みからファイルが更新されたか（読み込みはしない。プレイ中に変更を知らせるために App が使う）
+    bool hasChangedFiles() const;
 
     /// data フォルダの各ファイルの場所
     const AppPaths& paths() const { return paths_; }
@@ -77,6 +79,12 @@ public:
 private:
     /// 監視するすべての設定ファイルと、その更新日時
     std::map<std::filesystem::path, std::filesystem::file_time_type> scanFileTimes() const;
+    /// 1 つのファイルの更新日時（読めなければ file_time_type::min()）
+    static std::filesystem::file_time_type fileTime(const std::filesystem::path& file);
+    /// そのファイルに、まだ読んでいない変更が無いか（自分で書き込む前に調べる）
+    bool isUpToDate(const std::filesystem::path& file) const;
+    /// 自分で書き込んだファイルの更新日時だけを覚え直す（自分の書き込みで再読み込みが起きないように）
+    void rememberFileTime(const std::filesystem::path& file);
     /// フォルダの中の .jsonc ファイル（名前順）。フォルダが無ければ空
     static std::vector<std::filesystem::path> jsoncFilesIn(const std::filesystem::path& dir);
     /// 読み込んだキャラの各スキルの params を確かめる。警告はエラーの一覧に足す

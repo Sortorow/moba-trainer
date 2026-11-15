@@ -115,7 +115,7 @@ MSVC のランタイムは静的リンク（`MultiThreaded`）で、exe 1 つで
    - ログの保持ルール → `core/LogRetention`（根拠: `LogRetention.h`「ファイル操作はしない（テストしやすくするため）」）
    - 敵の狙い → `game/ai/Aim`（根拠: `Aim.h`「World に依存しない計算だけなので、テストで直接確かめられる」）
    - ウィンドウの大きさ（解像度の一覧・画面に入るかの判定） → `ui/WindowResolution`、文字の倍率 → `ui/UiScale` の `scaleForWindowHeight`
-3. **数値はコードに書かず、設定ファイルに書く**（データ駆動）。スキル・AI・ステージ・ダミーの数値は `data/` にあり、ゲームの起動中に保存すると自動で読み直されます（根拠: 指示書「数値はファイルで調整できるようにする」）。
+3. **数値はコードに書かず、設定ファイルに書く**（データ駆動）。スキル・AI・ステージ・ダミーの数値は `data/` にあり、ゲームの起動中に保存すると自動で読み直されます（根拠: 指示書「数値はファイルで調整できるようにする」）。ただし、プレイ中は読み直さず、次のプレイから反映します（2026-11-15。[40-cross-cutting.md](40-cross-cutting.md) の 6 章）。
 4. **Windows 固有の処理は `core/Platform.cpp` と `core/Log.cpp` に閉じ込める**。`windows.h` は raylib と名前（`DrawText` `CloseWindow` など）がぶつかるためです。
 
 ## 6. 依存の向き
@@ -245,7 +245,7 @@ sequenceDiagram
     participant M as Match
     participant R as 描画
 
-    F->>D: 1 秒ごとに reloadIfChanged（設定ファイルが変わっていれば読み直す）
+    F->>D: 1 秒ごとに reloadIfChanged（設定ファイルが変わっていれば読み直す。プレイ中は読み直さず、変わったかだけを見る）
     F->>F: checkWindowHeight（全画面の切り替えなどで高さが変わったら、文字の倍率を合わせ直す）
     F->>I: poll → InputFrame
     F->>F: handleGlobalKeys（F1・F5・Alt+Enter・Esc・Y）
@@ -272,7 +272,7 @@ flowchart TD
     C --> D[EnemyDirector::update<br/>スキルドッジの敵]
     D --> E[SkillShotTarget::update<br/>スキルショットの的]
     E --> F[World::update]
-    F --> F1[各キャラ: 状態異常・クールダウン・詠唱・移動・押し出し]
+    F --> F1[各キャラ: クールダウン・詠唱・移動・押し出し・状態異常の残り時間]
     F1 --> F2[flushSpawns: 増えた弾・範囲・設置物を加える]
     F2 --> F3[弾を進めて当てる]
     F3 --> F4[範囲を進めて当てる]
@@ -320,7 +320,7 @@ stateDiagram-v2
 
 | 入出力 | 内容 | 担当 |
 |---|---|---|
-| 設定ファイル（読み） | `data/*.jsonc`。1 秒ごとに更新日時を見て、変わっていれば読み直す | `GameData` |
+| 設定ファイル（読み） | `data/*.jsonc`。1 秒ごとに更新日時を見て、変わっていれば読み直す（プレイ中は読み直さず、次のプレイを始める時に読む） | `GameData`、`App` |
 | 設定ファイル（書き） | `sandbox.jsonc` の `"preset"` の値だけ。コメントや他の行は変えない | `saveSelectedSandboxPreset` |
 | リザルト（読み書き） | `results/dodge/<YYYY-MM-DD>.json` と `results/shot/<YYYY-MM-DD>.json` | `ResultStore` |
 | ログ（書き） | `logs/moba_trainer_YYYYMMDD_HHMMSS.log`。1 ファイル 20MB まで、10 日分 | `core/Log` |

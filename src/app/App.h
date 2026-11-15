@@ -51,12 +51,19 @@ private:
     void frame();
     /// 画面に関係なく効くキー（F1・F5・Alt + Enter・Esc・Y）と、入力スクリプトの指示を処理する
     void handleGlobalKeys(const InputFrame& input);
-    /// 設定ファイルを読み直す。読み直したら、ログの詳しさ・文字の倍率・カメラ・キャラ・ダミーにも反映する
+    /// 設定ファイルを読み直す（自動の確認・F5・デバッグパネル）。プレイ中（ポーズ中も）は読み直さず、
+    /// 次にプレイを始める時（startMatch）に読む。変更を見つけたら、ログとデバッグパネルで知らせる
     /// @param force true なら変更が無くても読み直す（F5）。false なら変更があった時だけ
     void reloadData(bool force);
+    /// 設定ファイルを今すぐ読み直し、ログの詳しさ・文字の倍率・カメラに反映する。プレイ中に後回しにした F5 もここで行う
+    /// @param force true なら変更が無くても読み直す。false なら変更があった時だけ
+    void loadData(bool force);
+    /// プレイ中（プレイ・ポーズ）か。プレイ中は、設定ファイルの変更をそのプレイに反映しない
+    bool playInProgress() const;
     /// コマンドライン引数から、メニューを飛ばして始める時のプレイの設定を作る
     MatchConfig configFromCommandLine() const;
-    /// プレイを始める（始められなければメニューのまま）。カメラは自キャラを映す
+    /// プレイを始める（始められなければメニューのまま）。始める前に、設定ファイルの変更（プレイ中に保存されたものや F5）を
+    /// 読み込むので、新しいプレイは必ず最新の設定で始まる。カメラは自キャラを映す
     void startMatch(const MatchConfig& config);
     /// プレイを終えてメニューに戻る
     void backToMenu();
@@ -100,7 +107,9 @@ private:
     InputFrame pendingInput_;                             // まだゲームの更新に渡していない入力
     float accumulator_ = 0.0f;
     float reloadCheckTimer_ = 0.0f;
-    float scriptClock_ = 0.0f;   // 入力スクリプトの時刻（1 フレームごとに 1/60 秒進む）
+    bool forceReloadPending_ = false;  // プレイ中に F5 が押された（次のプレイを始める時に必ず読み直す）
+    bool changeNoticed_ = false;       // プレイ中に設定ファイルの変更を見つけた（ログは 1 回だけ出す）
+    float scriptClock_ = 0.0f;         // 入力スクリプトの時刻（1 フレームごとに 1/60 秒進む）
     ui::WindowSize windowSize_;  // ウィンドウの時の大きさ（全画面の間も、ウィンドウに戻した時の大きさを覚えておく）
     int uiScaleHeight_ = 0;      // 文字の倍率を決めた時のウィンドウの高さ（変わったら倍率を合わせ直す）
 

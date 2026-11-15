@@ -11,6 +11,8 @@ namespace moba {
 GameData::GameData(AppPaths paths) : paths_(std::move(paths)) {}
 
 void GameData::loadAll() {
+    // 更新日時は読む前に取る（読んでいる途中に保存された変更を、読んだことにしないように。次の確認で読み直す）
+    std::map<std::filesystem::path, std::filesystem::file_time_type> times = scanFileTimes();
     errors_.clear();
     clearDataWarnings();  // スキルを使った時の誤りも、読み直したら一度消す（直っていなければ、次に使った時にまた出る）
 
@@ -115,7 +117,7 @@ void GameData::loadAll() {
     }
     stages_ = std::move(loadedStages);
 
-    fileTimes_ = scanFileTimes();
+    fileTimes_ = std::move(times);
     ++generation_;
 
     log::info("data", "設定を読み込みました（{} 回目）: キャラ {} 体、ステージ {} 個、エラー {} 件", generation_,
@@ -145,8 +147,10 @@ std::vector<const StageDef*> GameData::stageList() const {
     return list;
 }
 
+bool GameData::hasChangedFiles() const { return scanFileTimes() != fileTimes_; }
+
 bool GameData::reloadIfChanged() {
-    if (scanFileTimes() == fileTimes_) return false;
+    if (!hasChangedFiles()) return false;
     log::info("data", "設定ファイルの変更を検知したため、再読み込みします");
     loadAll();
     return true;
@@ -180,14 +184,17 @@ bool GameData::selectSandboxPreset(std::string_view name) {
     if (!sandbox_.preset(name)) return false;
     sandbox_.selectedPreset = std::string(name);
     ++sandboxRevision_;
+    const bool upToDate = isUpToDate(paths_.sandboxFile);
     const std::string error = saveSelectedSandboxPreset(paths_.sandboxFile, name);
     if (!error.empty()) {
         log::error("data", "練習場のダミーの選択を保存できませんでした: {}", error);
         errors_.push_back(error);
         return true;  // 保存はできなかったが、選択は反映している
     }
-    // 自分で書き込んだ変更で、再読み込みが起きないようにする
-    fileTimes_ = scanFileTimes();
+    // 自分で書き込んだ変更で、再読み込みが起きないようにする。覚え直すのは書き込んだファイルの日時だけ（ほかのファイルの
+    // まだ読んでいない変更を、読んだことにしないように）。書き込む前からこのファイルに読んでいない変更があった時は、
+    // 覚え直さずに、次の確認で読み直す（書き戻すのは "preset" の値だけなので、その変更もファイルに残っている）
+    if (upToDate) rememberFileTime(paths_.sandboxFile);
     log::info("data", "練習場のダミーを「{}」にして、sandbox.jsonc に保存しました", name);
     return true;
 }
@@ -195,14 +202,15 @@ bool GameData::selectSandboxPreset(std::string_view name) {
 void GameData::saveWindowSize(int width, int height) {
     settings_.windowWidth = width;
     settings_.windowHeight = height;
+    const bool upToDate = isUpToDate(paths_.settingsFile);
     const std::string error = moba::saveWindowSize(paths_.settingsFile, width, height);
     if (!error.empty()) {
         log::error("data", "解像度を保存できませんでした: {}", error);
         errors_.push_back(error);
         return;
     }
-    // 自分で書き込んだ変更で、再読み込みが起きないようにする
-    fileTimes_ = scanFileTimes();
+    // 自分で書き込んだ変更で、再読み込みが起きないようにする（覚え直す範囲は selectSandboxPreset と同じ）
+    if (upToDate) rememberFileTime(paths_.settingsFile);
     log::info("data", "解像度 {}x{} を settings.jsonc に保存しました", width, height);
 }
 
@@ -230,17 +238,24 @@ std::vector<std::string> GameData::errors() const {
 
 std::map<std::filesystem::path, std::filesystem::file_time_type> GameData::scanFileTimes() const {
     std::map<std::filesystem::path, std::filesystem::file_time_type> times;
-    std::error_code ec;
-    times[paths_.settingsFile] = std::filesystem::last_write_time(paths_.settingsFile, ec);
-    times[paths_.aiFile] = std::filesystem::last_write_time(paths_.aiFile, ec);
-    times[paths_.sandboxFile] = std::filesystem::last_write_time(paths_.sandboxFile, ec);
-    for (const std::filesystem::path& file : jsoncFilesIn(paths_.charactersDir)) {
-        times[file] = std::filesystem::last_write_time(file, ec);
-    }
-    for (const std::filesystem::path& file : jsoncFilesIn(paths_.stagesDir)) {
-        times[file] = std::filesystem::last_write_time(file, ec);
-    }
+    times[paths_.settingsFile] = fileTime(paths_.settingsFile);
+    times[paths_.aiFile] = fileTime(paths_.aiFile);
+    times[paths_.sandboxFile] = fileTime(paths_.sandboxFile);
+    for (const std::filesystem::path& file : jsoncFilesIn(paths_.charactersDir)) times[file] = fileTime(file);
+    for (const std::filesystem::path& file : jsoncFilesIn(paths_.stagesDir)) times[file] = fileTime(file);
     return times;
 }
+
+std::filesystem::file_time_type GameData::fileTime(const std::filesystem::path& file) {
+    std::error_code ec;
+    return std::filesystem::last_write_time(file, ec);  // 読めなければ ec が立ち、file_time_type::min() が返る
+}
+
+bool GameData::isUpToDate(const std::filesystem::path& file) const {
+    const auto it = fileTimes_.find(file);
+    return it != fileTimes_.end() && it->second == fileTime(file);
+}
+
+void GameData::rememberFileTime(const std::filesystem::path& file) { fileTimes_[file] = fileTime(file); }
 
 }  // namespace moba

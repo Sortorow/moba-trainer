@@ -16,7 +16,8 @@ struct DebugPanelResult {
 };
 
 /// デバッグパネル（F1）を描く。キャラの切り替え・設定の一時変更・集計・ダミー・自キャラの状態などを表示する
+/// @param reloadPending プレイ中に設定ファイルの変更を見つけたか、F5 が押されたか（次のプレイから反映することを知らせる）
 /// @return パネルで押された操作（再読み込み・キャラの切り替え）。実際の処理は App が行う
-DebugPanelResult drawDebugPanel(Match& match, GameData& data);
+DebugPanelResult drawDebugPanel(Match& match, GameData& data, bool reloadPending);
 
 }  // namespace moba

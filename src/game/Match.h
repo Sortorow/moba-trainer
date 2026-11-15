@@ -70,7 +70,8 @@ public:
     /// スキルショットの的の AI
     const ai::SkillShotTarget& target() const { return target_; }
 
-    /// 練習場: ダミーの設定（プリセットの選択や sandbox.jsonc の中身）が変わっていれば、ダミーを置き直す
+    /// 練習場: 練習場の画面のパネルでプリセットを選び直していれば、ダミーを置き直す。
+    /// （プレイ中は設定ファイルを読み直さないので、sandbox.jsonc を書き換えても、このプレイのダミーは変わらない）
     void refreshDummiesIfChanged();
 
 private:

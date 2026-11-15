@@ -42,7 +42,7 @@ TEST_CASE("コマンドライン引数: 数・名前・フラグを読み、読�
     CHECK(parseCommandLine({}, error).has_value());  // 引数なし = メニューから始める
 }
 
-TEST_CASE("コマンドライン引数: 日本語や Shift_JIS で書けない文字を含むパスも、そのままのパスになる（B5）") {
+TEST_CASE("コマンドライン引数: 日本語や Shift_JIS で書けない文字を含むパスも、そのままのパスになる") {
     std::string error;
     const std::optional<CommandLineOptions> options =
         parseCommandLine({"--script", "C:/練習/한글𠮷/input.txt", "--results-dir", "D:/結果/𠮷野家"}, error);

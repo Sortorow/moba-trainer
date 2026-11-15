@@ -4,6 +4,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <regex>
 #include <string>
 
 #include "TempDataCopy.h"
@@ -131,4 +132,25 @@ TEST_CASE("練習場: 選んだプリセットのダミーが置かれ、プレ�
     data.loadAll();
     match.refreshDummiesIfChanged();
     CHECK(dummyUnits(match)[0]->id == firstId);
+}
+
+TEST_CASE("練習場: キャラのファイルを保存した後にプリセットを選んでも、キャラの変更を読んだことにしない") {
+    // プレイ中は設定ファイルを読み直さないので、プレイの途中で保存した変更は、次のプレイを始める時まで残っている必要がある
+    TempDataCopy copy;
+    GameData data(copy.paths());
+    data.loadAll();
+    REQUIRE(data.selectSandboxPreset("標準"));
+    CHECK_FALSE(data.hasChangedFiles());  // 自分で書き込んだ sandbox.jsonc は、変わったことにならない
+
+    const auto lingerTime = [&] { return data.character("like_emma")->skill(SkillSlot::D)->numOr("lingerTime", 0.0f); };
+    REQUIRE(lingerTime() != doctest::Approx(0.25f));
+    const std::filesystem::path file = copy.paths().charactersDir / "like_emma.jsonc";
+    REQUIRE(TempDataCopy::rewrite(file, std::regex(R"re(("lingerTime"\s*:\s*)[0-9.]+)re"), "$1 0.25") == 1);
+    test::markModified(file);
+    REQUIRE(data.selectSandboxPreset("距離の練習"));
+
+    CHECK(data.hasChangedFiles());
+    REQUIRE(data.reloadIfChanged());
+    CHECK(lingerTime() == doctest::Approx(0.25f));
+    CHECK(data.sandbox().selectedPreset == "距離の練習");
 }

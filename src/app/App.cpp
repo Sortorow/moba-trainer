@@ -234,8 +234,29 @@ void App::handleGlobalKeys(const InputFrame& input) {
     }
 }
 
+bool App::playInProgress() const { return match_ && (screen_ == Screen::Playing || screen_ == Screen::Paused); }
+
 void App::reloadData(bool force) {
-    if (force) {
+    // プレイ中は読み直さない。プレイの途中で設定が変わると、古い設定と新しい設定が混ざり（地形や敵 AI の設定は開始時に
+    // 写している）、記録する成績の条件も途中で変わってしまうため。変更は、次にプレイを始める時に読む（startMatch）
+    if (playInProgress()) {
+        if (force && !forceReloadPending_) {
+            forceReloadPending_ = true;
+            log::info("app", "F5: プレイ中なので、次のプレイを始める時に設定ファイルを読み直します");
+        } else if (!force && !changeNoticed_ && data_.hasChangedFiles()) {
+            changeNoticed_ = true;
+            log::info("data", "設定ファイルの変更を見つけました。プレイ中なので、次のプレイから反映します");
+        }
+        return;
+    }
+    loadData(force);
+}
+
+void App::loadData(bool force) {
+    const bool forced = force || forceReloadPending_;
+    forceReloadPending_ = false;
+    changeNoticed_ = false;
+    if (forced) {
         log::info("app", "F5: 設定ファイルを再読み込みします");
         data_.loadAll();
     } else if (!data_.reloadIfChanged()) {
@@ -247,10 +268,6 @@ void App::reloadData(bool force) {
     if (data_.settings().cameraMode != settingsCameraMode_) {
         settingsCameraMode_ = cameraMode_ = data_.settings().cameraMode;
         log::info("camera", "設定ファイルにより、カメラを「{}」にしました", displayName(cameraMode_));
-    }
-    if (match_) {
-        match_->world().refreshUnitsFromData();
-        match_->refreshDummiesIfChanged();  // sandbox.jsonc が書き換えられていれば、ダミーを置き直す
     }
 }
 
@@ -272,6 +289,8 @@ MatchConfig App::configFromCommandLine() const {
 }
 
 void App::startMatch(const MatchConfig& config) {
+    // 新しいプレイは、最新の設定ファイルで始める（プレイ中に保存された変更や、プレイ中に押された F5 をここで反映する）
+    loadData(false);
     auto match = std::make_unique<Match>(data_, config);
     if (!match->valid()) {
         log::error("app", "プレイを開始できませんでした");
@@ -404,10 +423,10 @@ void App::draw() {
             drawHud(*match_, camera_, cameraMode_);
             if (match_->config().mode == GameMode::Sandbox) {
                 drawSandboxPanel(data_);
-                match_->refreshDummiesIfChanged();  // プリセットを選び直していれば、ダミーを置き直す
+                match_->refreshDummiesIfChanged();  // パネルでプリセットを選び直していれば、ダミーを置き直す
             }
             if (!debugPanelVisible_) break;
-            const DebugPanelResult result = drawDebugPanel(*match_, data_);
+            const DebugPanelResult result = drawDebugPanel(*match_, data_, forceReloadPending_ || changeNoticed_);
             if (result.reloadData) reloadData(true);
             if (result.switchCharacter) {
                 MatchConfig next = match_->config();

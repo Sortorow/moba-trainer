@@ -50,7 +50,7 @@
 
 | 読むもの | 分かればよいこと |
 |---|---|
-| [src/data/GameData.h](../../src/data/GameData.h) | すべての設定ファイルを `GameData` 1 つが持っている。1 秒ごとに変更を調べて読み直す |
+| [src/data/GameData.h](../../src/data/GameData.h) | すべての設定ファイルを `GameData` 1 つが持っている。1 秒ごとに変更を調べて読み直す（プレイ中は読み直さず、次のプレイを始める時に読む） |
 | [src/data/CharacterDef.h](../../src/data/CharacterDef.h) | キャラとスキルは「共通の項目」＋「handler の名前」＋「handler ごとの params」で書く |
 | [data/characters/like_ezreal.jsonc](../../data/characters/like_ezreal.jsonc) | 実際の設定ファイルの形。上の構造体と見比べる |
 

@@ -70,6 +70,9 @@ data/
 ### 再読み込みとエラー
 
 - **ゲームの起動中にファイルを保存すると、1 秒以内に自動で再読み込みされます**（`F5` でもすぐに再読み込みできます）。担当は `GameData::reloadIfChanged()`（`src/data/GameData.cpp`）で、1 秒ごとに `src/app/App.cpp` から呼ばれます。
+- ただし、**プレイ中（ポーズ中も）は再読み込みしません**。プレイ中に保存した変更は、そのプレイには反映されず、**次に始めたプレイから**反映されます（リスタート・もう一度遊ぶ・デバッグパネルでのキャラの切り替えも、新しいプレイなので反映されます）。練習場も同じです。プレイ中に `F5` を押した時も、次のプレイを始める時に読み直します。プレイ中に変更を見つけると、ログとデバッグパネルに「次のプレイから反映します」と出ます。
+  - 理由: プレイの途中で設定が変わると、古い設定と新しい設定が混ざり（ステージの地形や敵 AI の設定はプレイの開始時に決まる）、記録する成績の条件も途中で変わってしまうためです（2026-11-15。以前は、キャラの大きさ・速さ・色・名前、スキルの数値、練習場のダミーなどをプレイの途中でも反映していました）。
+  - 練習場の画面のパネルでプリセットを選んだ時は、ファイルの再読み込みではなく画面の操作なので、これまでどおりすぐにダミーを置き直します。
 - 書き方の誤りなどで読み込めなかったファイルは、**前回読み込めた内容を使い続けます**。エラーの内容は、メニュー画面とデバッグパネル（`F1`）に赤字で表示され、ログにも記録されます。
 - キャラのファイルは、読み込む時に、各スキルの `params` が [8 章の決まり](#params-の値の決まり)を満たすかを確かめます（必ず書く項目があるか・値の範囲・型）。1 つでも満たさなければ、**そのキャラのファイル全体を使いません**（前回読み込めた内容があればそれを使い、初めての読み込みなら、そのキャラはメニューで選べません）。理由は、ほかのエラーと同じく赤字で表示されます。
 - `params` に 8 章の表に無い項目名を書いた時は、エラーにはせず「警告:」で始まる文を赤字の一覧に出すだけです（その項目は使われません。書き間違いに気付けるように出しています）。
@@ -223,7 +226,7 @@ data/
 
 - プリセットは、メニュー（モードで「練習場」を選んだ時）と、練習場の画面右下の「練習場のダミー」で選べます。
 - 選ぶとすぐにダミーが置き直され、選んだプリセットの名前がこのファイルの `"preset"` に書き戻されます（次に起動した時も、そのプリセットで始まります）。書き戻すのは一番外側の `"preset"` の値だけで、コメントや他の行はそのまま残ります（コメント・文字列・`presets` の中にある `"preset"` は書き換えません）。
-- 練習場で遊んでいる途中にこのファイルを保存すると、中身が変わっていればダミーが置き直されます。
+- 練習場で遊んでいる途中にこのファイルを保存しても、そのプレイのダミーは変わりません。次に始めたプレイから反映されます（[2 章](#再読み込みとエラー)。2026-11-15 より前は、遊んでいる途中でもダミーが置き直されていました）。
 - デバッグパネル（`F1`）の「ダミー」で、ダミーごとの動き方・移動速度を一時的に変えることもできます（ファイルには保存されません）。
 
 ### プリセットの選択と一覧
@@ -316,12 +319,12 @@ data/
 | 項目 | 既定値 | 意味 | 使うコード |
 |---|---|---|---|
 | `id` | （必須） | キャラの ID。ファイル同士で重複してはいけない | `src/data/GameData.cpp`（キャラの一覧・重複のチェック）<br>`src/game/World.cpp`（キャラの設定を ID で探す）<br>`src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの配置）<br>`src/app/App.cpp`（コマンドラインでの指定・エラーの表示）<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`（キャラの選択） |
-| `displayName` | `id` と同じ | 画面に出す名前（`like ezreal` など） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`（キャラ名としてコピー → `src/render/Hud.cpp` が頭上に表示、ログにも出る）<br>`src/game/Match.cpp` → `src/ui/ResultScreen.cpp`（リザルトの表示）<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`（キャラの一覧） |
+| `displayName` | `id` と同じ | 画面に出す名前（`like ezreal` など） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラ名としてコピー → `src/render/Hud.cpp` が頭上に表示、ログにも出る）<br>`src/game/Match.cpp` → `src/ui/ResultScreen.cpp`（リザルトの表示）<br>`src/ui/MainMenu.cpp`、`src/ui/DebugPanel.cpp`（キャラの一覧） |
 | `origin` | 空 | 元のゲーム（`"LoL"` / `"ER"`）。メニューの表示用 | `src/ui/MainMenu.cpp` |
 | `menuOrder` | `1000` | キャラを並べる順（小さいほど先。同じなら `id` の順）。今は エマ 1・エズリアル 2・ブランド 3 で、新しいキャラは今の最後の番号の次を付けて末尾に足す。一覧の最初のキャラがメニューの初期値になる | `src/data/GameData.cpp`（キャラの一覧と、敵として出られるキャラの一覧の並び）→ `src/ui/MainMenu.cpp`（キャラの選択・登場する敵の表示）、`src/ui/DebugPanel.cpp`（キャラの選択）、`src/app/App.cpp`（コマンドラインでキャラを指定しなかった時の初期値）、`src/game/Match.cpp`（キャラが見つからない時の代わり・敵のキャラの選択） |
-| `moveSpeed` | `325` | 移動速度（ゲーム内単位 / 秒） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（移動）、`src/game/ai/EnemyAI.cpp`（狙いの計算）、`src/ui/DebugPanel.cpp`（表示） |
-| `hitboxRadius` | `65` | 当たり判定の半径。画面に描く円の大きさでもある | `src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（当たり判定・カーソル下の敵の選択・地形との当たりと経路探索。地形の計算は `src/game/Terrain.cpp`）、`src/game/SkillCasting.cpp`（移動先の調整・兎の選択）、`src/game/skills/SkillHelpers.cpp`（ワープ先の調整）、`src/game/skills/EmmaSkills.cpp`（R の移動先）、`src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp`（狙いの計算）、`src/render/Renderer.cpp`（描画）、`src/render/Hud.cpp`（名前の位置・画面外の判定） |
-| `color` | 灰色 | キャラの色 | `src/game/Match.cpp`、`src/game/Sandbox.cpp`、`src/game/World.cpp`（キャラの情報にコピー）<br>→ `src/render/Renderer.cpp`（描画）、`src/game/skills/SkillHelpers.cpp`（スキルの `color` を省略した時の弾・範囲の色） |
+| `moveSpeed` | `325` | 移動速度（ゲーム内単位 / 秒） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（移動）、`src/game/ai/EnemyAI.cpp`（狙いの計算）、`src/ui/DebugPanel.cpp`（表示） |
+| `hitboxRadius` | `65` | 当たり判定の半径。画面に描く円の大きさでもある | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（当たり判定・カーソル下の敵の選択・地形との当たりと経路探索。地形の計算は `src/game/Terrain.cpp`）、`src/game/SkillCasting.cpp`（移動先の調整・兎の選択）、`src/game/skills/SkillHelpers.cpp`（ワープ先の調整）、`src/game/skills/EmmaSkills.cpp`（R の移動先）、`src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp`（狙いの計算）、`src/render/Renderer.cpp`（描画）、`src/render/Hud.cpp`（名前の位置・画面外の判定） |
+| `color` | 灰色 | キャラの色 | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/render/Renderer.cpp`（描画）、`src/game/skills/SkillHelpers.cpp`（スキルの `color` を省略した時の弾・範囲の色） |
 | `skills` | （必須） | `Q` `W` `E` `R` `D` `F` のスキル。`null` にすると、そのキーにはスキルが無い | 下の表 |
 
 ### スキルの項目（`skills.Q` など）
@@ -544,7 +547,7 @@ data/
 
 | ソースコード | 何をしているか | 関係するファイル |
 |---|---|---|
-| `App.cpp` / `App.h` | ウィンドウの大きさ（起動時に画面に入るかを確かめる。メニューで解像度を選んだら大きさを変えて保存させる）・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する。起動時に、スキルの params を確かめる関数（`src/game/skills/SkillParams.cpp`）を `GameData` に渡す。コマンドラインで指定したキャラとステージ（`--stage`）を使う。練習場では、ダミーのプリセットを選ぶパネル（`src/ui/SandboxPanel.cpp`）を出し、選び直されたり sandbox.jsonc が書き換えられたりしたらダミーを置き直させる。カメラが動ける範囲として、ステージの範囲を渡す | settings、sandbox、stages、characters |
+| `App.cpp` / `App.h` | ウィンドウの大きさ（起動時に画面に入るかを確かめる。メニューで解像度を選んだら大きさを変えて保存させる）・文字の大きさ・カメラ（`cameraMode`・`cameraViewHeight`・`cameraEdgeScrollSpeed`・`cameraEdgeMargin`）・ログの詳しさ・当たり判定の円の表示に使う。1 秒ごとに再読み込みを確認する（プレイ中は読み直さず、次のプレイを始める時に読む）。起動時に、スキルの params を確かめる関数（`src/game/skills/SkillParams.cpp`）を `GameData` に渡す。コマンドラインで指定したキャラとステージ（`--stage`）を使う。練習場では、ダミーのプリセットを選ぶパネル（`src/ui/SandboxPanel.cpp`）を出し、選び直されたらダミーを置き直させる。カメラが動ける範囲として、ステージの範囲を渡す | settings、sandbox、stages、characters |
 | `CommandLine.cpp` / `CommandLine.h` | 使わない | — |
 
 ### src/core/
@@ -656,7 +659,7 @@ data/
 |---|---|---|
 | `test_character_data.cpp` | 設定ファイルがすべて読み込めること、handler が実在し params が決まりを満たすことを確認するテスト。決まりを満たさない params を書いた写しで、そのファイルを使わないことも確かめる | すべて |
 | `TempDataCopy.h` | テスト用の部品。data フォルダを一時フォルダへ写し、設定ファイルの一部を書き換えて試せるようにする（本物は書き換えない） | すべて |
-| `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する。一部のテストは、キャラのファイルの写しを書き換えて試す（エマの Q を貫通にする・エズリアルの W の params を消す） | characters |
+| `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する。一部のテストは、キャラのファイルの写しを書き換えて試す（エマの Q を貫通にする・エマの D の `lingerTime` を 0 にする・エズリアルの W の params を消す） | characters |
 | `test_dodge.cpp` | スキルドッジのテスト。設定ファイルを読み込み、`src/game/Match.cpp` を通してキャラと敵 AI の設定を使う。一部のテストは、写しの `castTime` と `enemyCooldownScale` を 0 に書き換えて試す | ai、characters |
 | `test_results.cpp` | 使わない（リザルトの保存のテスト。一時フォルダを使う） | — |
 | `test_stats.cpp` | 使わない（統計の計算のテスト） | — |
@@ -665,9 +668,9 @@ data/
 | `test_log_retention.cpp` | 使わない | — |
 | `test_main.cpp` | 使わない | — |
 | `test_ui_scale.cpp` | 使わない（`UiScale.cpp` と `WindowResolution.cpp` の計算を、テスト用の値で確かめる） | — |
-| `test_settings.cpp` | `settings.jsonc` の既定値を確かめる。一時フォルダへ写したもので、`window` の書き戻しを確かめる | settings |
+| `test_settings.cpp` | `settings.jsonc` の既定値を確かめる。一時フォルダへ写したもので、`window` の書き戻しと、ファイルの変更を読み込まずに見つけられること（キャラのファイルの写しを書き換える）を確かめる | settings、characters |
 | `test_camera.cpp` | 使わない（`CameraControl.cpp` の計算を、テスト用の値で確かめる） | — |
-| `test_sandbox.cpp` | sandbox.jsonc が読み込めること、プリセットを選ぶと `"preset"` だけが書き換わること、練習場のダミーが置き直されることのテスト（data フォルダを一時フォルダへ写して使う） | sandbox、characters |
+| `test_sandbox.cpp` | sandbox.jsonc が読み込めること、プリセットを選ぶと `"preset"` だけが書き換わること、練習場のダミーが置き直されること、プリセットを選んでもキャラのファイルのまだ読んでいない変更が残ること（キャラのファイルの写しを書き換える）のテスト（data フォルダを一時フォルダへ写して使う） | sandbox、characters |
 | `test_stage.cpp` | ステージのファイルが読み込めること、半径 65 のキャラが立てる場所にはすべて (0, 0) からたどり着けること、壁を回り込むこと、立てない場所を指定した時・たどり着けない時の動き、ブッシュの見え方、路地裏・森でスキルドッジを遊んでも障害物に入り込まないことのテスト | stages、characters |
 | `test_vision.cpp` | 視線を遮る物（箱は遮らない）、視界の半径、ブッシュの奥、撃った時に見える時間、近づいている途中の中止、見えない時に敵が撃たないこと、敵が保つ距離、視界の形と視線の判定が一致することのテスト | settings、ai、stages、characters |
 | `test_search.cpp` | 探索のエリア分け・探索済みの記録・確かめ撃ちの先の選び方、見失った自キャラを敵が探して見つけること、全エリアを探し終えたら探し直すこと、確かめ撃ち（賢さ 4 は撃ち、賢さ 3 は撃たない。ドッジ率に数えない）、ブッシュの中の自キャラを見つけたら最も近い敵が留まることのテスト | settings、ai、characters |

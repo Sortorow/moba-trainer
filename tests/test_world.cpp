@@ -3,6 +3,8 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
 #include <regex>
@@ -458,6 +460,75 @@ TEST_CASE("エマ D: 範囲に入った敵にスロウがかかり続ける") {
     f.run(1.0f);
     CHECK(f.unit(target).status.has(EffectType::Slow));
     CHECK(f.unit(target).moveSpeed() == doctest::Approx(150.0f));
+}
+
+namespace {
+
+/// 鉄菱（エマの D）のスロウが、移動に実際に効いたかを測った結果
+struct ZoneSlowSteps {
+    float fullStep = 0.0f;         ///< スロウが無い時の 1 刻みの移動距離
+    float insideStep = 0.0f;       ///< 範囲の中での 1 刻みの移動距離
+    float outsideStep = 0.0f;      ///< スロウが切れた後の 1 刻みの移動距離
+    int slowedStepsAfterExit = 0;  ///< 範囲の外へ出た後に、スロウが効いた刻みの数
+};
+
+/// 鉄菱の範囲の中でダミーを歩かせて 1 刻みの移動距離を測り、範囲の外へワープさせた後にスロウが効いた刻みを数える
+/// （moveSpeed() は 1 刻みの最後の値なので、移動に効いたかは動いた距離で確かめる）
+ZoneSlowSteps measureZoneSlow(Fixture& f) {
+    constexpr float kDt = 1.0f / 120.0f;
+    const EntityId id = f.addDummy({450, 0});
+    f.cast(SkillSlot::D, {450, 0});
+    f.run(1.0f);  // 鉄菱が着地し、ダミーが範囲の中にいる
+    casting::orderMove(f.world(), f.unit(id), {450, 1500});
+
+    // 1 刻み進めて、ダミーが動いた距離を返す
+    const auto step = [&] {
+        const Vector2 before = f.unit(id).pos;
+        f.world().update(kDt);
+        return Vector2Distance(before, f.unit(id).pos);
+    };
+    ZoneSlowSteps result;
+    result.fullStep = f.unit(id).baseMoveSpeed * kDt;
+    result.insideStep = step();
+    f.unit(id).pos = {450, 700};  // 範囲（半径 220）の外へ
+    for (int i = 0; i < 240; ++i) {
+        const float moved = step();
+        if (moved > result.fullStep * 0.99f) {
+            result.outsideStep = moved;
+            break;
+        }
+        ++result.slowedStepsAfterExit;
+    }
+    return result;
+}
+
+}  // namespace
+
+TEST_CASE("エマ D: スロウは範囲の中で移動に効き、出た後は lingerTime の間だけ続く") {
+    Fixture f("like_emma");
+    const float slow = f.skill(SkillSlot::D).numOr("slowAmount", 0.0f);
+    const float linger = f.skill(SkillSlot::D).numOr("lingerTime", 0.0f);
+    REQUIRE(linger > 0.0f);
+    const ZoneSlowSteps steps = measureZoneSlow(f);
+    CHECK(steps.insideStep == doctest::Approx(steps.fullStep * (1.0f - slow)));
+    // 1 刻みの長さ（1/120 秒）は float でぴったり表せないので、1 刻みのずれは許す
+    CHECK(std::abs(steps.slowedStepsAfterExit - static_cast<int>(std::lround(linger * 120.0f))) <= 1);
+    CHECK(steps.outsideStep == doctest::Approx(steps.fullStep));
+}
+
+TEST_CASE("エマ D: lingerTime を 0 にしても、範囲の中ではスロウが効き、出たらすぐ切れる") {
+    // 以前は 1 刻みの最初に状態異常の残り時間を減らしていたので、長さ 0 のスロウが移動の前に消え、範囲の中でも効かなかった
+    const test::TempDataCopy copy;
+    REQUIRE(test::TempDataCopy::rewrite(copy.paths().charactersDir / "like_emma.jsonc",
+                                        std::regex(R"re(("lingerTime"\s*:\s*)[0-9.]+)re"), "$1 0") == 1);
+    Fixture f("like_emma", copy.paths());
+    REQUIRE(f.skill(SkillSlot::D).numOr("lingerTime", -1.0f) == 0.0f);
+    const float slow = f.skill(SkillSlot::D).numOr("slowAmount", 0.0f);
+    const ZoneSlowSteps steps = measureZoneSlow(f);
+    CHECK(steps.insideStep == doctest::Approx(steps.fullStep * (1.0f - slow)));
+    // 外へ出た最初の刻みは、刻みの初めに範囲の中にいた扱いなので効く。その次の刻みからは効かない
+    CHECK(steps.slowedStepsAfterExit == 1);
+    CHECK(steps.outsideStep == doctest::Approx(steps.fullStep));
 }
 
 TEST_CASE("発動の依頼の結果: 詠唱を始めた・予約した・使えなかった・すぐ発動した") {

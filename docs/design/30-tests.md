@@ -42,18 +42,18 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | [test_log_retention.cpp](../../tests/test_log_retention.cpp) | `core/LogRetention` | ファイル名から日付を読む・11 日目で最も古い日を消す・「ログがある日」で数える |
 | [test_command_line.cpp](../../tests/test_command_line.cpp) | `app/CommandLine`・`pathFromUtf8` | 引数の読み込みとエラー・日本語や Shift_JIS で書けない文字を含むパスがそのままのパスになる・エラーの文が文字化けしない・`pathFromUtf8` と `toUtf8` が互いに逆で、そのパスでファイルを作れる |
 | [test_character_data.cpp](../../tests/test_character_data.cpp) | `data/` | data フォルダがすべて読める（params の確認も通る）・キャラの並び順・すべての handler が実在し params が決まりを満たす（警告も無い）・決まりの細かい判定（0 を許す項目・型違い・選択肢・書き忘れ・効果・整数・負の値・知らない項目名は警告）・決まりを満たさないキャラのファイルは使わない（読み直しなら前回の内容、初めてなら選べない）・警告だけなら使えて一覧に出る・設定値が読めている |
-| [test_world.cpp](../../tests/test_world.cpp) | `World`・`casting`・各キャラのスキル | 移動・詠唱と予約・硬直・各スキルの命中・印の起爆・エマの Q / W / R の細かい仕様・クールダウンの短縮・クールダウン「なし」・発動の依頼の結果（`CastOutcome`）・貫通するエマの Q でも短縮は 1 回・スキルを使った時に見つかった設定の誤りがエラーの一覧に出る |
+| [test_world.cpp](../../tests/test_world.cpp) | `World`・`casting`・各キャラのスキル | 移動・詠唱と予約・硬直・各スキルの命中・印の起爆・エマの Q / W / R の細かい仕様・クールダウンの短縮・クールダウン「なし」・発動の依頼の結果（`CastOutcome`）・貫通するエマの Q でも短縮は 1 回・鉄菱のスロウが移動に効く長さ（範囲の中と、出た後の `lingerTime`。`lingerTime` 0 でも範囲の中では効く）・スキルを使った時に見つかった設定の誤りがエラーの一覧に出る |
 | [test_dodge.cpp](../../tests/test_dodge.cpp) | スキルドッジ・`ai::Aim`・ブランドの R | 被弾と HP・回避の確定・ダウン・予告の間に避ける・移動系だけのルール・偏差撃ち・射程外・ブランド R の跳ね返り・賢さとドッジ率・制限時間まで遊ぶ・詠唱時間もクールダウンも 0 のスキルでも撃つ間隔を守る・動けない自キャラにも `punishMinInterval` を空ける・一度も見えていない自キャラは今の位置を基準にする |
 | [test_shot.cpp](../../tests/test_shot.cpp) | スキルショット・`ai::SkillShotTarget` | 的の置き方・反応の下限・往復と接近のパターン・弾や範囲の回避・詠唱を見て避ける・飛んでいる途中の発動を数えない・賢さとヒット率 |
 | [test_stage.cpp](../../tests/test_stage.cpp) | `Terrain`・ステージ | 3 つのステージが読める・半径 65 のキャラが立てる場所にはすべてたどり着ける・壁を回り込む・建物の中をクリック・囲まれた場所へは行けない・ブッシュの見え方・対象指定で見える・障害物に入り込まない |
 | [test_vision.cpp](../../tests/test_vision.cpp) | `vision::`・`World` の視界・敵 AI | 建物・壁・木は遮り箱は遮らない・視界の半径・ブッシュの奥・撃った時に見える時間（見えている時は付かない）・近づいている途中で見えなくなったら発動をやめる・見えない時に敵は撃たない・敵が保つ距離は視界の内側・全視界（壁・ブッシュ・距離に関係なく見える、敵 AI がブッシュの中の自キャラにも撃つ、モードごとの初期値と `Match` のルール）・視界の形が壁の手前で止まり角に頂点がある・路地裏と森で視界の形と視線の判定が一致する・スキルショットの的の距離の上限は視界の内側・自キャラが離れても的は近づき直す・見失った敵は消えた方向へ追いかけ、ブッシュに入った自キャラを見つけ直す・賢さ 1 は最後に見えた位置、賢さ 5 は chasePredict の先まで追いかけてから探索に移る |
 | [test_search.cpp](../../tests/test_search.cpp) | `ai::SearchMap`・`EnemyDirector` の探索と確かめ撃ち | ブッシュは 1 エリア・地面は 500 四方・立てない所に点を置かない・小さいブッシュにも点がある・見えた点だけ見た扱い・探索済みとあきらめ・`reset`・次のエリアは見失った位置の近くで他の敵の行き先を避ける・確かめ撃ちの先は見えない所だけで 1 エリア 1 回・視界の半径より遠い所は選ばない・離れたブッシュの自キャラを探して見つける・建物の陰の自キャラを回り込んで見つける・たどり着けない部屋はあきらめて最初から探し直す・賢さ 4 は確かめ撃ちが当たって向かい、賢さ 3 は撃たない・確かめ撃ちはドッジ率に数えない・見つけたら元の動きに戻る・ブッシュの中の自キャラを見つけたら最も近い敵だけが留まって見失わない |
-| [test_sandbox.cpp](../../tests/test_sandbox.cpp) | `SandboxConfig`・練習場 | プリセットが読める・`"preset"` だけが書き換わりコメントが残る・コメント / 文字列 / 内側のオブジェクトの `"preset"` は書き換えない・一番外側に無ければ保存しない・プリセットの切り替えでダミーが置き直される |
+| [test_sandbox.cpp](../../tests/test_sandbox.cpp) | `SandboxConfig`・練習場 | プリセットが読める・`"preset"` だけが書き換わりコメントが残る・コメント / 文字列 / 内側のオブジェクトの `"preset"` は書き換えない・一番外側に無ければ保存しない・プリセットの切り替えでダミーが置き直される・キャラのファイルを保存した後にプリセットを選んでも、キャラの変更を読んだことにしない |
 | [test_results.cpp](../../tests/test_results.cpp) | `ResultStore` | 1 日 20 件・180 日・モードごとの保存・保存して読み直しても同じ・読めないファイルを `.broken` にする・順位 |
 | [test_stats.cpp](../../tests/test_stats.cpp) | `ResultStats` | 絞り込み・平均と自己ベスト・直近 7 日の比較・移動平均・自己ベストの更新と TOP 3・自己ベストの数字 / TOP 3 / グラフの更新の印が同じプレイを指す・日ごと / 賢さごと / キーごと |
 | [test_camera.cpp](../../tests/test_camera.cpp) | `render/CameraControl` | 固定・固定しない・画面の端・ステージの外まで動かない・Space・UI の上 |
 | [test_ui_scale.cpp](../../tests/test_ui_scale.cpp) | `ui::scaleForWindowHeight`・`ui::resolutionList`・`ui::fitsInArea`・`ui::startupWindowSize` | 文字の倍率は高さ ÷ 900 × `uiScale`・解像度の一覧はピクセル数の少ない順（1920×1080・2160×1440・2400×1350 を含む）・タイトルバーと枠を足して作業領域に入るか（ちょうどは入る、1 ピクセルはみ出すと入らない）・起動時は入る中で最も大きく、同じ縦横比を優先・どれも入らなければ最小 |
-| [test_settings.cpp](../../tests/test_settings.cpp) | `Settings`・`findJsoncValue`・`saveWindowSize`・`GameData::saveWindowSize` | 既定値（縦の見える範囲 2000・ウィンドウ 1920×1080）・入れ子のキーの値をコメント / 文字列 / 別のオブジェクトと区別して探す・`window` の `width`・`height` だけが書き換わりコメントが残る・どちらかが無ければファイルを変えない・保存した値を読み込んだ設定にも反映し、自分の書き込みでは読み直さない |
+| [test_settings.cpp](../../tests/test_settings.cpp) | `Settings`・`findJsoncValue`・`saveWindowSize`・`GameData::saveWindowSize`・`GameData::hasChangedFiles` | 既定値（縦の見える範囲 2000・ウィンドウ 1920×1080）・入れ子のキーの値をコメント / 文字列 / 別のオブジェクトと区別して探す・`window` の `width`・`height` だけが書き換わりコメントが残る・どちらかが無ければファイルを変えない・保存した値を読み込んだ設定にも反映し、自分の書き込みでは読み直さない・ファイルの変更は読み込まずに分かる（確かめただけでは読み込んだことにならない）・解像度を保存しても、まだ読んでいない別のファイルの変更を読んだことにしない・保存する前に settings.jsonc が書き換えられていたら、保存した後に読み直す |
 | [test_ui_text.cpp](../../tests/test_ui_text.cpp) | `ui::escapeFormat` | `%` が `%%` になり、書式に入れても元の文字のまま出る |
 
 `TEST_CASE` の名前は「何を・どうすると・どうなる」の文になっています。名前を上から読むと、仕様の一覧になります。
@@ -65,16 +65,18 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | 部品 | 説明 |
 |---|---|
 | `TempDataCopy` | ソースの data フォルダを、一時フォルダの中の新しいフォルダへ丸ごと写し、終わったら消す。`paths()` で写した data の場所を返す。ファイルに書き込むテスト（プリセットの保存）や、設定ファイルの一部を書き換えて試すテストで使う（本物の data フォルダを書き換えないように） |
+| `void markModified(const path& file)` | ファイルの更新日時を 5 秒進める。書き換えた直後のファイルを、更新日時の細かさに左右されずに「変わった」と `GameData` に見つけさせる（test_settings.cpp・test_sandbox.cpp） |
 | `string readText(const path& file)` | ファイルの中身をそのまま（文字コードや改行を変えずに）読む。設定ファイルの書き戻しのテストで、前後の中身を比べる時に使う（test_sandbox.cpp・test_settings.cpp） |
 | `static int TempDataCopy::rewrite(file, pattern, replacement)` | ファイルの中で正規表現 `pattern` に合う所を、すべて `replacement` に置き換える（文字コードや改行は変えない）。置き換えた数を返すので、テストで `REQUIRE(... == 1)` のように、狙った所だけが変わったことを確かめられる |
 
-**背景**（2026-10-30）: 以前は test_sandbox.cpp と test_dodge.cpp に似た部品がそれぞれあったので、報告ファイルの D2 と同じ考え方で 1 つにまとめました。`readText` も、2026-11-14 に test_settings.cpp で同じものが要るようになったため、test_sandbox.cpp から移しました。
+**背景**（2026-10-30）: 以前は test_sandbox.cpp と test_dodge.cpp に似た部品がそれぞれあったので、画面の共通の部品（[20-ui.md](20-ui.md) の 5 章・6 章）と同じ考え方で 1 つにまとめました。`readText` も、2026-11-14 に test_settings.cpp で同じものが要るようになったため、test_sandbox.cpp から移しました。
 
 ### 5.2 各ファイルの部品（各ファイルの無名名前空間）
 
 | 部品 | ファイル | 説明 |
 |---|---|---|
 | `Fixture` | test_world.cpp | 障害物のない `World` の (0, 0) に、指定したキャラの自キャラを置く。2 つ目の引数で、読む data フォルダ（`TempDataCopy` で写したもの）を渡せる。`addDummy`・`cast`・`resetCooldowns`・`cooldown`・`skill`（設定ファイルのスキル定義）・`timeToReach`・`findProp`・`data`（読み込んだ設定ファイル）・`run(seconds)`（1/120 秒刻みで進める） |
+| `ZoneSlowSteps`・`measureZoneSlow` | test_world.cpp | 鉄菱の範囲の中でダミーを歩かせた時の 1 刻みの移動距離と、範囲の外へ出た後にスロウが効いた刻みの数（`moveSpeed()` は刻みの最後の値なので、移動に効いたかは動いた距離で確かめる） |
 | `DodgeFixture` | test_dodge.cpp | `Fixture` と同様。HP を持たせるか選べる。`addEnemy`（キャラの設定どおりの敵。AI は付けない）・`cast(caster, ...)` |
 | `ShotFixture` | test_shot.cpp | (0, 0) に自キャラ、(distance, 0) に的を置き、的の AI で動かす |
 | `standStill()` / `alwaysDodge(readCast)` / `strafeOnly(...)` | test_shot.cpp | テスト用の的の賢さの設定（立ち止まる・必ず避ける・往復だけ） |

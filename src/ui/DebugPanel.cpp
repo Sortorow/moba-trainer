@@ -92,7 +92,7 @@ void drawSkillShotInfo(const Match& match) {
 
 }  // namespace
 
-DebugPanelResult drawDebugPanel(Match& match, GameData& data) {
+DebugPanelResult drawDebugPanel(Match& match, GameData& data, bool reloadPending) {
     DebugPanelResult result;
     World& world = match.world();
     // 練習場ではダミーが自キャラの右側にいるので、パネルは左側に置く
@@ -128,11 +128,16 @@ DebugPanelResult drawDebugPanel(Match& match, GameData& data) {
         Settings& settings = data.mutableSettings();
         ImGui::SliderFloat("視点の広さ", &settings.cameraViewHeight, 600.0f, 4000.0f, "%.0f");
         ImGui::Checkbox("当たり判定の円を表示", &settings.showHitboxes);
-        ImGui::TextDisabled("※ここでの変更は一時的です（設定ファイルを保存すると上書きされます）");
-        if (ImGui::Button("設定ファイルを再読み込み (F5)")) result.reloadData = true;
-        ImGui::SameLine();
+        ImGui::PushTextWrapPos(0.0f);  // パネルの幅で折り返す
+        ImGui::TextDisabled("※ここでの変更は一時的です（設定ファイルを読み直すと上書きされます）");
+        ImGui::PopTextWrapPos();
         if (ImGui::Button("クールダウンを解除")) {
             if (Unit* player = world.player()) player->cooldowns = {};
+        }
+        // プレイ中は設定ファイルを読み直さないので、このボタン（F5）も次のプレイを始める時に読み直す
+        if (ImGui::Button("次のプレイで設定ファイルを読み直す (F5)")) result.reloadData = true;
+        if (reloadPending) {
+            ImGui::TextColored(ImVec4{1.0f, 0.85f, 0.4f, 1.0f}, "設定ファイルの変更は、次のプレイから反映します");
         }
     }
 

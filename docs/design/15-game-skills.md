@@ -113,7 +113,7 @@ flowchart TD
 | `Approaching` | 射程外の対象へ近づき始めた（射程に入ったら詠唱を始める） | `pendingCast` |
 | `Rejected` | 使えなかった（スキルが無い・移動系だけのルール・クールダウン中・行動不能・対象がいない・詠唱中に射程外の対象を指定した） | 何もしない |
 
-**背景**（根拠: 報告ファイルの B1、2026-10-30 の修正）: 以前は戻り値が無く、敵 AI は「詠唱中になったか・クールダウンが入ったか」で撃てたかを推測していました。詠唱時間 0・クールダウン 0 のスキルでは、撃てても「撃てなかった」と判断され、毎刻み撃ち続ける不具合があったため、結果を返すようにしました。
+**背景**（根拠: `0220ef3` の修正、2026-10-30）: 以前は戻り値が無く、敵 AI は「詠唱中になったか・クールダウンが入ったか」で撃てたかを推測していました。詠唱時間 0・クールダウン 0 のスキルでは、撃てても「撃てなかった」と判断され、毎刻み撃ち続ける不具合があったため、結果を返すようにしました。
 
 ### 2.3 SkillCasting.cpp の中だけの関数
 
@@ -131,9 +131,9 @@ flowchart TD
 
 ### 2.4 注意事項
 
-- **クールダウンは詠唱の始めに入ります**。詠唱中にスタンされて中断されても、クールダウンは戻りません。不発の時（対象が消えていた）は、一部の handler が自分でクールダウンを 0 に戻します（`targeted_blast`・`brand_r`・`emma_r`）。
+- **クールダウンは詠唱の始めに入ります**。詠唱中にスタンされて中断されても、クールダウンは戻りません。不発の時（対象が消えていた）は、一部の handler が自分でクールダウンを 0 に戻します（`targeted_blast`・`brand_r`・`emma_r`）。どちらもユーザーが確かめた仕様です（根拠: character_traits.txt の「共通の仕様」）。
 - 予約（`bufferedCast`）は 1 つだけです。詠唱中に 2 回押すと、後に押した方だけが残ります。
-- 射程外の対象へ近づく途中で、射程に入った時にスキルを使えない状態（スタンなど）だと、接近をやめて**スキルは出ません**（`update` の `if (!caster.status.canCast()) return;`）。
+- 射程外の対象へ近づく途中で、射程に入った時にスキルを使えない状態（スタンなど）だと、接近をやめて**スキルは出ません**（`update` の `if (!caster.status.canCast()) return;`）。スタンが解けても発動しません。ユーザーが確かめた仕様です（根拠: 同上）。
 - 対象の向きを決めるのは `beginCast` の時（詠唱の始め）だけです。詠唱中に対象が動いても向きは変わりませんが、handler は発動の時の対象の位置を使います（`homing_projectile` は追尾する）。
 
 ---
@@ -249,13 +249,13 @@ using SkillHandler = void (*)(SkillContext&);
 | handler | 関数 | 動き | 主な params |
 |---|---|---|---|
 | `projectile` | `handleProjectile` | カーソルの方向へ、射程まで直線に飛ぶ弾。当たると印を起爆し、効果を付ける | `speed`・`width`・`pierce`・`visual`・`color`・`onHit`・`detonateMark` |
-| `homing_projectile` | `handleHomingProjectile` | 対象を追尾する弾（**必ず当たる**）。対象がいなければ不発（クールダウンは戻さない） | 同上（`pierce` なし） |
+| `homing_projectile` | `handleHomingProjectile` | 対象を追尾する弾（**必ず当たる**）。対象がいなければ不発（クールダウンは戻さない。仕様。根拠: character_traits.txt の「共通の仕様」） | 同上（`pierce` なし） |
 | `blink` | `handleBlink` | カーソルの位置（射程より遠ければ射程の端）へ瞬間移動 | `color` |
 | `ground_zone` | `handleGroundZone` | 地点に投げ、`flightTime` 後に着地して `duration` の間残る範囲。中にいる間スロウ（出た後も `lingerTime` 残る）。初めて入った時に `onHit` | `flightTime`・`radius`・`duration`・`visual`・`color`・`slowAmount`・`lingerTime`・`onHit` |
 | `ground_blast` | `handleGroundBlast` | 地点が `delay` 後に爆発する（予告円つき） | `delay`・`radius`・`color`・`onHit`・`cooldownRefundOnHit` |
 | `targeted_blast` | `handleTargetedBlast` | 対象の敵とその周りに、すぐに範囲効果。対象がいなければ不発でクールダウンを戻す | `radius`・`color`・`onHit` |
 
-**注意事項**: `ground_zone` のスロウは、中にいる間 毎刻み `lingerTime` の長さのスロウを付け直します（`StatusEffects::apply` は長い方に更新するので、出た後 `lingerTime` 秒で切れる）。
+**注意事項**: `ground_zone` のスロウは、中にいる間 毎刻み `lingerTime` の長さのスロウを付け直します（`StatusEffects::apply` は長い方に更新するので、出た後 `lingerTime` 秒で切れる）。`lingerTime` が 0 でも、範囲の中では移動に効きます（状態異常の残り時間を減らすのが、キャラの移動の後のため。[14-game-world.md](14-game-world.md) の 2.2）。
 
 ---
 
@@ -273,7 +273,7 @@ using SkillHandler = void (*)(SkillContext&);
 
 **動き**:
 
-1. エマのカード（直線の弾）を投げる。当たると Q のクールダウンを `cooldownRefundOnHit` 分短くする。**何体に当たっても短縮は 1 回だけ**（W と同じ。カードを貫通（`pierce: true`）にした時も 1 体目だけ。根拠: 報告ファイルの B2、2026-10-30 の修正）
+1. エマのカード（直線の弾）を投げる。当たると Q のクールダウンを `cooldownRefundOnHit` 分短くする。**何体に当たっても短縮は 1 回だけ**（W と同じ。カードを貫通（`pierce: true`）にした時も 1 体目だけ。根拠: `0220ef3` の修正、2026-10-30）
 2. 今いる鳩（1 羽まで）は、**どれだけ離れていても**カードになって狙った地点へ飛ぶ。鳩は消える
 3. エマの位置に新しい鳩を置く（`doveLifetime` 秒）
 4. 同じ敵にエマのカードと鳩のカードの**両方**が当たると、`doubleHitEffects`（スロウ）

@@ -1,6 +1,7 @@
 #pragma once
 // テスト用の部品: data フォルダを一時フォルダへ写して使う（本物の data フォルダを書き換えないように）
 
+#include <chrono>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -18,6 +19,12 @@ namespace moba::test {
 inline std::string readText(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
     return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
+/// ファイルの更新日時を 5 秒進める。書き換えた直後のファイルを、更新日時の細かさに左右されずに「変わった」と
+/// 見つけさせるために使う（GameData の再読み込みのテスト）
+inline void markModified(const std::filesystem::path& file) {
+    std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) + std::chrono::seconds(5));
 }
 
 /// data フォルダを一時フォルダへ写して使う。ファイルに書き込むテストや、設定ファイルの一部を書き換えて試すテストで使う

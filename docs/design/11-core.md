@@ -132,7 +132,7 @@ JsonLoadResult loadJsonFile(const std::filesystem::path& file);
 
 **`findJsoncValue` の仕組み**: ファイルの文字を先頭から 1 つずつ、**普通の文字・文字列・行コメント（`//`）・ブロックコメント（`/* */`）を区別しながら**読みます（`skipSpaceAndComments`・`stringEnd`。.cpp の中だけ）。`{` と `[` の深さを数え、深さが「入ったキーの数 + 1」の所にある文字列が次のキーと同じで、その後に `:` が続けば、キーが見つかったことにします。最後のキーなら、その後の値の範囲（`scalarValueAt`。数などは `,` `}` `]`・空白・コメントの手前まで）を返します。途中のキーなら、値の `{` の中へ入って次のキーを探します。入ったオブジェクトから出ても見つからなければ `nullopt` です。
 
-**背景**（根拠: 報告ファイルの B6、2026-11-14 の解像度の保存）: 以前は `SandboxConfig.cpp` の中に、一番外側の文字列の値だけを探す関数（`findTopLevelStringValue`）がありました。解像度の保存で `"window"` の中の数を書き換える必要ができたため、入れ子のキーと数も扱えるようにして、ここへ移しました（回答ファイルの D2「同じ役割なら共通の場所にまとめる」）。
+**背景**（根拠: `0220ef3` でコメントと文字列を区別して読むようにした修正（2026-10-30）と、`94f6f63` の解像度の保存（2026-11-14））: 以前は `SandboxConfig.cpp` の中に、一番外側の文字列の値だけを探す関数（`findTopLevelStringValue`）がありました。解像度の保存で `"window"` の中の数を書き換える必要ができたため、入れ子のキーと数も扱えるようにして、ここへ移しました（回答ファイルの D2「同じ役割なら共通の場所にまとめる」）。
 
 ---
 
@@ -293,7 +293,7 @@ JsonLoadResult loadJsonFile(const std::filesystem::path& file);
 | 関数 | 説明 | 背景 |
 |---|---|---|
 | `path executableDirectory()` | 実行中の exe があるフォルダ（`GetModuleFileNameW`） | data フォルダを探す起点 |
-| `vector<string> commandLineArgs()` | コマンドライン引数（exe の名前を除く）を UTF-8 で返す（`GetCommandLineW` → `CommandLineToArgvW` → UTF-8）。取れなければ空（ERROR のログ） | 根拠: 報告ファイルの B5。`main` の `argv` は Shift_JIS で、書けない文字が `?` になるため |
+| `vector<string> commandLineArgs()` | コマンドライン引数（exe の名前を除く）を UTF-8 で返す（`GetCommandLineW` → `CommandLineToArgvW` → UTF-8）。取れなければ空（ERROR のログ） | 根拠: `91ad8b0` の修正、2026-10-31。`main` の `argv` は Shift_JIS で、書けない文字が `?` になるため |
 | `void installCrashHandler()` | 未処理の例外（アクセス違反など）と `std::terminate` の時に、原因をログへ書く仕組みを入れる。起動時に 1 回 | 根拠: Platform.h。クラッシュの原因を後から調べられるように |
 | `void disableIme(void* nativeWindowHandle)` | ウィンドウの IME を無効にする（`ImmAssociateContext(hwnd, nullptr)`） | 根拠: 指示書「ゲームのウィンドウでは、日本語入力（IME）を無効にする」。日本語入力がオンのままでも Q/W/E/R が届くように |
 | `float windowDpiScale(void* nativeWindowHandle)` | ウィンドウがあるモニターの拡大率（`GetDpiForWindow` ÷ 96） | 根拠: Platform.h。raylib の `GetWindowScaleDPI()` は `FLAG_WINDOW_HIGHDPI` を付けないと常に 1.0 を返すため。2026-11-14 から、文字の倍率には使わず、起動時のログに出すだけ（[dpi-scaling.md](../dpi-scaling.md) の 6 章） |

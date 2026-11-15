@@ -3,8 +3,10 @@
 #include <doctest/doctest.h>
 
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <optional>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -16,6 +18,7 @@
 
 using namespace moba;
 // 解像度を選ぶと settings.jsonc に書き込むので、data フォルダを一時フォルダへ写して使う
+using test::markModified;
 using test::readText;
 using test::TempDataCopy;
 
@@ -120,4 +123,71 @@ TEST_CASE("GameData: 解像度を保存すると、読み込んだ設定にも�
     CHECK_FALSE(data.reloadIfChanged());
     CHECK(data.generation() == generation);
     CHECK(loadSettings(copy.paths().settingsFile).settings.windowWidth == 1600);
+}
+
+TEST_CASE("GameData: ファイルの変更は、読み込まずに分かる（プレイ中は読み込まず、変更があることだけを知らせる）") {
+    TempDataCopy copy;
+    GameData data(copy.paths());
+    data.loadAll();
+    CHECK_FALSE(data.hasChangedFiles());
+    const auto lingerTime = [&] { return data.character("like_emma")->skill(SkillSlot::D)->numOr("lingerTime", 0.0f); };
+    const float before = lingerTime();
+    REQUIRE(before != doctest::Approx(0.25f));
+
+    // キャラのファイルを書き換える
+    const std::filesystem::path file = copy.paths().charactersDir / "like_emma.jsonc";
+    REQUIRE(TempDataCopy::rewrite(file, std::regex(R"re(("lingerTime"\s*:\s*)[0-9.]+)re"), "$1 0.25") == 1);
+    markModified(file);
+
+    const int generation = data.generation();
+    CHECK(data.hasChangedFiles());
+    CHECK(data.hasChangedFiles());  // 確かめただけでは、読み込んだことにならない
+    CHECK(data.generation() == generation);
+    CHECK(lingerTime() == doctest::Approx(before));
+
+    REQUIRE(data.reloadIfChanged());
+    CHECK_FALSE(data.hasChangedFiles());
+    CHECK(lingerTime() == doctest::Approx(0.25f));
+}
+
+TEST_CASE("GameData: 解像度を保存しても、まだ読んでいない別のファイルの変更を、読んだことにしない") {
+    TempDataCopy copy;
+    GameData data(copy.paths());
+    data.loadAll();
+    const auto lingerTime = [&] { return data.character("like_emma")->skill(SkillSlot::D)->numOr("lingerTime", 0.0f); };
+    REQUIRE(lingerTime() != doctest::Approx(0.25f));
+
+    // キャラのファイルを保存した後（まだ読んでいない）、メニューで解像度を選ぶ
+    const std::filesystem::path file = copy.paths().charactersDir / "like_emma.jsonc";
+    REQUIRE(TempDataCopy::rewrite(file, std::regex(R"re(("lingerTime"\s*:\s*)[0-9.]+)re"), "$1 0.25") == 1);
+    markModified(file);
+    data.saveWindowSize(1600, 900);
+
+    CHECK(data.hasChangedFiles());  // キャラのファイルの変更は残っている
+    REQUIRE(data.reloadIfChanged());
+    CHECK(lingerTime() == doctest::Approx(0.25f));
+    CHECK(data.settings().windowWidth == 1600);  // 保存した解像度も、読み直した後に残っている
+    CHECK_FALSE(data.hasChangedFiles());
+}
+
+TEST_CASE("GameData: 解像度を保存する前に settings.jsonc が書き換えられていたら、保存した後に読み直す") {
+    TempDataCopy copy;
+    GameData data(copy.paths());
+    data.loadAll();
+    const float before = data.settings().cameraViewHeight;
+    const float edited = before == 2500.0f ? 3000.0f : 2500.0f;
+
+    // settings.jsonc の別の項目を保存した後（まだ読んでいない）、メニューで解像度を選ぶ
+    const std::filesystem::path file = copy.paths().settingsFile;
+    REQUIRE(TempDataCopy::rewrite(file, std::regex(R"re(("cameraViewHeight"\s*:\s*)[0-9.]+)re"),
+                                  std::format("$1 {}", edited)) == 1);
+    markModified(file);
+    data.saveWindowSize(1600, 900);
+
+    // 解像度だけを書き戻しても、書き換えた項目はファイルに残っているので、読み直して反映する
+    CHECK(data.hasChangedFiles());
+    REQUIRE(data.reloadIfChanged());
+    CHECK(data.settings().cameraViewHeight == doctest::Approx(edited));
+    CHECK(data.settings().windowWidth == 1600);
+    CHECK(data.settings().windowHeight == 900);
 }

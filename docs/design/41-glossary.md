@@ -106,7 +106,7 @@ CC（Crowd Control）は、相手の行動を妨げる効果のことです。
 | 拡大率（DPI） | Windows の「拡大/縮小」の設定（150% など）。2026-11-14 から、文字の倍率・ウィンドウの大きさには使わない（起動時のログに出すだけ） | `platform::windowDpiScale` |
 | 解像度 | ウィンドウの中の大きさ（実際のピクセル数）。メニューの「画面」で一覧から選ぶ | `ui::WindowSize`、`ui::resolutionList`、settings.jsonc の `window` |
 | 文字の倍率 | 画面に出す文字・ボタン・余白の大きさの倍率（ウィンドウの高さ ÷ 900 × `uiScale`） | `ui::scale()`、`ui::px()` |
-| 再読み込み | 設定ファイルを読み直すこと（保存すると自動、F5 で手動） | `GameData::reloadIfChanged`、`App::reloadData` |
+| 再読み込み | 設定ファイルを読み直すこと（保存すると自動、F5 で手動）。プレイ中は読み直さず、次のプレイを始める時に読む | `GameData::reloadIfChanged`、`App::reloadData`・`App::loadData` |
 | 手順 N | 指示書にある開発の段階（1 練習場 → 2 スキルドッジ → 3 ステージ → 4 スキルショット → 5 リザルトの保存 → 6 統計 → 7 キャラの追加） | — |
 | 指示書 | `claude_directive.txt`。要件と、開発中に決まった仕様 | — |
 | （確認済み）/（Claude 判断） | 指示書・仕様書の印。ユーザーが決めた仕様か、実装時に Claude が決めた仕様か | — |

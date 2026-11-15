@@ -42,7 +42,7 @@ int main();
 **注意事項**:
 
 - ログを始める前（手順 2）のエラーはログに残せないので、ダイアログだけで知らせます。
-- 引数は `main` の `argv` から読みません。日本語の Windows の `argv` は Shift_JIS に変換された文字列で、Shift_JIS で書けない文字（「𠮷」や韓国語など）が `?` になるためです（根拠: 報告ファイルの B5。`--script` に「한글𠮷」のフォルダを渡すと `????` になり開けなかった）。
+- 引数は `main` の `argv` から読みません。日本語の Windows の `argv` は Shift_JIS に変換された文字列で、Shift_JIS で書けない文字（「𠮷」や韓国語など）が `?` になるためです（根拠: `91ad8b0` の修正、2026-10-31。`--script` に「한글𠮷」のフォルダを渡すと `????` になり開けなかった）。
 - Release ビルドは `/SUBSYSTEM:WINDOWS` ですが、`/ENTRY:mainCRTStartup` を指定しているので、入口は `WinMain` ではなく `main` のままです（[CMakeLists.txt](../../CMakeLists.txt)）。
 
 **背景**（根拠: `Paths.h` のコメント）: ビルドフォルダ（`build/release`）の exe からでもソースの `data/` を使えるよう、data フォルダを親へさかのぼって探します。
@@ -156,6 +156,8 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 | `pendingInput_` | `InputFrame` | まだゲームの更新に渡していない入力（「押した瞬間」を取りこぼさないため） |
 | `accumulator_` | `float` | まだゲームを進めていない時間（秒） |
 | `reloadCheckTimer_` | `float` | 設定ファイルの変更を調べるまでの時間。1 秒ごと |
+| `forceReloadPending_` | `bool` | プレイ中に F5（またはデバッグパネルの読み直しのボタン）が押された。次のプレイを始める時に、変更が無くても読み直す |
+| `changeNoticed_` | `bool` | プレイ中に設定ファイルの変更を見つけた（ログは 1 回だけ出す。デバッグパネルに「次のプレイから反映します」と出す） |
 | `scriptClock_` | `float` | 入力スクリプトの時刻。1 フレームごとに 1/60 秒進む |
 | `windowSize_` | `ui::WindowSize` | ウィンドウの時の大きさ（実際のピクセル数）。全画面の間も、ウィンドウに戻した時の大きさとして覚えておく（メニューの「画面」に出す） |
 | `uiScaleHeight_` | `int` | 文字の倍率を決めた時のウィンドウの高さ。変わったら倍率を合わせ直す |
@@ -211,10 +213,12 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 | `DisplayState displayState() const` | メニューの「画面」に渡す、今のウィンドウの状態（ウィンドウの時の大きさ・今描いている大きさ・枠の太さ・作業領域・全画面か） |
 | `void frame()` | 1 フレームの処理。[02-architecture.md の「1 フレームの処理」](02-architecture.md#8-1-フレームの処理) の順に行う。入力スクリプトの時は経過時間を 1/60 秒に固定する（毎回同じ結果になるように）。実際の操作の時は経過時間の上限を 0.25 秒にする（ウィンドウの移動中などで止まった後に、ゲームが一気に進まないように） |
 | `void recordPerf(double frameStart, double updateEnd, double drawEnd)` | 1 フレームの処理時間を集計し、5 秒たったら DEBUG のログに出して集計をやり直す |
-| `void handleGlobalKeys(const InputFrame& input)` | 画面に関係なく効くキーを処理する。F1 = デバッグパネル、F5 = 設定ファイルの再読み込み、Alt + Enter = ボーダーレスの全画面（`ToggleBorderlessWindowed`）、Esc = 画面ごとの処理（下の表）、Y = カメラの切り替え（プレイ中だけ）。入力スクリプトの `resetcd`（自キャラのクールダウンを 0 にする）もここで行う |
-| `void reloadData(bool force)` | 設定ファイルを読み直す。`force` が `true`（F5）なら必ず、`false` なら変更があった時だけ。読み直した後、ログのレベル・文字の倍率・カメラ（設定ファイルの `cameraMode` が変わった時だけ）・プレイ中のキャラ（`World::refreshUnitsFromData`）・練習場のダミー（`Match::refreshDummiesIfChanged`）に反映する |
+| `void handleGlobalKeys(const InputFrame& input)` | 画面に関係なく効くキーを処理する。F1 = デバッグパネル、F5 = 設定ファイルの再読み込み（プレイ中は、次のプレイを始める時）、Alt + Enter = ボーダーレスの全画面（`ToggleBorderlessWindowed`）、Esc = 画面ごとの処理（下の表）、Y = カメラの切り替え（プレイ中だけ）。入力スクリプトの `resetcd`（自キャラのクールダウンを 0 にする）もここで行う |
+| `void reloadData(bool force)` | 1 秒ごとの確認・F5・デバッグパネルのボタンから呼ばれる。**プレイ中（`playInProgress()`）は読み直さない**。`force`（F5）なら `forceReloadPending_` を立て、そうでなければ `GameData::hasChangedFiles()` で変更を見つけた時に `changeNoticed_` を立てて、どちらも INFO のログを 1 回出す。プレイ中でなければ `loadData(force)` |
+| `void loadData(bool force)` | 今すぐ読み直す。`force` か `forceReloadPending_` なら必ず（`loadAll`）、そうでなければ変更があった時だけ（`reloadIfChanged`）。2 つの印を下ろし、読み直したらログのレベル・文字の倍率・カメラ（設定ファイルの `cameraMode` が変わった時だけ）に反映する |
+| `bool playInProgress() const` | プレイ中か（`match_` があり、画面が `Playing` か `Paused`）。リザルト画面は含まない（プレイは終わっているので） |
 | `MatchConfig configFromCommandLine() const` | 引数からプレイの設定を作る。キャラが無ければ一覧の最初のキャラ。クールダウンの倍率は設定ファイルの値 |
-| `void startMatch(const MatchConfig& config)` | `Match` を作り、作れなければ（キャラが 1 体も無い）メニューのまま。作れたら結果・入力・時間をリセットし、メニューの初期値を今回の設定にし、カメラを自キャラに合わせて `Playing` にする |
+| `void startMatch(const MatchConfig& config)` | 最初に `loadData(false)` で、プレイ中に保存された変更や F5 を反映する（新しいプレイは必ず最新の設定で始まる。リスタート・もう一度・デバッグパネルのキャラの切り替えも同じ）。次に `Match` を作り、作れなければ（キャラが 1 体も無い）メニューのまま。作れたら結果・入力・時間をリセットし、メニューの初期値を今回の設定にし、カメラを自キャラに合わせて `Playing` にする |
 | `void backToMenu()` | `Match` と結果を捨てて `Menu` にする |
 | `void pauseOrLeave()` | プレイ中の Esc。制限時間のあるモードは `Paused`、練習場はメニューに戻る |
 | `void resume()` | ポーズを解く。ポーズ中の入力とたまった時間は捨てる（ポーズを解いた瞬間に、ポーズ中の操作が効かないように） |
@@ -242,7 +246,7 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 2. メニュー以外では、`drawWorld`（ゲーム画面。中で `BeginMode2D(camera_)` する。視界のための描画先 `visionLayers_` を渡す）
 3. `rlImGuiBegin()` の中で、画面ごとの UI
    - `Menu`: `MainMenu::draw`。「開始」で `startMatch`、「終了」で `quit_`、解像度を選んだら `applyWindowSize` と `GameData::saveWindowSize`（`settings.jsonc` に書き戻す）
-   - `Playing`: `drawHud` → 練習場なら `drawSandboxPanel` と `refreshDummiesIfChanged` → デバッグパネル（F1 で表示中なら）。デバッグパネルでキャラを切り替えたら、新しい乱数の種で `startMatch`
+   - `Playing`: `drawHud` → 練習場なら `drawSandboxPanel` と `refreshDummiesIfChanged`（パネルでプリセットを選び直していれば、ダミーを置き直す）→ デバッグパネル（F1 で表示中なら。読み直しを後回しにしているかを渡す）。デバッグパネルでキャラを切り替えたら、新しい乱数の種で `startMatch`
    - `Paused`: `drawHud` → `drawPauseDialog`。はい = メニュー、いいえ = `resume`、リスタート = 新しい乱数の種で `startMatch`
    - `Result`: `drawHud` → `drawResultScreen`。もう一度 = 新しい乱数の種で `startMatch`、メニューへ = `backToMenu`
 4. スクリーンショットの依頼があれば保存（描き終えた後、画面に表示する前）
@@ -267,3 +271,4 @@ template <class T> bool parseNumber(std::string_view text, T& out);
 - **カーソルの閉じ込め**（根拠: `0575b7f`、指示書の「操作」）: カメラを固定しない時に、画面の端へカーソルを置いてカメラを動かせるようにするためです。
 - **ウィンドウを隠して開く・拡大率を掛ける**（根拠: `9d287c1`、[dpi-scaling.md](../dpi-scaling.md)）: 拡大率 150% の PC で表示が小さくなっていた問題への対応です。
 - **カメラの設定ファイルの値は、変わった時だけ反映**（根拠: App.cpp のコメント）: Y キーで切り替えたカメラが、別の項目を保存しただけで設定ファイルの値に戻らないようにしています。
+- **プレイ中は設定ファイルを読み直さない**（根拠: 指示書「設定・調整」、2026-11-15）: `World` と `Match` は `GameData` を参照で持ち、スキルの数値や視界の半径を毎回そこから読みます。一方、ステージの地形・敵 AI の設定・敵のクールダウンの倍率・スキルショットの的の設定は、プレイの開始時に写しています。そのため、プレイの途中で読み直すと古い設定と新しい設定が混ざり、記録する成績の条件も途中で変わっていました。また、読み直した時だけ通る処理（キャラの名前などを書き直す `World::refreshUnitsFromData`）で、スキルドッジの敵の名前から「敵1: 」が消える不具合がありました。そこで、プレイ中は読み直さず、`startMatch` の最初に読むようにしました。

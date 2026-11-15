@@ -57,6 +57,8 @@ flowchart LR
 
 **背景**（根拠: 指示書「数値はファイルで調整できるようにする」「ゲームの起動中に保存すると、自動で再読み込みされる」、`d771af6`）: ゲームを止めずに数値を調整できるようにするためです。保存の途中など、書きかけのファイルを読んで失敗しても、遊んでいるプレイが壊れないように、前回の内容を使い続けます。
 
+**注意事項**: プレイ中（ポーズ中も）は読み直しません。プレイ中に保存した変更は、次にプレイを始める時に `App` が読みます（2026-11-15、指示書「設定・調整」。理由は [10-app.md](10-app.md) の 4.8）。
+
 **注意事項**: 型が違う値（数のはずが文字列など）は、nlohmann/json の例外になり、**そのファイル全体**が `error` になります。範囲外の数は `error` にならず、範囲に収められます。ただし、**キャラのスキルの `params` だけは例外**で、範囲に収めずに決まりで確かめ、満たさなければそのファイル全体を使いません（[3.3](#33-注意事項)）。
 
 ---
@@ -78,7 +80,7 @@ flowchart LR
 | `sandboxRevision_` | `int` | ダミーの設定が**中身ごと**変わるたびに増える番号 |
 | `characters_` | `map<string, CharacterDef, less<>>` | id → キャラ。`less<>` で `string_view` のまま探せる |
 | `stages_` | `map<string, StageDef, less<>>` | id → ステージ |
-| `fileTimes_` | `map<path, file_time_type>` | 前回読んだ時の、各ファイルの更新日時 |
+| `fileTimes_` | `map<path, file_time_type>` | 前回読んだ時の、各ファイルの更新日時（自分で書き込んだファイルは、書き込んだ後の日時） |
 | `errors_` | `vector<string>` | 直近の読み込みで起きたエラー・警告 |
 | `generation_` | `int` | 読み込みのたびに増える番号 |
 | `skillValidator_` | `SkillValidator` | スキルの params を確かめる関数。空なら確かめない |
@@ -89,16 +91,17 @@ flowchart LR
 |---|---|
 | `explicit GameData(AppPaths paths)` | 場所を覚えるだけ。読み込みは `loadAll()` |
 | `void setSkillValidator(SkillValidator validator)` | キャラのファイルを読むたびに、各スキルの params を確かめる関数を決める（`App` が `skills::checkSkillParams` を渡す）。決めなければ確かめない |
-| `void loadAll()` | すべてのファイルを読み直す。エラーの一覧を空にしてから、settings → ai → sandbox → キャラ → ステージの順に読む。最後に更新日時を覚え直し、`generation_` を増やす |
-| `bool reloadIfChanged()` | 更新日時が前回と違えば `loadAll()` して `true`。`App` が 1 秒ごとに呼ぶ |
+| `void loadAll()` | すべてのファイルを読み直す。エラーの一覧を空にしてから、settings → ai → sandbox → キャラ → ステージの順に読む。更新日時は**読む前に**取っておき、最後にそれを `fileTimes_` にして、`generation_` を増やす（読んでいる途中に保存された変更は、次の確認で読み直す） |
+| `bool reloadIfChanged()` | 更新日時が前回と違えば `loadAll()` して `true`。`App` が、プレイ中でない時に 1 秒ごとと、プレイを始める時に呼ぶ |
+| `bool hasChangedFiles() const` | 更新日時が前回と違うか（読み込みはしない）。プレイ中に変更を見つけて「次のプレイから反映します」と知らせるために、`App` が 1 秒ごとに呼ぶ |
 | `const AppPaths& paths() const` | 各ファイルの場所 |
 | `const Settings& settings() const` | settings.jsonc の内容 |
 | `Settings& mutableSettings()` | **デバッグパネルからの一時的な変更用**。ファイルには保存しないので、次の再読み込みで上書きされる |
 | `const AiConfig& ai() const` | ai.jsonc の内容 |
 | `const SandboxConfig& sandbox() const` | sandbox.jsonc の内容 |
-| `void saveWindowSize(int width, int height)` | メニューで選んだ解像度を、読み込んだ設定（`settings_`）と settings.jsonc の `"window"` に保存する（`moba::saveWindowSize`）。失敗したらエラーの一覧に足す（メニューに赤字で出る）。成功したら更新日時を覚え直す（自分で書いた変更で再読み込みが起きないように） |
-| `bool selectSandboxPreset(std::string_view name)` | 練習場のダミーのプリセットを選び、sandbox.jsonc の `"preset"` に書き戻す。その名前のプリセットが無ければ `false`。保存に失敗しても選択は反映して `true`（エラーは一覧に足す）。保存に成功したら更新日時を覚え直す（**自分で書いた変更で再読み込みが起きないように**） |
-| `int sandboxRevision() const` | ダミーの設定の番号。`Match` が覚えておき、変わっていたらダミーを置き直す |
+| `void saveWindowSize(int width, int height)` | メニューで選んだ解像度を、読み込んだ設定（`settings_`）と settings.jsonc の `"window"` に保存する（`moba::saveWindowSize`）。失敗したらエラーの一覧に足す（メニューに赤字で出る）。成功したら settings.jsonc の更新日時だけを覚え直す（自分で書いた変更で再読み込みが起きないように。下の 3.3） |
+| `bool selectSandboxPreset(std::string_view name)` | 練習場のダミーのプリセットを選び、sandbox.jsonc の `"preset"` に書き戻す。その名前のプリセットが無ければ `false`。保存に失敗しても選択は反映して `true`（エラーは一覧に足す）。保存に成功したら sandbox.jsonc の更新日時だけを覚え直す（**自分で書いた変更で再読み込みが起きないように**。下の 3.3） |
+| `int sandboxRevision() const` | ダミーの設定の番号。`Match` が覚えておき、練習場の画面のパネルでプリセットを選び直して変わったら、ダミーを置き直す |
 | `const CharacterDef* character(std::string_view id) const` | id でキャラを探す。無ければ `nullptr` |
 | `vector<const CharacterDef*> characterList() const` | キャラの一覧。`menuOrder` の小さい順、同じなら id の順（`stable_sort`）。**最初のキャラがメニューの初期値** |
 | `vector<const CharacterDef*> enemyCandidates() const` | スキルドッジで敵として出られるキャラ（`usedByEnemy` のスキルを 1 つ以上持つ）。並びは `characterList()` と同じ |
@@ -107,6 +110,9 @@ flowchart LR
 | `vector<string> errors() const` | 設定ファイルのエラー（メニューとデバッグパネルに赤字で出す）。直近の読み込みで起きたエラー（`errors_`）と、その後にスキルを使った時に見つかった誤り（`dataWarnings()`）を、この順に並べて**値で**返す |
 | `int generation() const` | 読み込みの回数 |
 | `map<path, file_time_type> scanFileTimes() const`（private） | 監視するすべてのファイルの更新日時を取る |
+| `static file_time_type fileTime(const path& file)`（private） | 1 つのファイルの更新日時。読めなければ `file_time_type::min()` |
+| `bool isUpToDate(const path& file) const`（private） | そのファイルに、まだ読んでいない変更が無いか（`fileTimes_` の日時と今の日時が同じか）。自分で書き込む前に調べる |
+| `void rememberFileTime(const path& file)`（private） | そのファイルの今の更新日時だけを `fileTimes_` に入れる。自分で書き込んだ後に呼ぶ |
 | `static vector<path> jsoncFilesIn(const path& dir)`（private） | フォルダの中の .jsonc（名前順）。フォルダが無ければ空 |
 | `vector<string> checkCharacter(const CharacterDef& def)`（private） | 各スキルを `skillValidator_` で確かめる。警告は「警告: 」を付けて `errors_` に足し（WARN のログ）、エラーの文の一覧を返す（空なら通った） |
 
@@ -118,8 +124,10 @@ flowchart LR
   - **背景**（根拠: claude_improve_and_answer.txt の「JSONCの扱いに関して」、2026/10/31）: 0 で割るなど、ありえない値で handler が動くのを防ぐため、決まりを満たした params だけを handler に渡します。通らなかった時は、キャラのファイル全体を使わない（前回の内容を使う）と決められています。
   - `data` は `game/skills` を知らない（依存の向き）ので、決まりを持つ関数を `setSkillValidator` で外から受け取ります。
 - id が他のファイルと重複したキャラ・ステージは、後に読んだ方（ファイル名の順で後）を使わず、エラーにします。
-- `sandboxRevision_` は、sandbox.jsonc の**中身が変わった時だけ**増えます（`sameSandboxConfig` で比べる）。キャラのファイルを保存しただけで、練習場のダミーが置き直されないように（根拠: GameData.cpp のコメント）。
+- `sandboxRevision_` は、sandbox.jsonc の**中身が変わった時だけ**増えます（`sameSandboxConfig` で比べる）。キャラのファイルを保存しただけで、練習場のダミーが置き直されないように（根拠: GameData.cpp のコメント）。なお、2026-11-15 からはプレイ中に読み直さないので、読み直しでプレイの途中のダミーが置き直されることはありません（番号が変わるのは、プレイ中ではパネルでプリセットを選んだ時だけ）。
 - 監視するのは「ファイルの更新日時」で、中身は比べません。ファイルを足した・消した時も、日時の一覧が変わるので読み直します。
+- **自分で書き込んだ時（`saveWindowSize`・`selectSandboxPreset`）は、書き込んだファイルの日時だけを覚え直します**。すべてのファイルの日時を取り直すと、まだ読んでいない別のファイルの変更（プレイ中に保存したキャラのファイルなど）を、読んだことにしてしまうためです。また、書き込む前から同じファイルにまだ読んでいない変更があった時（sandbox.jsonc のプリセットの中身を保存した後に、パネルでプリセットを選んだ時など）は覚え直さず、次の確認で読み直します。書き戻すのは `"preset"`・`"window"` の値だけなので、その変更もファイルに残っています。
+  - **背景**（2026-11-15）: 以前はすべてのファイルの日時を取り直していました。プレイ中は読み直さないようにしたことで（[10-app.md](10-app.md) の 4.8）、プレイ中にキャラのファイルを保存してからパネルでプリセットを選ぶと、その変更が次のプレイでも反映されないことがありました。
 
 ---
 
@@ -445,7 +453,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 |---|---|---|
 | `enemyCooldownScale` | 0.5 | 敵のスキルのクールダウン倍率（自キャラとは別。根拠: 指示書「敵のクールダウンは自キャラとは別に、キャラ設定の値×0.5」） |
 | `firstCastDelay` | 1.5 | 開始から最初に撃つまでの時間 |
-| `punishMinInterval` | 1.0 | `punishCC` で動けない自キャラへ撃つ時も、最低限空ける間隔（0 以上）。根拠: 報告ファイルの B7（2026-10-30）。ユーザーの判断で、再発動できるスキルのリキャストに多い 0.5〜1 秒から 1 秒とした |
+| `punishMinInterval` | 1.0 | `punishCC` で動けない自キャラへ撃つ時も、最低限空ける間隔（0 以上）。根拠: `0220ef3` の修正、2026-10-30。ユーザーの判断で、再発動できるスキルのリキャストに多い 0.5〜1 秒から 1 秒とした |
 | `maxEngageRange` | 1000 | 自キャラと取る距離の上限 |
 | `visionMargin` | 250 | 自キャラと取る距離を、視界の半径からこの値だけ内側までに抑える（0 以上）。敵は見えない自キャラには撃たないので、射程の長いスキルの敵（エズリアルの Q・W。射程 1200 × 0.75〜0.85）が視界の外で止まって撃たなくならないように（Claude 判断。2026/11/03） |
 | `playerReactionTime` | 0.25 | AI が想定する、プレイヤーが弾を見て避け始めるまでの時間 |
@@ -504,7 +512,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 
 **`saveSelectedSandboxPreset` の仕組み**: `rewriteJsoncValues`（[11-core.md の 4.3](11-core.md#43-コメントを残したままの値の書き換え)）で、キー `{"preset"}` の値だけを新しい名前に置き換えます。コメント・文字列・内側のオブジェクトの中にある `"preset"` は書き換えません。名前に `"` や `\` が含まれていても、JSON の文字列としてエスケープしてから書きます（2026/11/14 まではこの .cpp の中に専用の部品 `findTopLevelStringValue` がありましたが、解像度の保存と共通にするため core へ移しました）。
 
-**背景**（根拠: 報告ファイルの B6、2026-10-30 の修正）: 以前は「`//` で始まる行」だけを飛ばして、最初に見つかった `"preset": "..."` を正規表現で書き換えていました。そのため、ブロックコメントの中や、行の途中のコメントの中にある `"preset"` も書き換えてしまうことがありました。
+**背景**（根拠: `0220ef3` の修正、2026-10-30）: 以前は「`//` で始まる行」だけを飛ばして、最初に見つかった `"preset": "..."` を正規表現で書き換えていました。そのため、ブロックコメントの中や、行の途中のコメントの中にある `"preset"` も書き換えてしまうことがありました。
 
 **注意事項**:
 
@@ -517,7 +525,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 
 **役割**: 設定ファイルの値を**使う時**に見つかった誤り（スキルの params の書き忘れ・効果の書き方の誤り）を集めます。`GameData::errors()` がこれも含めて返すので、メニューとデバッグパネルに赤字で出ます。
 
-**背景**（根拠: 報告ファイルの D1、2026-10-30 の修正）: params は handler がスキルを使う時に読むので、設定ファイルを読み込んだ時点では誤りが分かりません。以前はログにしか出ず、「1 回だけ警告」の記録もプログラムが終わるまで消えなかったので、直さずに読み直しても二度と警告が出ませんでした。
+**背景**（根拠: `0220ef3` の修正、2026-10-30）: params は handler がスキルを使う時に読むので、設定ファイルを読み込んだ時点では誤りが分かりません。以前はログにしか出ず、「1 回だけ警告」の記録もプログラムが終わるまで消えなかったので、直さずに読み直しても二度と警告が出ませんでした。
 
 | 関数 | 説明 |
 |---|---|
