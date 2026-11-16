@@ -193,10 +193,13 @@ private:
     void hitWithProjectile(Projectile& projectile, Unit& target);
     /// 弾が射程の端まで飛んだ時の処理（onExpire を呼んで消す）
     void expireProjectile(Projectile& projectile);
-    /// すべての範囲効果を進め、発動したら範囲の敵に当てる
+    /// すべての範囲効果を進め、発動したら範囲の敵に当てる（残る範囲では、置いた物（鉄菱）を踏ませる）
     void updateAreas(float dt);
     /// 範囲が target に当たった時の処理（命中の記録と、その範囲の onUnitHit）
     void hitWithArea(AreaEffect& area, Unit& target);
+    /// 残る範囲の pieces（鉄菱）のうち、unit が触れているものをすべて踏ませて消す。1 つ以上踏んだら、
+    /// 初めて踏んだ相手なら命中として記録し、onStep を 1 回呼ぶ
+    void stepOnPieces(AreaEffect& area, Unit& unit);
     /// 設置物の残り時間を減らし、時間切れなら消す
     void updateProps(float dt);
     /// 演出の残り時間を減らす

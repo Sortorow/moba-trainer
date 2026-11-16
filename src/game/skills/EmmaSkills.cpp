@@ -1,4 +1,4 @@
-// like emma 固有のスキル（E は汎用の "homing_projectile"、D は "ground_zone" を使う）
+// like emma 固有のスキル（E は汎用の "homing_projectile"、D は "caltrops"（CommonSkills.cpp）を使う）
 
 #include <map>
 #include <memory>

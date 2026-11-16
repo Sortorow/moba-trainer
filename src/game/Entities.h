@@ -63,23 +63,20 @@ struct Projectile {
 
 // ---------------------------------------------------------------------------
 // 地面の範囲効果
-// delay 秒後に発動する。duration が 0 なら発動の瞬間だけ判定し、0 より大きければその間ずっと残る
+// delay 秒後に発動する。duration が 0 なら発動の瞬間だけ判定し、0 より大きければその間残る
+// （残る範囲で効くのは、置いた物（鉄菱）を踏んだ時だけ）
 // ---------------------------------------------------------------------------
 
-/// 地面の範囲効果の見た目の種類
+/// 地面の範囲効果の見た目の種類（どれを使うかは、スキルの処理が決める）
 enum class AreaVisual {
     Explosion,  // 発動まで範囲の輪だけを表示
     Telegraph,  // 予告円の内側が少しずつ埋まり、埋まりきると爆発（ブランドの W のような表示）
     ThrownHat,  // 帽子が飛んでいく
-    Caltrops,   // 鉄菱が飛んでいき、着地後は範囲に残る
+    Caltrops,   // 鉄菱が飛んでいき、着地後は残っている鉄菱を 1 つずつ描く
 };
-/// 設定ファイルの "visual"（"explosion" / "telegraph" / "hat" / "caltrops"）を範囲の見た目にする。
-/// 知らない表記なら Explosion
-AreaVisual areaVisualFromString(std::string_view text);
-/// 範囲の "visual" に書ける表記の一覧（params のチェックに使う。areaVisualFromString と同じ表から作る）
-std::vector<std::string_view> areaVisualNames();
 
-/// 地面の範囲効果 1 つ。delay 秒後に発動し、duration が 0 なら発動の瞬間だけ、0 より大きければその間ずっと判定する
+/// 地面の範囲効果 1 つ。delay 秒後に発動し、duration が 0 なら発動の瞬間だけ範囲の中の敵に当たる。
+/// 0 より大きければ duration の間残り、置いた物（pieces。鉄菱）に触れた敵がそれを踏む
 struct AreaEffect {
     EntityId id = kInvalidId;
     EntityId owner = kInvalidId;
@@ -99,13 +96,18 @@ struct AreaEffect {
     AreaVisual visual = AreaVisual::Explosion;
     Color color = WHITE;
 
-    std::vector<EntityId> hitUnits;                       // 当たった相手（範囲に残る効果では「一度でも入った相手」）
-    std::function<void(World&, AreaEffect&)> onActivate;  // 発動した瞬間に 1 回
-    std::function<void(World&, AreaEffect&, Unit&)> onUnitHit;    // 相手ごとに 1 回
-    std::function<void(World&, AreaEffect&, Unit&)> whileInside;  // 範囲に残る効果で、中にいる間ずっと
+    // 範囲に残る効果で、踏むと効く物（鉄菱）の、まだ踏まれていない位置。踏まれた物は消える（ほかの敵も踏めなくなる）
+    std::vector<Vector2> pieces;
+    float pieceRadius = 0.0f;  // pieces 1 つの当たり判定の半径
+
+    std::vector<EntityId> hitUnits;                             // 当たった相手（残る範囲では「一度でも踏んだ相手」）
+    std::function<void(World&, AreaEffect&)> onActivate;        // 発動した瞬間に 1 回
+    std::function<void(World&, AreaEffect&, Unit&)> onUnitHit;  // 相手ごとに 1 回（残る範囲では、初めて踏んだ時）
+    // 残る範囲で、pieces を踏むたび（同時に 2 つ以上踏んでも 1 回）。firstStep はその相手が初めて踏んだ時に true
+    std::function<void(World&, AreaEffect&, Unit&, bool firstStep)> onStep;
     bool alive = true;
 
-    /// この相手に既に当たったか（範囲に残る効果では、一度でも入ったことがあるか）
+    /// この相手に既に当たったか（残る範囲では、一度でも踏んだことがあるか）
     bool hasHit(EntityId unit) const { return std::find(hitUnits.begin(), hitUnits.end(), unit) != hitUnits.end(); }
 };
 

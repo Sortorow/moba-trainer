@@ -307,8 +307,8 @@ void World::updateUnit(Unit& unit, float dt) {
     unit.pos = terrain_.pushOut(unit.pos, unit.radius);
 
     // 状態異常の残り時間を減らすのは、詠唱と移動の後にする。状態異常を付けるのは、この後の弾と範囲の処理だけなので、
-    // 付いた効果は次の刻みの詠唱・移動に必ず効く。先に減らすと、長さ 1 刻み以下の効果（鉄菱の lingerTime 0 など）が
-    // 移動の前に消えてしまう。AI・入力・HUD から見た状態異常とも、同じ刻みで効くようになる
+    // 付いた効果は次の刻みの詠唱・移動に必ず効く。先に減らすと、長さ 1 刻み以下の効果が移動の前に消えてしまう。
+    // AI・入力・HUD から見た状態異常とも、同じ刻みで効くようになる
     unit.status.update(dt);
 }
 
@@ -448,10 +448,12 @@ void World::updateAreas(float dt) {
                 continue;
             }
         }
-        // 一定時間残る範囲（鉄菱など）
-        for (Unit* unit : enemiesInCircle(a.center, a.radius, a.team)) {
-            if (!a.hasHit(unit->id)) hitWithArea(a, *unit);
-            if (a.whileInside) a.whileInside(*this, a, *unit);
+        // 一定時間残る範囲（鉄菱）: 発動した刻みから、残っている鉄菱に触れた敵が踏む
+        // （着地した時に既に上に立っている敵も、ワープで上に来た敵も、触れていれば踏む）。
+        // 鉄菱は円の中にあるので、円より鉄菱 1 つ分広い範囲の敵だけを調べればよい
+        for (Unit* unit : enemiesInCircle(a.center, a.radius + a.pieceRadius, a.team)) {
+            if (a.pieces.empty()) break;
+            stepOnPieces(a, *unit);
         }
         if (a.elapsed >= a.delay + a.duration) a.alive = false;
     }
@@ -461,6 +463,18 @@ void World::hitWithArea(AreaEffect& a, Unit& target) {
     a.hitUnits.push_back(target.id);
     registerHit(a.castId, a.team, a.slot, a.label, target);
     if (a.onUnitHit) a.onUnitHit(*this, a, target);
+}
+
+void World::stepOnPieces(AreaEffect& a, Unit& unit) {
+    // 触れている鉄菱は、同時に 2 つ以上でもすべて消す（1 つだけ消すと、残りに触れたままなので次の刻みでまた踏んでしまう）
+    const std::size_t stepped = std::erase_if(
+        a.pieces, [&](Vector2 piece) { return geo::circlesOverlap(piece, a.pieceRadius, unit.pos, unit.radius); });
+    if (stepped == 0) return;
+    const bool firstStep = !a.hasHit(unit.id);
+    log::debug("skill", "castId={} [{}] {}: {} が {} 個踏んだ（残り {} 個）", a.castId, toString(a.slot), a.label,
+               unit.name, stepped, a.pieces.size());
+    if (firstStep) hitWithArea(a, unit);  // 命中として数えるのは、1 回の発動につき初めて踏んだ時だけ
+    if (a.onStep) a.onStep(*this, a, unit, firstStep);
 }
 
 // ---------------------------------------------------------------------------

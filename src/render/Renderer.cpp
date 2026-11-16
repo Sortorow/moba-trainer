@@ -46,14 +46,12 @@ void drawHat(Vector2 pos, float size) {
     DrawRing(pos, size * 1.25f, size * 1.45f, 0.0f, 360.0f, 32, Color{90, 230, 230, 255});
 }
 
-/// 範囲の中に散らばる鉄菱（星形）を描く
-void drawCaltropStars(Vector2 center, float radius, Color color) {
-    DrawPoly(center, 4, 10.0f, 45.0f, color);
-    for (int i = 0; i < 7; ++i) {
-        const float angle = static_cast<float>(i) * (2.0f * PI / 7.0f);
-        const Vector2 offset{std::cos(angle) * radius * 0.6f, std::sin(angle) * radius * 0.6f};
-        DrawPoly(center + offset, 4, 10.0f, 45.0f, color);
-    }
+/// 鉄菱 1 つ（四角を 2 つ 45° ずらして重ねた、8 つの角の星形）を描く
+/// @param size 角の先までの長さ（当たり判定の半径と同じにする）
+void drawCaltrop(Vector2 pos, float size, Color color) {
+    DrawPoly(pos, 4, size, 0.0f, color);
+    DrawPoly(pos, 4, size, 45.0f, color);
+    DrawCircleV(pos, size * 0.35f, Fade(WHITE, 0.8f));  // 真ん中を明るくして、地面の上で見つけやすくする
 }
 
 /// 残り時間を円弧で表示する
@@ -160,9 +158,13 @@ void drawArea(const AreaEffect& area, bool showHitboxes) {
         return;
     }
     if (area.visual == AreaVisual::Caltrops) {
+        // 円は鉄菱をまいた範囲の目安（当たり判定ではない）。効くのは、残っている鉄菱だけ
         DrawCircleV(area.center, area.radius, Fade(area.color, 0.12f));
         DrawRing(area.center, area.radius - 3.0f, area.radius, 0.0f, 360.0f, 64, Fade(area.color, 0.8f));
-        drawCaltropStars(area.center, area.radius, Fade(area.color, 0.9f));
+        for (const Vector2 piece : area.pieces) {
+            drawCaltrop(piece, area.pieceRadius, Fade(area.color, 0.9f));
+            if (showHitboxes) DrawCircleLinesV(piece, area.pieceRadius, kHitboxColor);
+        }
         const float ratio = area.duration > 0.0f ? 1.0f - (area.elapsed - area.delay) / area.duration : 0.0f;
         drawLifetimeArc(area.center, area.radius + 6.0f, Clamp(ratio, 0.0f, 1.0f), Fade(area.color, 0.6f));
     } else if (showHitboxes) {

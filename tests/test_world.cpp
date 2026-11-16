@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <regex>
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@
 #include "game/Sandbox.h"
 #include "game/SkillCasting.h"
 #include "game/World.h"
+#include "game/skills/Skill.h"
 #include "raymath.h"
 
 using namespace moba;
@@ -453,82 +455,330 @@ TEST_CASE("エズリアル E: 追尾弾でも W の印が起爆する") {
     CHECK_FALSE(f.unit(target).status.hasMark("ezreal_w"));
 }
 
-TEST_CASE("エマ D: 範囲に入った敵にスロウがかかり続ける") {
-    Fixture f("like_emma");
-    const EntityId target = f.addDummy({450, 0});
-    f.cast(SkillSlot::D, {450, 0});
-    f.run(1.0f);
-    CHECK(f.unit(target).status.has(EffectType::Slow));
-    CHECK(f.unit(target).moveSpeed() == doctest::Approx(150.0f));
-}
-
 namespace {
 
-/// 鉄菱（エマの D）のスロウが、移動に実際に効いたかを測った結果
-struct ZoneSlowSteps {
-    float fullStep = 0.0f;         ///< スロウが無い時の 1 刻みの移動距離
-    float insideStep = 0.0f;       ///< 範囲の中での 1 刻みの移動距離
-    float outsideStep = 0.0f;      ///< スロウが切れた後の 1 刻みの移動距離
-    int slowedStepsAfterExit = 0;  ///< 範囲の外へ出た後に、スロウが効いた刻みの数
+constexpr float kTick = 1.0f / 120.0f;  // ゲームと同じ 1 刻み
+
+/// 鉄菱（エマの D）のテストに使う値（数値を調整してもテストが壊れないよう、設定ファイルから読む）
+struct CaltropsValues {
+    float radius = 0.0f;       ///< 鉄菱をまく円の半径
+    float duration = 0.0f;     ///< 着地してから消えるまで
+    float pieceRadius = 0.0f;  ///< 鉄菱 1 つの当たり判定の半径
+    float slowAmount = 0.0f;   ///< 踏んだ時のスロウの強さ
+    float slowTime = 0.0f;     ///< 踏んだ時のスロウの長さ
 };
 
-/// 鉄菱の範囲の中でダミーを歩かせて 1 刻みの移動距離を測り、範囲の外へワープさせた後にスロウが効いた刻みを数える
-/// （moveSpeed() は 1 刻みの最後の値なので、移動に効いたかは動いた距離で確かめる）
-ZoneSlowSteps measureZoneSlow(Fixture& f) {
-    constexpr float kDt = 1.0f / 120.0f;
-    const EntityId id = f.addDummy({450, 0});
-    f.cast(SkillSlot::D, {450, 0});
-    f.run(1.0f);  // 鉄菱が着地し、ダミーが範囲の中にいる
-    casting::orderMove(f.world(), f.unit(id), {450, 1500});
+/// エマの D の設定ファイルの値
+CaltropsValues caltropsValues(Fixture& f) {
+    const SkillDef& d = f.skill(SkillSlot::D);
+    CaltropsValues values;
+    values.radius = d.numOr("radius", 0.0f);
+    values.duration = d.numOr("duration", 0.0f);
+    values.pieceRadius = d.numOr("pieceRadius", 0.0f);
+    const std::vector<EffectSpec> onStep = d.effects("onStep");
+    REQUIRE(onStep.size() == 1);
+    REQUIRE((onStep[0].type == EffectType::Slow));
+    values.slowAmount = onStep[0].amount;
+    values.slowTime = onStep[0].duration;
+    return values;
+}
 
-    // 1 刻み進めて、ダミーが動いた距離を返す
-    const auto step = [&] {
-        const Vector2 before = f.unit(id).pos;
-        f.world().update(kDt);
-        return Vector2Distance(before, f.unit(id).pos);
-    };
-    ZoneSlowSteps result;
-    result.fullStep = f.unit(id).baseMoveSpeed * kDt;
-    result.insideStep = step();
-    f.unit(id).pos = {450, 700};  // 範囲（半径 220）の外へ
-    for (int i = 0; i < 240; ++i) {
-        const float moved = step();
-        if (moved > result.fullStep * 0.99f) {
-            result.outsideStep = moved;
-            break;
+/// 設定ファイルの rings から、円の中心から見た鉄菱の位置を計算する（ゲームの処理とは別に、仕様どおりの位置を出す）
+std::vector<Vector2> expectedCaltropOffsets(Fixture& f) {
+    const SkillDef& d = f.skill(SkillSlot::D);
+    const float radius = d.numOr("radius", 0.0f);
+    std::vector<Vector2> offsets;
+    for (const nlohmann::json& ring : d.params.at("rings")) {
+        const int count = ring.at("count").get<int>();
+        const float distance = radius * ring.at("radiusRatio").get<float>();
+        for (int i = 0; i < count; ++i) {
+            const float degrees =
+                ring.value("angle", 0.0f) + 360.0f * static_cast<float>(i) / static_cast<float>(count);
+            offsets.push_back(Vector2Rotate({distance, 0.0f}, degrees * DEG2RAD));
         }
-        ++result.slowedStepsAfterExit;
     }
-    return result;
+    return offsets;
+}
+
+/// 最後に投げた鉄菱の範囲（消えていないもの）。無ければ nullptr
+const AreaEffect* latestCaltrops(Fixture& f) {
+    const AreaEffect* latest = nullptr;
+    for (const AreaEffect& area : f.world().areas()) {
+        if (area.alive && area.visual == AreaVisual::Caltrops && (!latest || area.id > latest->id)) latest = &area;
+    }
+    return latest;
+}
+
+/// 最後に投げた鉄菱の、残っている数
+std::size_t remainingCaltrops(Fixture& f) {
+    const AreaEffect* area = latestCaltrops(f);
+    REQUIRE(area != nullptr);
+    return area->pieces.size();
+}
+
+/// 鉄菱を center に投げ、詠唱が終わって鉄菱が飛んでいる間（まだ着地していない）まで進める
+/// @return 鉄菱の位置（投げた時に決まる）
+std::vector<Vector2> throwCaltrops(Fixture& f, Vector2 center) {
+    f.cast(SkillSlot::D, center);
+    f.run(f.skill(SkillSlot::D).castTime + 0.05f);
+    const AreaEffect* area = latestCaltrops(f);
+    REQUIRE(area != nullptr);
+    REQUIRE_FALSE(area->activated);
+    return area->pieces;
+}
+
+/// 鉄菱が着地するまで 1 刻みずつ進める（着地した刻みの直後で止まる）
+void runUntilLanded(Fixture& f) {
+    for (int i = 0; i < 240; ++i) {
+        const AreaEffect* area = latestCaltrops(f);
+        REQUIRE(area != nullptr);
+        if (area->activated) return;
+        f.world().update(kTick);
+    }
+    FAIL("鉄菱が着地しない");
+}
+
+/// pos にいる半径 unitRadius のキャラが触れている鉄菱の数
+int touchingCount(const std::vector<Vector2>& pieces, Vector2 pos, float unitRadius, float pieceRadius) {
+    return static_cast<int>(std::count_if(pieces.begin(), pieces.end(), [&](Vector2 piece) {
+        return Vector2Distance(piece, pos) <= unitRadius + pieceRadius;
+    }));
+}
+
+/// 外側の鉄菱 piece にだけ、円の外から触れる位置（円の中心から見て piece の向こう側。少し重ねる）
+Vector2 touchingFromOutside(Vector2 center, Vector2 piece, float unitRadius, float pieceRadius) {
+    return piece + Vector2Normalize(piece - center) * (unitRadius + pieceRadius - 5.0f);
+}
+
+/// スロウが効いているか（鉄菱のスロウの強さで）
+bool slowedBy(Fixture& f, EntityId id, const CaltropsValues& values) {
+    return std::abs(f.unit(id).status.moveSpeedMultiplier() - (1.0f - values.slowAmount)) < 0.001f;
 }
 
 }  // namespace
 
-TEST_CASE("エマ D: スロウは範囲の中で移動に効き、出た後は lingerTime の間だけ続く") {
+TEST_CASE("エマ D: 着地すると rings のとおりに鉄菱が並び、投げた向きでは並びが回らない") {
     Fixture f("like_emma");
-    const float slow = f.skill(SkillSlot::D).numOr("slowAmount", 0.0f);
-    const float linger = f.skill(SkillSlot::D).numOr("lingerTime", 0.0f);
-    REQUIRE(linger > 0.0f);
-    const ZoneSlowSteps steps = measureZoneSlow(f);
-    CHECK(steps.insideStep == doctest::Approx(steps.fullStep * (1.0f - slow)));
-    // 1 刻みの長さ（1/120 秒）は float でぴったり表せないので、1 刻みのずれは許す
-    CHECK(std::abs(steps.slowedStepsAfterExit - static_cast<int>(std::lround(linger * 120.0f))) <= 1);
-    CHECK(steps.outsideStep == doctest::Approx(steps.fullStep));
+    const std::vector<Vector2> expected = expectedCaltropOffsets(f);
+    CHECK(expected.size() == 12);                                       // 外側の輪に 8 個、内側の輪に 4 個（ER の動画）
+    for (const Vector2 center : {Vector2{450, 0}, Vector2{0, -450}}) {  // 右へ投げる・上へ投げる
+        f.resetCooldowns();
+        const std::vector<Vector2> pieces = throwCaltrops(f, center);
+        REQUIRE(pieces.size() == expected.size());
+        for (std::size_t i = 0; i < pieces.size(); ++i) {
+            CAPTURE(i);
+            CAPTURE(center.y);
+            CHECK(Vector2Distance(pieces[i] - center, expected[i]) < 0.01f);
+        }
+    }
 }
 
-TEST_CASE("エマ D: lingerTime を 0 にしても、範囲の中ではスロウが効き、出たらすぐ切れる") {
-    // 以前は 1 刻みの最初に状態異常の残り時間を減らしていたので、長さ 0 のスロウが移動の前に消え、範囲の中でも効かなかった
-    const test::TempDataCopy copy;
-    REQUIRE(test::TempDataCopy::rewrite(copy.paths().charactersDir / "like_emma.jsonc",
-                                        std::regex(R"re(("lingerTime"\s*:\s*)[0-9.]+)re"), "$1 0") == 1);
-    Fixture f("like_emma", copy.paths());
-    REQUIRE(f.skill(SkillSlot::D).numOr("lingerTime", -1.0f) == 0.0f);
-    const float slow = f.skill(SkillSlot::D).numOr("slowAmount", 0.0f);
-    const ZoneSlowSteps steps = measureZoneSlow(f);
-    CHECK(steps.insideStep == doctest::Approx(steps.fullStep * (1.0f - slow)));
-    // 外へ出た最初の刻みは、刻みの初めに範囲の中にいた扱いなので効く。その次の刻みからは効かない
-    CHECK(steps.slowedStepsAfterExit == 1);
-    CHECK(steps.outsideStep == doctest::Approx(steps.fullStep));
+TEST_CASE("エマ D: 鉄菱を 1 つ踏むとスロウが付いてその鉄菱は消え、その場にとどまるとスロウは onStep の長さで切れる") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const Vector2 center{450, 0};
+    const EntityId id = f.addDummy({450, 900});  // 円の外
+    const std::vector<Vector2> pieces = throwCaltrops(f, center);
+    runUntilLanded(f);
+    CHECK(remainingCaltrops(f) == pieces.size());
+
+    const Vector2 spot = touchingFromOutside(center, pieces[0], f.unit(id).radius, values.pieceRadius);
+    REQUIRE(touchingCount(pieces, spot, f.unit(id).radius, values.pieceRadius) == 1);
+    f.unit(id).pos = spot;
+    f.world().update(kTick);
+    CHECK(slowedBy(f, id, values));
+    CHECK(remainingCaltrops(f) == pieces.size() - 1);
+    CHECK(f.world().stats().slot(SkillSlot::D).hits == 1);
+
+    f.run(values.slowTime - 0.1f);
+    CHECK(slowedBy(f, id, values));
+    f.run(0.2f);
+    CHECK(f.unit(id).status.moveSpeedMultiplier() == doctest::Approx(1.0f));  // 踏んだ鉄菱は消えたので、踏み直さない
+    CHECK(remainingCaltrops(f) == pieces.size() - 1);
+}
+
+TEST_CASE("エマ D: 続けて踏むと、最後に踏んだ時から onStep の長さだけスロウが続く（0.4 秒あけて 2 つ踏む）") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const Vector2 center{450, 0};
+    const EntityId id = f.addDummy({450, 900});
+    const std::vector<Vector2> pieces = throwCaltrops(f, center);
+    runUntilLanded(f);
+    const float radius = f.unit(id).radius;
+
+    // 1 つ目を踏み、円から離れる向きに歩く（スロウが移動に効いている）
+    f.unit(id).pos = touchingFromOutside(center, pieces[0], radius, values.pieceRadius);
+    f.world().update(kTick);
+    REQUIRE(slowedBy(f, id, values));
+    const Vector2 before = f.unit(id).pos;
+    casting::orderMove(f.world(), f.unit(id), before + Vector2Normalize(pieces[0] - center) * 1000.0f);
+    f.run(0.4f);
+    CHECK(Vector2Distance(before, f.unit(id).pos) ==
+          doctest::Approx(f.unit(id).baseMoveSpeed * (1.0f - values.slowAmount) * 0.4f).epsilon(0.02));
+
+    // 0.4 秒後に、隣の鉄菱を踏む（その場で止まる）
+    const Vector2 second = touchingFromOutside(center, pieces[1], radius, values.pieceRadius);
+    REQUIRE(touchingCount(latestCaltrops(f)->pieces, second, radius, values.pieceRadius) == 1);
+    f.unit(id).pos = second;
+    casting::orderMove(f.world(), f.unit(id), second);
+    f.world().update(kTick);
+    CHECK(remainingCaltrops(f) == pieces.size() - 2);
+
+    // 1 つ目から数えると onStep の長さより 0.3 秒長くたっているが、2 つ目を踏んだ時から数え直している
+    f.run(values.slowTime - 0.1f);
+    CHECK(slowedBy(f, id, values));
+    f.run(0.2f);
+    CHECK(f.unit(id).status.moveSpeedMultiplier() == doctest::Approx(1.0f));
+}
+
+TEST_CASE("エマ D: 同時に 2 つの鉄菱に触れると 2 つとも消え、とどまっても次の刻みからは踏まない") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const Vector2 center{450, 0};
+    const EntityId id = f.addDummy({450, 900});
+    const std::vector<Vector2> pieces = throwCaltrops(f, center);
+    runUntilLanded(f);
+
+    const Vector2 between = (pieces[0] + pieces[1]) * 0.5f;  // 外側の輪の、隣り合う 2 つの間
+    REQUIRE(touchingCount(pieces, between, f.unit(id).radius, values.pieceRadius) == 2);
+    f.unit(id).pos = between;
+    f.world().update(kTick);
+    CHECK(remainingCaltrops(f) == pieces.size() - 2);  // 1 つだけ消すと、残りに触れたままになる
+    CHECK(slowedBy(f, id, values));
+    CHECK(f.world().stats().slot(SkillSlot::D).hits == 1);
+
+    f.run(values.slowTime - 0.1f);
+    CHECK(remainingCaltrops(f) == pieces.size() - 2);
+    CHECK(slowedBy(f, id, values));
+    f.run(0.2f);
+    CHECK(f.unit(id).status.moveSpeedMultiplier() == doctest::Approx(1.0f));  // 踏み直していない
+}
+
+TEST_CASE("エマ D: 着地した時に鉄菱の上に立っていれば、着地した刻みで踏む") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const Vector2 center{450, 0};
+    const EntityId id = f.addDummy(center);  // 円の真ん中（内側の輪の鉄菱に触れる）
+    const std::vector<Vector2> pieces = throwCaltrops(f, center);
+    const int touching = touchingCount(pieces, center, f.unit(id).radius, values.pieceRadius);
+    REQUIRE(touching > 0);
+    CHECK(f.unit(id).status.moveSpeedMultiplier() == doctest::Approx(1.0f));  // まだ着地していない
+
+    runUntilLanded(f);
+    CHECK(remainingCaltrops(f) == pieces.size() - static_cast<std::size_t>(touching));
+    CHECK(slowedBy(f, id, values));
+    CHECK(f.world().stats().slot(SkillSlot::D).hits == 1);
+}
+
+TEST_CASE("エマ D: ワープで鉄菱の上に来ても踏む") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const EntityId id = f.addDummy({450, 900});
+    const std::vector<Vector2> pieces = throwCaltrops(f, {450, 0});
+    runUntilLanded(f);
+    REQUIRE(touchingCount(pieces, pieces[0], f.unit(id).radius, values.pieceRadius) == 1);
+
+    skills::teleport(f.world(), f.unit(id), pieces[0], WHITE);
+    f.world().update(kTick);
+    CHECK(remainingCaltrops(f) == pieces.size() - 1);
+    CHECK(slowedBy(f, id, values));
+}
+
+TEST_CASE("エマ D: 円の中でも、鉄菱の無い所にいれば踏まない（スロウも命中も無い）") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const Vector2 center{450, 0};
+
+    // 円の中で、どの鉄菱にも触れない所を探す（ダミーを小さくして、鉄菱の間に入れる）
+    constexpr float kSmallRadius = 30.0f;
+    const std::vector<Vector2> offsets = expectedCaltropOffsets(f);
+    std::optional<Vector2> gap;
+    for (float y = -values.radius; y <= values.radius && !gap; y += 5.0f) {
+        for (float x = -values.radius; x <= values.radius && !gap; x += 5.0f) {
+            const Vector2 p{x, y};
+            if (Vector2Length(p) <= values.radius - kSmallRadius &&
+                touchingCount(offsets, p, kSmallRadius, values.pieceRadius) == 0)
+                gap = p;
+        }
+    }
+    REQUIRE(gap.has_value());
+    const EntityId id = f.addDummy(center + *gap);
+    f.unit(id).radius = kSmallRadius;
+
+    const std::vector<Vector2> pieces = throwCaltrops(f, center);
+    runUntilLanded(f);
+    f.run(1.0f);
+    CHECK(remainingCaltrops(f) == pieces.size());
+    CHECK(f.unit(id).status.moveSpeedMultiplier() == doctest::Approx(1.0f));
+    CHECK(f.world().stats().slot(SkillSlot::D).hits == 0);
+}
+
+TEST_CASE("エマ D: 命中は 1 回の発動につき 1 回だけ数える（3 つ踏んでも 1。2 回投げて、どちらでも踏めば 2）") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const EntityId id = f.addDummy({0, 900});
+    const float radius = f.unit(id).radius;
+
+    // 外側の鉄菱を、1 つおきに count 個踏む（1 つずつ、円の外から触れる）
+    const auto stepOn = [&](Vector2 center, const std::vector<Vector2>& pieces, int count) {
+        for (int i = 0; i < count; ++i) {
+            f.unit(id).pos =
+                touchingFromOutside(center, pieces[static_cast<std::size_t>(i * 2)], radius, values.pieceRadius);
+            f.world().update(kTick);
+        }
+    };
+
+    const Vector2 first{450, 0};
+    std::vector<Vector2> pieces = throwCaltrops(f, first);
+    runUntilLanded(f);
+    stepOn(first, pieces, 3);
+    CHECK(remainingCaltrops(f) == pieces.size() - 3);
+    CHECK(f.world().stats().slot(SkillSlot::D).hits == 1);
+
+    f.resetCooldowns();
+    f.unit(id).pos = {0, 900};
+    const Vector2 second{-450, 0};
+    pieces = throwCaltrops(f, second);
+    runUntilLanded(f);
+    stepOn(second, pieces, 2);
+    CHECK(remainingCaltrops(f) == pieces.size() - 2);
+    CHECK(f.world().stats().slot(SkillSlot::D).casts == 2);
+    CHECK(f.world().stats().slot(SkillSlot::D).hits == 2);
+}
+
+TEST_CASE("エマ D: エマ自身が鉄菱の上を歩いても、鉄菱は消えず、スロウも付かない") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const Vector2 center{300, 0};
+    const std::vector<Vector2> pieces = throwCaltrops(f, center);
+    runUntilLanded(f);
+    // 真横に歩いて、円の真ん中を通り抜ける（敵なら踏む鉄菱がある道）
+    REQUIRE(std::any_of(pieces.begin(), pieces.end(),
+                        [&](Vector2 piece) { return std::abs(piece.y) <= f.player().radius + values.pieceRadius; }));
+    casting::orderMove(f.world(), f.player(), {700, 0});
+    f.run(2.5f);
+    REQUIRE(f.player().pos.x == doctest::Approx(700.0f));
+    CHECK(remainingCaltrops(f) == pieces.size());
+    CHECK(f.player().status.moveSpeedMultiplier() == doctest::Approx(1.0f));
+}
+
+TEST_CASE("エマ D: 鉄菱は着地から duration で消え、全部踏まれても円はそれまで残る") {
+    Fixture f("like_emma");
+    const CaltropsValues values = caltropsValues(f);
+    const EntityId id = f.addDummy({450, 900});
+    const std::vector<Vector2> pieces = throwCaltrops(f, {450, 0});
+    runUntilLanded(f);
+    for (const Vector2 piece : pieces) {  // 1 つずつ上にワープして、全部踏む
+        f.unit(id).pos = piece;
+        f.world().update(kTick);
+    }
+    CHECK(remainingCaltrops(f) == 0);
+
+    f.unit(id).pos = {450, 900};
+    f.run(values.duration - 0.2f);  // 着地から duration - 0.1 秒
+    CHECK(latestCaltrops(f) != nullptr);
+    f.run(0.3f);  // 着地から duration + 0.2 秒
+    CHECK(latestCaltrops(f) == nullptr);
 }
 
 TEST_CASE("発動の依頼の結果: 詠唱を始めた・予約した・使えなかった・すぐ発動した") {

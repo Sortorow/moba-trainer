@@ -15,8 +15,8 @@
 3.90 screenshot emma_4_r_rabbit.png
 4.20 cast W 900 300                   # 帽子を投げる
 4.50 screenshot emma_5_w.png
-5.20 cast D 1000 0                    # 鉄菱（ダミーB の往復ルート上）
-5.80 screenshot emma_6_d.png
+5.20 cast D 1000 0                    # 鉄菱（ダミーB の往復ルート上）。詠唱 0.33 秒 + 着地まで 0.35 秒
+5.95 screenshot emma_6_d.png          # 着地した後（ダミーB が踏んだ鉄菱は消える）
 6.00 resetcd
 6.00 cast R 900 300                   # R で帽子の位置へ（元の位置で打ち上げ）
 6.30 screenshot emma_7_r_hat.png

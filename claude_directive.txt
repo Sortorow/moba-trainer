@@ -172,7 +172,7 @@
 　　・プレイ中（ポーズ中を含む）に設定ファイルを保存しても、そのプレイには反映しない。次に始めたプレイ（リスタート・もう一度遊ぶを含む）から反映する。練習場も同じ。F5 もプレイ中は同じく次のプレイからになる。プレイの途中で設定が変わると、古い設定と新しい設定が混ざり、記録する成績の条件も途中で変わってしまうため（2026/11/15、確認済み。以前はキャラの大きさ・速さ・色・名前、スキルの数値、練習場のダミーなどをプレイの途中でも反映していた）
 　　・練習場の画面のパネルでプリセットを選んだ時は、設定ファイルの再読み込みではなく画面の操作なので、そのプレイのダミーをすぐに置き直す（2026/11/15、確認済み）
 　　・キャラのファイルを読み込む時に、各スキルの params を handler ごとのルール（必ず書く項目・値の範囲・型）で確かめ、通った場合にのみ各スキルに渡す。通らなかった時は、そのキャラのファイル全体を使わない（前回読めた内容を使い続け、メニューに赤字で、どのスキルのどの項目がなぜ駄目かを出す。初めての読み込みで通らなかった場合は、そのキャラは選べない）。ルールに無い項目名は警告だけにする（その項目は使わず、既定値で動く）（2026/10/31、確認済み）
-　　・数の params は 0 より大きい値を基本とし、0 を許すのは 0 に意味がある項目だけにする（cooldownRefundOnHit、delay・flightTime・hatFlightTime、slowAmount・lingerTime、bounces、recentWindow、効果の amount）。doveCardDrawOffsetForward・doveCardDrawOffsetSide（見た目のずれ）は 0 も負の値も許す。詳しくは docs/data-files.md の「params の値の決まり」（2026/10/31、確認済み）
+　　・数の params は 0 より大きい値を基本とし、0 を許すのは 0 に意味がある項目だけにする（cooldownRefundOnHit、delay・flightTime・hatFlightTime、bounces、recentWindow、鉄菱の rings の radiusRatio（0 = 円の中心に置く）、効果の amount）。doveCardDrawOffsetForward・doveCardDrawOffsetSide（見た目のずれ）と、鉄菱の rings の angle（向き）は 0 も負の値も許す。詳しくは docs/data-files.md の「params の値の決まり」（2026/10/31、確認済み。2026/11/16 に鉄菱を作り直した時、slowAmount・lingerTime を消して rings を足した）
 　　・設定ファイルの名前（賢さの名前など）に % を書いても、そのまま表示する（表示する側で % を %% にしてから ImGui の書式に入れる）（2026/10/31、確認済み）
 
 その他、注意点や要望：

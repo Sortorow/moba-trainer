@@ -18,7 +18,7 @@ constexpr std::array<HandlerEntry, 11> kHandlers = {{
     {"projectile", handleProjectile, projectileRules},
     {"homing_projectile", handleHomingProjectile, homingProjectileRules},
     {"blink", handleBlink, blinkRules},
-    {"ground_zone", handleGroundZone, groundZoneRules},
+    {"caltrops", handleCaltrops, caltropsRules},
     {"ground_blast", handleGroundBlast, groundBlastRules},
     {"targeted_blast", handleTargetedBlast, targetedBlastRules},
     {"ezreal_e", handleEzrealE, ezrealERules},

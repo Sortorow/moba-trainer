@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <format>
 
 #include "core/Geometry.h"
@@ -53,6 +54,22 @@ AreaEffect makeArea(const SkillContext& ctx, Vector2 center) {
     a.center = center;
     a.color = ctx.def.color("color", ctx.caster.color);
     return a;
+}
+
+std::vector<Vector2> ringLayout(const nlohmann::json& rings, float radius) {
+    std::vector<Vector2> offsets;
+    if (!rings.is_array()) return offsets;
+    for (const nlohmann::json& ring : rings) {
+        if (!ring.is_object()) continue;
+        const int count = ring.value("count", 0);
+        const float distance = radius * ring.value("radiusRatio", 0.0f);
+        const float first = ring.value("angle", 0.0f) * DEG2RAD;
+        for (int i = 0; i < count; ++i) {
+            const float angle = first + 2.0f * PI * static_cast<float>(i) / static_cast<float>(count);
+            offsets.push_back({std::cos(angle) * distance, std::sin(angle) * distance});
+        }
+    }
+    return offsets;
 }
 
 AreaEffect makeGroundBlast(const SkillContext& ctx, Vector2 center) {

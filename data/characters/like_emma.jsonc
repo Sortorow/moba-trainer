@@ -22,9 +22,14 @@
 //                        hatFlightTime, hatRadius, hatOnHit（帽子: 位置を入れ替え、エマの元の位置で爆発。範囲の敵に効果）,
 //                        rabbitRadius, rabbitOnHit（兎: 兎の周りの敵に効果）
 //                        ※ 入れ替わった鳩・帽子は、残り時間が最初に戻って残り続ける
-//   "ground_zone"        地点に投げて、一定時間残る範囲
-//                        flightTime, radius, duration（残る時間）, visual, color,
-//                        slowAmount / lingerTime（範囲内にいる間かかるスロウと、出た後も残る時間）, onHit
+//   "caltrops"           地点に投げ、着地するといつも同じ並びの鉄菱が一定時間残る（投げた向きでは回らない）。
+//                        鉄菱に触れると踏んだことになり、その鉄菱は消える（同時に触れた鉄菱はすべて消える）。
+//                        円は鉄菱をまいた範囲の目安で、円に入っても鉄菱を踏まなければ何も起きない
+//                        flightTime（着地までの時間）, radius（鉄菱をまく円の半径）, duration（残る時間）, color,
+//                        pieceRadius（鉄菱 1 つの当たり判定の半径）,
+//                        rings（鉄菱の並び。輪ごとに count 個を、円の半径の radiusRatio 倍の所に等しい間隔で並べる。
+//                        angle は 1 つ目の向き（度。右が 0、画面の上が -90 で、時計回りに増える））,
+//                        onStep（踏むたびに付く効果。初めて踏んだ時だけ効果の名前の文字を出す）
 {
   "id": "like_emma",
   "displayName": "like emma",
@@ -130,20 +135,25 @@
 
     "D": {
       "name": "鉄菱",
-      "handler": "ground_zone",
+      "handler": "caltrops",
       "targeting": "point",
-      "castTime": 0.1,
-      "cooldown": 15,
+      "castTime": 0.33,               // 動画から測った値（「鉄菱投擲」の詠唱バーが出ている時間）
+      "cooldown": 25,                 // ER の説明文の値
       "range": 600,
       "countsForHitRate": true,
       "params": {
-        "flightTime": 0.35,
+        "flightTime": 0.35,           // 動画から測った値（詠唱が終わってから、鉄菱を踏めるようになるまで）
         "radius": 220,
-        "duration": 4.5,
-        "visual": "caltrops",
+        "duration": 6.0,              // 動画から測った値（ER の説明文では 8 秒だが、動画では 6 秒で消える）
         "color": [170, 220, 255],
-        "slowAmount": 0.5,
-        "lingerTime": 0.5
+        "pieceRadius": 20,            // 動画の鉄菱の絵の大きさ（円の半径の約 0.09 倍）から決めた値
+        // 動画から測った並び: 外側の輪に 8 個、内側の輪に 4 個（内側は、外側の 1 つおきと同じ向き）
+        "rings": [
+          { "count": 8, "radiusRatio": 0.84, "angle": -103 },
+          { "count": 4, "radiusRatio": 0.35, "angle": -58 }
+        ],
+        // スロウは ER の説明文の値（踏むたびに 50%・2 秒。最後に踏んだ時から 2 秒続く）
+        "onStep": [ { "type": "slow", "amount": 0.5, "duration": 2.0 } ]
       }
     },
 

@@ -64,37 +64,46 @@ void handleBlink(SkillContext& ctx) {
 
 ParamRules blinkRules() { return {optionalParam("color", ParamKind::Color)}; }
 
-/// params: flightTime（着地までの時間）, radius, duration（残る時間）, visual, color,
-///         slowAmount / lingerTime（範囲内にいる間かかるスロウと、出た後に残る時間）, onHit（最初に入った時の効果）
-void handleGroundZone(SkillContext& ctx) {
+/// params: flightTime（着地までの時間）, radius（鉄菱をまく円の半径）, duration（残る時間）, color,
+///         pieceRadius（鉄菱 1 つの当たり判定の半径）, rings（鉄菱の並び）, onStep（踏むたびに付く効果）
+void handleCaltrops(SkillContext& ctx) {
     AreaEffect a = makeArea(ctx, aimPoint(ctx));
-    a.delay = ctx.def.num("flightTime", 0.3f);
-    a.duration = ctx.def.num("duration", 4.0f);
-    a.radius = ctx.def.num("radius", 200.0f);
-    a.visual = areaVisualFromString(ctx.def.text("visual", "caltrops"));
-
-    const EffectSpec slow{EffectType::Slow, ctx.def.numOr("lingerTime", 0.5f), ctx.def.numOr("slowAmount", 0.0f), ""};
-    if (slow.amount > 0.0f) {
-        a.whileInside = [slow](World&, AreaEffect& self, Unit& unit) { unit.status.apply(slow, self.owner); };
+    a.delay = ctx.def.num("flightTime", 0.35f);
+    a.duration = ctx.def.num("duration", 6.0f);
+    a.radius = ctx.def.num("radius", 220.0f);
+    a.visual = AreaVisual::Caltrops;
+    a.pieceRadius = ctx.def.num("pieceRadius", 20.0f);
+    for (const Vector2 offset : ringLayout(ctx.def.params.value("rings", nlohmann::json::array()), a.radius)) {
+        a.pieces.push_back(a.center + offset);
     }
-    const std::vector<EffectSpec> effects = ctx.def.effects("onHit");
-    a.onUnitHit = [effects](World& world, AreaEffect& self, Unit& unit) {
-        applyEffects(world, unit, effects, self.owner);
-        if (self.whileInside) world.addVfx(makeTextVfx(self.team, unit.pos, "スロウ", Color{150, 210, 255, 255}));
+
+    a.onActivate = [](World& world, AreaEffect& self) {
+        world.addVfx(makeBurstVfx(self.team, self.center, self.radius, Color{235, 245, 255, 255}));  // 着地の白い光
     };
+    const std::vector<EffectSpec> effects = ctx.def.effects("onStep");
+    a.onStep = [effects](World& world, AreaEffect& self, Unit& unit, bool firstStep) {
+        if (firstStep) {
+            applyEffects(world, unit, effects, self.owner);  // 効果の名前の文字も出す
+            return;
+        }
+        // 2 回目に踏んだ時からは、文字を出さずに付け直す（踏むたびに出すと文字が重なる）。同じ強さのスロウは 1 つにまとまり、
+        // 残り時間が長い方になるので、最後に踏んだ時から効果の長さだけ続く
+        for (const EffectSpec& effect : effects) unit.status.apply(effect, self.owner);
+    };
+    log::debug("skill", "[{}] {}: 鉄菱 {} 個を {} にまく", toString(ctx.def.slot), ctx.def.name, a.pieces.size(),
+               geo::str(a.center));
     ctx.world.spawnArea(std::move(a));
 }
 
-ParamRules groundZoneRules() {
+ParamRules caltropsRules() {
     return {
         requiredParam("flightTime", ParamKind::NonNegative),  // 0 = 投げた瞬間に着地
         requiredParam("duration", ParamKind::Positive),
         requiredParam("radius", ParamKind::Positive),
-        optionalParam("slowAmount", ParamKind::Ratio),        // 0 = スロウなし
-        optionalParam("lingerTime", ParamKind::NonNegative),  // 0 = 範囲から出たらすぐ切れる
-        choiceParam("visual", ParamKind::Choice, areaVisualNames()),
+        requiredParam("pieceRadius", ParamKind::Positive),
+        requiredParam("rings", ParamKind::Rings),
         optionalParam("color", ParamKind::Color),
-        optionalParam("onHit", ParamKind::Effects),
+        optionalParam("onStep", ParamKind::Effects),
     };
 }
 

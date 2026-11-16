@@ -39,7 +39,7 @@
 | | W | 帽子 | `emma_w` | 地点（硬直なし） | ○ |
 | | E | マジックビーム | `homing_projectile` | 対象 | |
 | | R | マジックショー | `emma_r` | 設置物 | |
-| | D | 鉄菱 | `ground_zone` | 地点 | ○ |
+| | D | 鉄菱 | `caltrops` | 地点 | ○ |
 | like ezreal | Q | Mystic Shot | `projectile` | 方向 | ○ |
 | | W | Essence Flux | `projectile` | 方向 | ○ |
 | | E | Arcane Shift | `ezreal_e` | 方向 | |
@@ -183,14 +183,15 @@ using SkillHandler = void (*)(SkillContext&);
 | 値 | 決まり | 主な項目 |
 |---|---|---|
 | `Positive` | 0 より大きい数 | 弾速・幅・半径・残る時間・探す距離（0 だと動きが成り立たない。`doveSpeed` は割り算に使う） |
-| `NonNegative` | 0 以上の数 | 待ち時間（`delay` など。0 = すぐ）・`lingerTime`・`recentWindow` |
-| `Ratio` | 0 以上 1 以下の数 | `cooldownRefundOnHit`・`slowAmount` |
+| `NonNegative` | 0 以上の数 | 待ち時間（`delay` など。0 = すぐ）・`recentWindow` |
+| `Ratio` | 0 以上 1 以下の数 | `cooldownRefundOnHit` |
 | `AnyNumber` | どんな数でもよい | 見た目のずれ（`doveCardDrawOffset...`） |
 | `PositiveInteger` / `NonNegativeInteger` | 1 以上 / 0 以上の整数 | `maxHitsPerTarget` / `bounces` |
 | `Flag` / `Text` | `true` か `false` / 文字列 | `pierce` など / 印の名前 |
 | `Choice` / `ChoiceList` | 決まった文字列のどれか / その配列 | `visual` / `targetKinds` |
 | `Color` | `[R, G, B]` か `[R, G, B, A]`（各 0〜255 の整数） | `color` など |
 | `Effects` | 効果の配列（各効果の決まりも確かめる） | `onHit` など |
+| `Rings` | 輪の並びの配列（1 つ以上。輪ごとに `count` は 1 以上の整数・`radiusRatio` は 0〜1 で、どちらも必須。`angle` はどんな数でもよく、省略できる。それ以外の項目名は警告） | `rings`（鉄菱の並び） |
 
 **`ParamRule`（構造体）**: 項目 1 つの決まり。
 
@@ -221,7 +222,7 @@ using SkillHandler = void (*)(SkillContext&);
 | 効果の誤り（知らない `type`・`duration` が無いか 0 以下・`amount` が 0〜1 の外・`mark` に `tag` が無い） | エラー | `…: params.onHit の 1 番目の効果: duration は 0 より大きい数にしてください（今: 0）` |
 | 決まりに無い項目名（効果の中の知らない項目名も） | 警告 | `…: params.doveSped は handler "emma_r" では使いません（書き間違いかもしれません。この項目は無視します）` |
 
-.cpp の中だけの関数: `where`（「キャラ ID の キー（スキル名）」の文）、`shown`（値を 40 文字までの文にする）、`checkNumber`・`checkColor`・`checkEffects`・`checkValue`（種類ごとの判定）、`choiceText`（選択肢を並べた文）。
+.cpp の中だけの関数: `where`（「キャラ ID の キー（スキル名）」の文）、`shown`（値を 40 文字までの文にする）、`checkNumber`・`checkColor`・`checkEffects`・`checkRings`・`checkValue`（種類ごとの判定）、`choiceText`（選択肢を並べた文）。
 
 **注意事項**:
 
@@ -236,6 +237,7 @@ using SkillHandler = void (*)(SkillContext&);
 | `Vector2 aimPoint(const SkillContext&)` | カーソルの位置（射程より遠ければ射程の端） |
 | `Projectile makeProjectile(const SkillContext&, Vector2 origin, Vector2 dir, float range)` | 直線の弾を作る。params の `speed`（必須）・`width`（必須。半分が当たり判定の半径）・`pierce`・`visual`・`color`（既定はキャラの色）を使う。**World にはまだ加えない** |
 | `AreaEffect makeArea(const SkillContext&, Vector2 center)` | 範囲の共通部分（発動者・陣営・発動の番号・名前・中心・`color`）を作る。半径や時間は呼んだ側で決める |
+| `vector<Vector2> ringLayout(const json& rings, float radius)` | params の `rings` から、輪に並べた物（鉄菱）の、円の中心から見た位置の一覧を作る。輪ごとに `count` 個を、半径の `radiusRatio` 倍の所に等しい間隔で並べ、1 つ目は `angle` 度（右が 0、画面の上が -90 で、時計回りに増える）。投げた向きは使わないので、並びはいつも同じ |
 | `AreaEffect makeGroundBlast(const SkillContext&, Vector2 center)` | 遅れて爆発する範囲（予告円つき）を作る。params の `delay`・`radius`（必須）・`onHit`・`cooldownRefundOnHit`。クールダウンの短縮は**何体に当たっても 1 回だけ**（1 体目に当たった時） |
 | `void applyEffects(World&, Unit& target, const vector<EffectSpec>&, EntityId source)` | 効果を付け、効果の名前の文字演出を出す（印は文字を出さない） |
 | `bool detonateMark(World&, Unit& target, string_view markTag, Color)` | 印があれば消費して起爆の演出（「起爆!」）を出す。`markTag` が空なら何もしない |
@@ -251,11 +253,13 @@ using SkillHandler = void (*)(SkillContext&);
 | `projectile` | `handleProjectile` | カーソルの方向へ、射程まで直線に飛ぶ弾。当たると印を起爆し、効果を付ける | `speed`・`width`・`pierce`・`visual`・`color`・`onHit`・`detonateMark` |
 | `homing_projectile` | `handleHomingProjectile` | 対象を追尾する弾（**必ず当たる**）。対象がいなければ不発（クールダウンは戻さない。仕様。根拠: character_traits.txt の「共通の仕様」） | 同上（`pierce` なし） |
 | `blink` | `handleBlink` | カーソルの位置（射程より遠ければ射程の端）へ瞬間移動 | `color` |
-| `ground_zone` | `handleGroundZone` | 地点に投げ、`flightTime` 後に着地して `duration` の間残る範囲。中にいる間スロウ（出た後も `lingerTime` 残る）。初めて入った時に `onHit` | `flightTime`・`radius`・`duration`・`visual`・`color`・`slowAmount`・`lingerTime`・`onHit` |
+| `caltrops` | `handleCaltrops` | 地点に投げ、`flightTime` 後に着地すると、`rings` の並びの鉄菱（`pieces`）が `duration` の間残る。鉄菱に触れた敵は踏み、踏んだ鉄菱は消える。踏むたびに `onStep` の効果（初めて踏んだ時だけ文字の演出）。着地した時に白い光（`onActivate`） | `flightTime`・`radius`・`duration`・`pieceRadius`・`rings`・`color`・`onStep` |
 | `ground_blast` | `handleGroundBlast` | 地点が `delay` 後に爆発する（予告円つき） | `delay`・`radius`・`color`・`onHit`・`cooldownRefundOnHit` |
 | `targeted_blast` | `handleTargetedBlast` | 対象の敵とその周りに、すぐに範囲効果。対象がいなければ不発でクールダウンを戻す | `radius`・`color`・`onHit` |
 
-**注意事項**: `ground_zone` のスロウは、中にいる間 毎刻み `lingerTime` の長さのスロウを付け直します（`StatusEffects::apply` は長い方に更新するので、出た後 `lingerTime` 秒で切れる）。`lingerTime` が 0 でも、範囲の中では移動に効きます（状態異常の残り時間を減らすのが、キャラの移動の後のため。[14-game-world.md](14-game-world.md) の 2.2）。
+**注意事項**: `caltrops` のスロウは、踏むたびに同じ強さ・長さで付け直します。`StatusEffects::apply` は同じ強さのものを 1 つにまとめて残り時間の長い方にするので、最後に踏んだ時から `onStep` の長さだけ続きます。踏む判定（鉄菱を消す・命中の記録）は `World::stepOnPieces` です（[14-game-world.md](14-game-world.md)）。
+
+**背景**（2026-11-16）: 以前は `ground_zone` という handler で、円の中にいる間ずっとスロウを付け直していたので、円の中で止まっているとスロウが切れませんでした。ER の鉄菱に合わせて、12 個の鉄菱を 1 つずつ踏む形に作り直しました（known_issue.txt の KI-2）。
 
 ---
 

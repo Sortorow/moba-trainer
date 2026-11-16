@@ -114,6 +114,34 @@ TEST_CASE("params のルール: 0 を許す項目だけ 0 を通し、範囲外�
     CHECK(containsText(errorsWith(emmaQ, "visual", "sparkle"), "params.visual は \"orb\""));
 }
 
+TEST_CASE("params のルール: 鉄菱の rings は、輪ごとに count（1 以上の整数）と radiusRatio（0〜1）を確かめる") {
+    SkillDef d = realSkill("like_emma", SkillSlot::D);
+    REQUIRE(skills::checkSkillParams(d).errors.empty());
+    auto checkRings = [&](std::string_view text) {
+        SkillDef def = d;
+        def.params["rings"] = nlohmann::json::parse(text);
+        return skills::checkSkillParams(def);
+    };
+    CHECK(containsText(checkRings("[]").errors, "params.rings は輪の配列"));  // 1 つも無い
+    CHECK(containsText(checkRings("8").errors, "params.rings は輪の配列"));
+    CHECK(
+        containsText(checkRings(R"([{"count": 0, "radiusRatio": 0.5}])").errors, "1 番目の輪: count は 1 以上の整数"));
+    CHECK(containsText(checkRings(R"([{"count": 8, "radiusRatio": 1.2}])").errors, "radiusRatio は 0 以上 1 以下"));
+    CHECK(containsText(checkRings(R"([{"count": 8}])").errors, "1 番目の輪: radiusRatio がありません"));
+    CHECK(containsText(checkRings(R"([{"count": 8, "radiusRatio": 0.5}, 3])").errors, "2 番目の輪 は"));
+    // 中心に置く（radiusRatio 0）のも、どんな角度も、angle を書かないのもよい
+    CHECK(checkRings(R"([{"count": 1, "radiusRatio": 0, "angle": -400}, {"count": 4, "radiusRatio": 1}])")
+              .errors.empty());
+    // 輪に無い項目名は警告
+    const SkillCheck typo = checkRings(R"([{"count": 8, "radiusRatio": 0.5, "angel": 10}])");
+    CHECK(typo.errors.empty());
+    CHECK(containsText(typo.warnings, "angel は輪では使いません"));
+    // rings が無い
+    SkillDef noRings = d;
+    noRings.params.erase("rings");
+    CHECK(containsText(skills::checkSkillParams(noRings).errors, "params.rings がありません"));
+}
+
 TEST_CASE("params のルール: ルールに無い項目名は、エラーではなく警告にする") {
     SkillDef r = realSkill("like_emma", SkillSlot::R);
     r.params["doveSped"] = 3000;  // doveSpeed の書き間違い

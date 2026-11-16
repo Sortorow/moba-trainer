@@ -361,17 +361,18 @@ data/
 
 | 値の決まり | 項目 |
 |---|---|
-| 0 より大きい数 | 弾速（`speed` / `doveSpeed` / `doveCardSpeed` / `boltSpeed`）、幅・半径（`width` / `radius` / `hatRadius` / `rabbitRadius` / `dovePathWidth` / `boltWidth`）、残る時間（`ground_zone` の `duration` / `doveLifetime` / `hatLifetime`）、距離（`bounceRange` / `boltSearchRange` / `pickRadius` / `doveCardRange`） |
-| 0 以上の数（0 は「すぐ」「無し」） | 待ち時間（`delay` / `flightTime` / `hatFlightTime`）、`lingerTime`、`recentWindow` |
-| 0 以上 1 以下の数 | `cooldownRefundOnHit`、`slowAmount` |
+| 0 より大きい数 | 弾速（`speed` / `doveSpeed` / `doveCardSpeed` / `boltSpeed`）、幅・半径（`width` / `radius` / `hatRadius` / `rabbitRadius` / `dovePathWidth` / `boltWidth` / `pieceRadius`）、残る時間（`caltrops` の `duration` / `doveLifetime` / `hatLifetime`）、距離（`bounceRange` / `boltSearchRange` / `pickRadius` / `doveCardRange`） |
+| 0 以上の数（0 は「すぐ」「無し」） | 待ち時間（`delay` / `flightTime` / `hatFlightTime`）、`recentWindow` |
+| 0 以上 1 以下の数 | `cooldownRefundOnHit`、`rings` の `radiusRatio`（0 なら円の中心） |
 | 0 以上の整数 | `bounces`（0 なら跳ね返らない） |
-| 1 以上の整数 | `maxHitsPerTarget` |
-| どんな数でもよい（負も可） | `doveCardDrawOffsetForward` / `doveCardDrawOffsetSide` |
+| 1 以上の整数 | `maxHitsPerTarget`、`rings` の `count` |
+| どんな数でもよい（負も可） | `doveCardDrawOffsetForward` / `doveCardDrawOffsetSide`、`rings` の `angle` |
 | `true` / `false` | `pierce`、`boltEnabled` |
 | 文字列 | `detonateMark`、`boltPreferMark`、`boltDetonateMark` |
 | 決まった値のどれか | `visual`（[見た目の値](#見た目の値)の表）、`targetKinds`（`"dove"` / `"hat"` / `"rabbit"` の配列） |
 | 色 | `color` などの色: `[R, G, B]` か `[R, G, B, A]`（各 0〜255 の整数） |
 | 効果の配列 | `onHit` などの効果: [9 章](#9-効果onhit-などの書き方)の決まり |
+| 輪の並びの配列 | `rings`（鉄菱の並び）: 1 つ以上の輪を書く。輪ごとに `count`・`radiusRatio` を必ず書き、`angle` は省略できる（下の `caltrops` の表）。それ以外の項目名は警告だけ出して、無視する |
 
 スキル共通の項目（`castTime` / `cooldown` / `range` / `aiPriority`）は、これまでどおり、負の値を書くと 0 として読みます（エラーにはしません）。
 
@@ -393,17 +394,25 @@ data/
 
 **`"blink"`**：カーソルの方向へ瞬間移動（`CommonSkills.cpp`）。例：フラッシュ。カーソルが射程内ならその位置、外なら射程の端へ移動します。`color`（演出の色）だけ書けます。
 
-**`"ground_zone"`**：地点に投げて、一定時間残る範囲（`CommonSkills.cpp`）。例：エマの D
+**`"caltrops"`**：地点に投げ、着地すると、いつも同じ並びの鉄菱が一定時間残る（`CommonSkills.cpp`）。例：エマの D
+
+鉄菱に触れた敵は、その鉄菱を踏み、踏んだ鉄菱は消えます（同時に触れた鉄菱はすべて消え、1 回踏んだことにします）。踏むたびに `onStep` の効果が付きます。円は鉄菱をまいた範囲の目安で、円に入っても鉄菱を踏まなければ何も起きません。命中として数えるのは、1 回の発動につき、敵が初めて鉄菱を踏んだ時です。並びは投げた向きでは回りません。
 
 | 項目 | 必須 | 意味 |
 |---|---|---|
-| `flightTime` | ○ | 投げてから着地するまでの時間 |
-| `duration` | ○ | 範囲が残る時間 |
-| `radius` | ○ | 範囲の半径 |
-| `slowAmount` | | 範囲内にいる間かかるスロウの強さ（0 なら無し） |
-| `lingerTime` | | 範囲から出た後もスロウが続く時間（既定 0.5） |
-| `visual` | | 見た目（範囲の表）。既定は `"caltrops"` |
-| `color` / `onHit` | | 色 / 範囲に最初に入った時の効果 |
+| `flightTime` | ○ | 詠唱が終わってから着地する（鉄菱を踏めるようになる）までの時間 |
+| `duration` | ○ | 着地してから消えるまでの時間（鉄菱が全部踏まれても、円はこの時間まで残る） |
+| `radius` | ○ | 鉄菱をまく円の半径 |
+| `pieceRadius` | ○ | 鉄菱 1 つの当たり判定の半径（描く鉄菱の大きさも同じ） |
+| `rings` | ○ | 鉄菱の並び。輪の配列で、輪ごとに `count` 個を、円の半径の `radiusRatio` 倍の所に等しい間隔で並べる。`angle` は 1 つ目の向き（度。右が 0、画面の上が -90 で、時計回りに増える。既定 0） |
+| `color` / `onStep` | | 色 / 踏むたびに付く効果（初めて踏んだ時だけ、効果の名前の文字を出す）。同じ強さのスロウは 1 つにまとまり、残り時間が長い方になるので、最後に踏んだ時から効果の長さだけ続く |
+
+```jsonc
+"rings": [
+  { "count": 8, "radiusRatio": 0.84, "angle": -103 },  // 外側の輪に 8 個
+  { "count": 4, "radiusRatio": 0.35, "angle": -58 }    // 内側の輪に 4 個
+]
+```
 
 **`"ground_blast"`**：指定した地点が遅れて爆発する（予告円つき）（`SkillHelpers.cpp`）。例：ブランドの W
 
@@ -480,12 +489,7 @@ data/
 | `"bolt"` | 小さな弾 |
 | `"dove"` | 鳩 |
 
-| 範囲（`visual`） | 見た目 |
-|---|---|
-| `"explosion"` | 範囲の輪だけ |
-| `"telegraph"` | 予告円の内側が少しずつ埋まる |
-| `"hat"` | 帽子が飛んでいく |
-| `"caltrops"` | 鉄菱が飛んでいき、着地後は範囲に残る |
+範囲の見た目は、handler ごとに決まっています（`visual` では選べません）。
 
 ### 新しい handler を作る時
 
@@ -498,7 +502,7 @@ data/
 
 ## 9. 効果（onHit など）の書き方
 
-`onHit`、`doubleHitEffects`、`doveOnHit` などの効果は、次の形の配列で書きます。読み込みは `src/data/EffectSpec.cpp`、効果の働きは `src/game/StatusEffects.cpp` です。
+`onHit`、`doubleHitEffects`、`doveOnHit`、`onStep` などの効果は、次の形の配列で書きます。読み込みは `src/data/EffectSpec.cpp`、効果の働きは `src/game/StatusEffects.cpp` です。
 
 ```jsonc
 "onHit": [
@@ -653,7 +657,7 @@ data/
 |---|---|---|
 | `test_character_data.cpp` | 設定ファイルがすべて読み込めること、handler が実在し params が決まりを満たすことを確認するテスト。決まりを満たさない params を書いた写しで、そのファイルを使わないことも確かめる | すべて |
 | `TempDataCopy.h` | テスト用の部品。data フォルダを一時フォルダへ写し、設定ファイルの一部を書き換えて試せるようにする（本物は書き換えない） | すべて |
-| `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する。一部のテストは、キャラのファイルの写しを書き換えて試す（エマの Q を貫通にする・エマの D の `lingerTime` を 0 にする・エズリアルの W の params を消す） | characters |
+| `test_world.cpp` | スキルの動きのテスト。期待する値（射程・弾速など）をキャラのファイルから計算する。一部のテストは、キャラのファイルの写しを書き換えて試す（エマの Q を貫通にする・エズリアルの W の params を消す） | characters |
 | `test_dodge.cpp` | スキルドッジのテスト。設定ファイルを読み込み、`src/game/Match.cpp` を通してキャラと敵 AI の設定を使う。一部のテストは、写しの `castTime` と `enemyCooldownScale` を 0 に書き換えて試す。森（forest.jsonc）の (-450, 450) のブッシュに自キャラを置くテストがある（ブッシュを動かしたら直す） | ai、characters、stages |
 | `test_results.cpp` | 使わない（リザルトの保存のテスト。一時フォルダを使う） | — |
 | `test_stats.cpp` | 使わない（統計の計算のテスト） | — |

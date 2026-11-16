@@ -154,7 +154,7 @@ flowchart LR
 
 ### 7.4 弾・範囲の見た目を足す
 
-1. `game/Entities.h` の `ProjectileVisual` / `AreaVisual` に値を足し、`Entities.cpp` の表（`kProjectileVisuals` / `kAreaVisuals`）に表記を足す（params の `visual` の決まりも、この表から作られる）
+1. `game/Entities.h` の `ProjectileVisual` / `AreaVisual` に値を足す。弾は、`Entities.cpp` の表 `kProjectileVisuals` にも表記を足す（params の `visual` の決まりも、この表から作られる）。範囲の見た目は設定ファイルでは選ばず、スキルの処理（`skills/*.cpp`）で決める
 2. `render/Renderer.cpp` の `drawProjectile` / `drawArea` に描き方を足す
 
 ### 7.5 ステージを足す

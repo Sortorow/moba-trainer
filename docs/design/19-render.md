@@ -99,14 +99,14 @@ flowchart TD
 | `drawTriangleBothSides(a, b, c, color)` | 頂点の並び順に関係なく三角形を描く（raylib は反時計回りの三角形しか描かないため、両方の順で描く） |
 | `drawBird(pos, dir, size, color)` | 鳩の形 |
 | `drawHat(pos, size)` | 帽子の形 |
-| `drawCaltropStars(center, radius, color)` | 範囲の中に散らばる鉄菱（星形） |
+| `drawCaltrop(pos, size, color)` | 鉄菱 1 つ（四角を 2 つ 45° ずらして重ねた星形。真ん中は明るい）。`size` は当たり判定の半径と同じ |
 | `drawLifetimeArc(pos, radius, ratio, color)` | 残り時間の円弧 |
 | `drawGround(const World&)` | 床とステージの外枠 |
 | `fillShape(const Shape&, Color)` / `outlineShape(const Shape&, float thickness, Color)` | 形（長方形・円）を塗る / 縁を描く |
 | `inset(const Shape&, float amount)` | 形を内側へ縮めたもの（建物の屋根など） |
 | `drawObstacle(const Obstacle&)` | 障害物。種類ごとに見た目だけ変える（建物 = 屋根つきの灰色、壁 = 明るい灰色、箱 = 茶色で × 印、木 = 緑） |
 | `drawBush(const Shape&)` | ブッシュ（半透明の緑） |
-| `drawArea(const AreaEffect&, bool showHitboxes)` | 発動前: 範囲の輪と、見た目ごとの予告（予告円が埋まる・帽子や鉄菱が弧を描いて飛ぶ）。発動後: 残る範囲（鉄菱と残り時間の円弧） |
+| `drawArea(const AreaEffect&, bool showHitboxes)` | 発動前: 範囲の輪と、見た目ごとの予告（予告円が埋まる・帽子や鉄菱が弧を描いて飛ぶ）。発動後: 残る範囲（円と残り時間の円弧と、まだ踏まれていない鉄菱を本当の位置に 1 つずつ。円は鉄菱をまいた範囲の目安で、当たり判定ではない。`showHitboxes` なら鉄菱ごとの当たり判定の円も） |
 | `drawProp(const Prop&)` | 設置物と残り時間の円弧。飛んで移動している最中（`hiddenTime > 0`）は描かない |
 | `drawRabbit(pos, radius)` | 兎（変身させた敵）の形 |
 | `drawUnit(const Unit&, float time)` | キャラ。影 → 体（変身中は兎）→ 外周の輪 → 向きの線 → 被弾の光 → 状態異常の輪（拘束 = 紫、スロウ = 青）→ 印（回る黄色の輪）。打ち上げ中は 45 だけ浮かせて描く |

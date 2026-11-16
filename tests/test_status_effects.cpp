@@ -1,5 +1,6 @@
 // 状態異常の一覧のテスト: スロウは強さごとに別々に数え、その時に残っている中で最も強いものだけが効く
-// （ケース 1〜3 は、2026-11-15 にユーザーが示した例。character_traits.txt の「状態異常」）
+// （ケース 1〜3 は character_traits.txt の「状態異常」の例 1〜3。ケース 3 は 2026-11-15 にユーザーが示した例。
+//  ケース 1・2 は、鉄菱を「踏むたびにスロウ」にした時（2026-11-16）に、新しい鉄菱で書き直した）
 
 #include <doctest/doctest.h>
 
@@ -18,51 +19,51 @@ EffectSpec slow(float amount, float duration) { return EffectSpec{EffectType::Sl
 
 /// エマの Q の 2 枚当て（40%・1.5 秒。like_emma.jsonc の doubleHitEffects と同じ値）
 const EffectSpec kQDoubleHit = slow(0.4f, 1.5f);
-/// エマの D の鉄菱（50%・出た後 0.5 秒。範囲の中にいる間は、毎刻み付け直す）
-const EffectSpec kCaltrops = slow(0.5f, 0.5f);
+/// エマの D の鉄菱を 1 つ踏んだ時のスロウ（50%・2 秒。like_emma.jsonc の onStep と同じ値。踏むたびに付く）
+const EffectSpec kCaltrops = slow(0.5f, 2.0f);
 
-/// seconds 秒進める。World と同じく 1 刻みずつ、残り時間を減らしてから、範囲の効果（zone があれば）を付け直す
-void advance(StatusEffects& status, float seconds, const EffectSpec* zone = nullptr) {
+/// seconds 秒進める（World と同じく 1 刻みずつ、残り時間を減らす）
+void advance(StatusEffects& status, float seconds) {
     const long ticks = std::lround(seconds / kDt);
-    for (long i = 0; i < ticks; ++i) {
-        status.update(kDt);
-        if (zone) status.apply(*zone, kInvalidId);
-    }
+    for (long i = 0; i < ticks; ++i) status.update(kDt);
 }
 
 }  // namespace
 
-TEST_CASE("スロウ: 強い方が先に切れたら、残っている弱い方が効く（ケース 1: Q の 2 枚当ての 0.5 秒後に鉄菱に触れる）") {
+TEST_CASE(
+    "スロウ: 弱い方が先に切れても、強い方が効いている間は変わらない（ケース 1: Q の 2 枚当ての 0.5 "
+    "秒後に鉄菱を踏む）") {
     StatusEffects status;
     status.apply(kQDoubleHit, kInvalidId);
     advance(status, 0.25f);
     CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.6f));  // Q の 40% だけ
     advance(status, 0.25f);
-    status.apply(kCaltrops, kInvalidId);  // 0.5 秒: 鉄菱に触れて、すぐ出る
+    status.apply(kCaltrops, kInvalidId);  // 0.5 秒: 鉄菱を 1 つ踏む（2.5 秒まで）
     advance(status, 0.25f);
     CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.5f));  // 0.75 秒: 鉄菱の 50% が強い
-    advance(status, 0.5f);
-    CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.6f));  // 1.25 秒: 鉄菱は 1.0 秒で切れ、Q の 40% に戻る
-    advance(status, 0.35f);
-    CHECK(status.moveSpeedMultiplier() == doctest::Approx(1.0f));  // 1.6 秒: Q も 1.5 秒で切れた
+    advance(status, 0.85f);
+    CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.5f));  // 1.6 秒: Q は 1.5 秒で切れたが、鉄菱が残る
+    CHECK(status.list().size() == 1);
+    advance(status, 0.8f);
+    CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.5f));  // 2.4 秒
+    advance(status, 0.2f);
+    CHECK(status.moveSpeedMultiplier() == doctest::Approx(1.0f));  // 2.6 秒: 鉄菱も 2.5 秒で切れた
     CHECK(status.list().empty());
 }
 
-TEST_CASE("スロウ: 弱い方より長く続く強いスロウは、最後まで強いまま（ケース 2: 0.8 秒から 1.2 秒まで鉄菱の中）") {
+TEST_CASE("スロウ: 同じ強さのスロウを付け直すと、最後に付けた時から数え直す（ケース 2: 0.8 秒と 1.2 秒に鉄菱を踏む）") {
     StatusEffects status;
-    status.apply(kQDoubleHit, kInvalidId);
-    advance(status, 0.5f);
-    CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.6f));
-    advance(status, 0.3f);
-    status.apply(kCaltrops, kInvalidId);  // 0.8 秒: 鉄菱の範囲に入る
-    advance(status, 0.2f, &kCaltrops);
-    CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.5f));  // 1.0 秒
-    CHECK(status.list().size() == 2);   // 鉄菱を毎刻み付け直しても、強さが同じものは 1 つにまとまる
-    advance(status, 0.2f, &kCaltrops);  // 1.2 秒: 範囲から出る（鉄菱のスロウは 1.7 秒まで）
+    advance(status, 0.8f);
+    status.apply(kCaltrops, kInvalidId);  // 0.8 秒: 1 つ目を踏む（このままなら 2.8 秒まで）
     advance(status, 0.4f);
-    CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.5f));  // 1.6 秒: Q は切れたが、鉄菱が残る
+    status.apply(kCaltrops, kInvalidId);  // 1.2 秒: 2 つ目を踏む（3.2 秒まで）
+    CHECK(status.list().size() == 1);     // 強さが同じなので、1 つにまとまる
+    advance(status, 1.7f);
+    CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.5f));  // 2.9 秒: 1 つ目だけなら切れている
     advance(status, 0.2f);
-    CHECK(status.moveSpeedMultiplier() == doctest::Approx(1.0f));  // 1.8 秒
+    CHECK(status.moveSpeedMultiplier() == doctest::Approx(0.5f));  // 3.1 秒
+    advance(status, 0.2f);
+    CHECK(status.moveSpeedMultiplier() == doctest::Approx(1.0f));  // 3.3 秒: 2 つ目から 2 秒で切れた
 }
 
 TEST_CASE("スロウ: 強さと長さの違う 2 つを同時に受けると、強い方が切れた後は弱い方が残りの長さだけ効く（ケース 3）") {

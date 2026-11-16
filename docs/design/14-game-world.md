@@ -76,7 +76,7 @@
 
 **注意事項**: 状態異常の残り時間を減らすのは、キャラの更新の最後です。状態異常を付けるのは 4・5（弾と範囲が当たった時）だけなので、付いた効果は、長さが 0 でも次の刻みの詠唱と移動に必ず効きます。AI・入力（`Match::update` で `World::update` より前に動く）と HUD から見た効果とも、同じ刻みで効きます。
 
-**背景**（2026-11-15）: 以前は最初に減らしていたので、長さが 1 刻み（1/120 秒）以下の効果は移動の前に消えていました（鉄菱の `lingerTime` を 0 にすると、範囲の中でもスロウが効かなかった）。また、効果が切れる直前の 1 刻みは、AI と HUD からは効いて見えるのに、移動には効いていませんでした。
+**背景**（2026-11-15）: 以前は最初に減らしていたので、長さが 1 刻み（1/120 秒）以下の効果は移動の前に消えていました（鉄菱の `lingerTime` を 0 にすると、範囲の中でもスロウが効かなかった。`lingerTime` は、2026-11-16 に鉄菱を「踏むたびにスロウ」に作り直した時に無くなった）。また、効果が切れる直前の 1 刻みは、AI と HUD からは効いて見えるのに、移動には効いていませんでした。
 
 ### 2.3 追加・削除
 
@@ -182,8 +182,9 @@ sequenceDiagram
 | `void updateHomingProjectile(Projectile& p, float dt)` | 追尾弾を対象へ向けて進める。届けば当てて消える。対象がいなくなったら消える |
 | `void hitWithProjectile(Projectile& p, Unit& target)` | 当たった相手を記録し、違う陣営なら `registerHit`、そして弾の `onHit`。**同じ陣営（自分自身）への到達は命中に数えない**（ブランドの R が自分に跳ね返る時） |
 | `void expireProjectile(Projectile& p)` | 弾の `onExpire` を呼んで消す |
-| `void updateAreas(float dt)` | 範囲を進める。`delay` 秒たったら発動（`onActivate`）。`duration` が 0 なら、発動の瞬間だけ範囲の敵に当てて消える。0 より大きければ、その間ずっと残り、**初めて入った敵に `onUnitHit`、中にいる敵に毎刻み `whileInside`** |
+| `void updateAreas(float dt)` | 範囲を進める。`delay` 秒たったら発動（`onActivate`）。`duration` が 0 なら、発動の瞬間だけ範囲の敵に当てて消える。0 より大きければ、その間残り、**発動した刻みから毎刻み、円より鉄菱 1 つ分広い範囲の敵に `stepOnPieces`**（`duration` がたったら、鉄菱が残っていても消える） |
 | `void hitWithArea(AreaEffect& a, Unit& target)` | 当たった相手を記録し、`registerHit` と `onUnitHit` |
+| `void stepOnPieces(AreaEffect& a, Unit& unit)` | `unit` が触れている `pieces`（鉄菱）をすべて消す（同時に 2 つ以上触れていても、すべて消す。1 つだけ消すと、残りに触れたままなので次の刻みでまた踏んでしまう）。1 つ以上消したら、その相手が初めて踏んだなら `hitWithArea`（命中は 1 回の発動につき 1 回）、続けて `onStep(firstStep)` を 1 回 |
 | `void updateProps(float dt)` | 設置物の隠れている時間と残り時間を減らし、時間切れなら消す |
 | `void updateVfx(float dt)` | 演出の残り時間を減らす |
 | `void flushSpawns()` | `pending*` の弾・範囲・設置物を本体の配列へ移す |
@@ -320,7 +321,7 @@ sequenceDiagram
 
 ### 5.2 `AreaEffect`（構造体）: 地面の範囲
 
-`delay` 秒後に発動します。`duration` が 0 なら発動の瞬間だけ判定し、0 より大きければその間ずっと残ります。
+`delay` 秒後に発動します。`duration` が 0 なら発動の瞬間だけ判定し、0 より大きければその間残ります。残る範囲で効くのは、置いた物（`pieces`。エマの D の鉄菱）を踏んだ時だけです。円に入っても、鉄菱に触れなければ何も起きません。
 
 | メンバ | 説明 |
 |---|---|
@@ -330,10 +331,11 @@ sequenceDiagram
 | `delay` / `duration` / `elapsed` | 発動までの時間・残る時間・経過時間 |
 | `activated` | 発動したか |
 | `visual` / `color` | 見た目 |
-| `hitUnits` | 当たった相手（残る範囲では「一度でも入った相手」） |
-| `onActivate` | 発動した瞬間に 1 回（エマの W の帽子を置く） |
-| `onUnitHit` | 相手ごとに 1 回 |
-| `whileInside` | 残る範囲で、中にいる間ずっと（エマの D のスロウ） |
+| `pieces` / `pieceRadius` | 残る範囲で、踏むと効く物（鉄菱）の、まだ踏まれていない位置と、1 つの当たり判定の半径。踏まれた物は消える（ほかの敵も踏めない） |
+| `hitUnits` | 当たった相手（残る範囲では「一度でも踏んだ相手」） |
+| `onActivate` | 発動した瞬間に 1 回（エマの W の帽子を置く・エマの D の着地の光） |
+| `onUnitHit` | 相手ごとに 1 回（残る範囲では、初めて踏んだ時） |
+| `onStep` | 残る範囲で、鉄菱を踏むたびに 1 回（同時に 2 つ以上踏んでも 1 回）。`firstStep` は、その相手が初めて踏んだ時に `true`（エマの D のスロウ。文字の演出は初めての時だけ出す） |
 | `alive` | 消えていないか |
 | `bool hasHit(EntityId unit) const` | その相手に既に当たったか |
 
@@ -372,9 +374,7 @@ sequenceDiagram
 | `ProjectileVisual` | `Orb`（球）・`Ring`（輪）・`Crescent`（半月）・`Card`・`Beam`（光線）・`Bolt`（小さな弾）・`Dove`（鳩）。当たり判定はどれも同じ |
 | `ProjectileVisual projectileVisualFromString(string_view)` | `"orb"` などを見た目にする（.cpp の中だけの表 `kProjectileVisuals` を引く）。知らない表記なら警告ログを出して `Orb`（ゲームでは、知らない表記は読み込みの時点でエラーになるので、普通は起きない） |
 | `vector<string_view> projectileVisualNames()` | 弾の見た目の表記の一覧（params の `visual` の決まりに使う） |
-| `AreaVisual` | `Explosion`（輪だけ）・`Telegraph`（予告円が少しずつ埋まる）・`ThrownHat`（帽子が飛ぶ）・`Caltrops`（鉄菱が飛んで残る） |
-| `AreaVisual areaVisualFromString(string_view)` | `"explosion"` / `"telegraph"` / `"hat"` / `"caltrops"` を見た目にする（表 `kAreaVisuals` を引く）。知らない表記なら警告ログを出して `Explosion` |
-| `vector<string_view> areaVisualNames()` | 範囲の見た目の表記の一覧（params の `visual` の決まりに使う） |
+| `AreaVisual` | `Explosion`（輪だけ）・`Telegraph`（予告円が少しずつ埋まる）・`ThrownHat`（帽子が飛ぶ）・`Caltrops`（鉄菱が飛び、着地後は残っている鉄菱を 1 つずつ描く）。どれを使うかはスキルの処理が決める（設定ファイルの `visual` では選べない。以前は `ground_zone` の `visual` で選べたが、2026-11-16 に鉄菱を作り直した時に、使う所が無くなったので表記の表を消した） |
 | `string_view displayName(PropKind)` | 「鳩」/「帽子」（ログ用） |
 | `makeBurstVfx(team, pos, radius, color, duration = 0.35)` | 範囲が発動した時の、光って消える円 |
 | `makeRingVfx(team, pos, radius, color, duration = 0.4)` | 広がりながら消える輪（命中・ダウン） |

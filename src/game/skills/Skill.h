@@ -55,6 +55,12 @@ Projectile makeProjectile(const SkillContext& ctx, Vector2 origin, Vector2 dir, 
 /// 地面の範囲効果の共通部分を作る（発動者・陣営・発動の番号・名前・中心・params の color。省略時はキャラの色）。
 /// 半径や発動までの時間は、呼んだ側で決める。World にはまだ加えない
 AreaEffect makeArea(const SkillContext& ctx, Vector2 center);
+/// 輪に並べた物（鉄菱）の、円の中心から見た位置の一覧を作る。投げた向きによらず、いつも同じ並びになる
+/// @param rings params の rings（[{ "count": 8, "radiusRatio": 0.84, "angle": -103 }, ...]）。輪ごとに、
+///              count 個を円の半径の radiusRatio 倍の所に等しい間隔で並べる。angle は 1 つ目の向き（度。右が 0、
+///              画面の上が -90 で、時計回りに増える）。配列でない・おかしな要素は飛ばす（読み込みの時にエラーになるので、普通は起きない）
+/// @param radius 円の半径
+std::vector<Vector2> ringLayout(const nlohmann::json& rings, float radius);
 /// 地点が遅れて爆発する範囲（予告円つき）を作る。params の delay / radius / onHit / cooldownRefundOnHit を使う
 AreaEffect makeGroundBlast(const SkillContext& ctx, Vector2 center);
 /// 効果（スロウ・拘束など）を target に付け、効果の名前の文字演出を出す（印は文字を出さない）
@@ -86,10 +92,10 @@ ParamRules homingProjectileRules();
 void handleBlink(SkillContext& ctx);
 /// "blink" の params のルール
 ParamRules blinkRules();
-/// "ground_zone": 地点に投げて、一定時間残る範囲（鉄菱など）
-void handleGroundZone(SkillContext& ctx);
-/// "ground_zone" の params のルール
-ParamRules groundZoneRules();
+/// "caltrops": 地点に投げ、着地するといつも同じ並びの鉄菱が一定時間残る。踏むたびに効果が付き、踏んだ鉄菱は消える
+void handleCaltrops(SkillContext& ctx);
+/// "caltrops" の params のルール
+ParamRules caltropsRules();
 /// "ground_blast": 地点が遅れて爆発する（予告円つき）
 void handleGroundBlast(SkillContext& ctx);
 /// "ground_blast" の params のルール

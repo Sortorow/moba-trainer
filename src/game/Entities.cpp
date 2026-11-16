@@ -19,14 +19,6 @@ constexpr std::array<std::pair<std::string_view, ProjectileVisual>, 7> kProjecti
     {"dove", ProjectileVisual::Dove},
 }};
 
-/// 範囲の見た目と、設定ファイルでの表記の対応
-constexpr std::array<std::pair<std::string_view, AreaVisual>, 4> kAreaVisuals = {{
-    {"explosion", AreaVisual::Explosion},
-    {"telegraph", AreaVisual::Telegraph},
-    {"hat", AreaVisual::ThrownHat},
-    {"caltrops", AreaVisual::Caltrops},
-}};
-
 }  // namespace
 
 ProjectileVisual projectileVisualFromString(std::string_view text) {
@@ -40,20 +32,6 @@ ProjectileVisual projectileVisualFromString(std::string_view text) {
 std::vector<std::string_view> projectileVisualNames() {
     std::vector<std::string_view> names;
     for (const auto& entry : kProjectileVisuals) names.push_back(entry.first);
-    return names;
-}
-
-AreaVisual areaVisualFromString(std::string_view text) {
-    for (const auto& [name, visual] : kAreaVisuals) {
-        if (name == text) return visual;
-    }
-    log::warn("data", "範囲の見た目 \"{}\" は不明なため \"explosion\" を使います", text);
-    return AreaVisual::Explosion;
-}
-
-std::vector<std::string_view> areaVisualNames() {
-    std::vector<std::string_view> names;
-    for (const auto& entry : kAreaVisuals) names.push_back(entry.first);
     return names;
 }
 

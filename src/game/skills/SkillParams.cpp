@@ -1,6 +1,7 @@
 #include "game/skills/SkillParams.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <format>
 #include <optional>
@@ -123,6 +124,54 @@ void checkEffects(const json& value, const std::string& prefix, SkillCheck& chec
     }
 }
 
+/// 輪の並びの配列（鉄菱の rings）を確かめ、エラー・警告を check に足す
+/// @param prefix 文の頭（「like_emma の D（鉄菱）: params.rings」）
+void checkRings(const json& value, const std::string& prefix, SkillCheck& check) {
+    if (!value.is_array() || value.empty()) {
+        check.errors.push_back(
+            std::format("{} は輪の配列 [ {{ \"count\": ..., \"radiusRatio\": ..., \"angle\": ... }} ] で、1 "
+                        "つ以上書いてください（今: {}）",
+                        prefix, shown(value)));
+        return;
+    }
+    // 輪の項目と、その値の種類（angle だけは書かなくてよい。書かなければ 0 = 右向き）
+    struct RingKey {
+        std::string_view key;
+        ParamKind kind;
+        bool required;
+    };
+    constexpr std::array<RingKey, 3> kRingKeys = {{
+        {"count", ParamKind::PositiveInteger, true},
+        {"radiusRatio", ParamKind::Ratio, true},  // 円の半径の何倍の所に並べるか（円からはみ出さないよう 1 以下）
+        {"angle", ParamKind::AnyNumber, false},   // 1 つ目の向き（度）
+    }};
+    for (std::size_t i = 0; i < value.size(); ++i) {
+        const json& ring = value[i];
+        const std::string at = std::format("{} の {} 番目の輪", prefix, i + 1);
+        if (!ring.is_object()) {
+            check.errors.push_back(std::format(
+                "{} は {{ \"count\": ..., \"radiusRatio\": ... }} の形で書いてください（今: {}）", at, shown(ring)));
+            continue;
+        }
+        for (const RingKey& ringKey : kRingKeys) {
+            const auto it = ring.find(std::string(ringKey.key));
+            if (it == ring.end()) {
+                if (ringKey.required) check.errors.push_back(std::format("{}: {} がありません", at, ringKey.key));
+                continue;
+            }
+            if (const std::optional<std::string> reason = checkNumber(*it, ringKey.kind))
+                check.errors.push_back(std::format("{}: {} は {}（今: {}）", at, ringKey.key, *reason, shown(*it)));
+        }
+        for (const auto& [key, unused] : ring.items()) {
+            const bool known =
+                std::ranges::any_of(kRingKeys, [&](const RingKey& ringKey) { return ringKey.key == key; });
+            if (!known)
+                check.warnings.push_back(std::format(
+                    "{}: {} は輪では使いません（書き間違いかもしれません。この項目は無視します）", at, key));
+        }
+    }
+}
+
 /// 項目 1 つの値をルールで確かめ、エラー・警告を check に足す
 void checkValue(const json& value, const ParamRule& rule, const std::string& prefix, SkillCheck& check) {
     std::optional<std::string> reason;
@@ -155,6 +204,7 @@ void checkValue(const json& value, const ParamRule& rule, const std::string& pre
         }
         case ParamKind::Color: reason = checkColor(value); break;
         case ParamKind::Effects: checkEffects(value, prefix, check); return;
+        case ParamKind::Rings: checkRings(value, prefix, check); return;
     }
     if (reason) check.errors.push_back(std::format("{} は {}（今: {}）", prefix, *reason, shown(value)));
 }
