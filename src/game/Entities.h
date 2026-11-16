@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -62,9 +63,28 @@ struct Projectile {
 };
 
 // ---------------------------------------------------------------------------
+// 踏むと発動する物（範囲効果に付ける部品）
+// ---------------------------------------------------------------------------
+
+/// 踏むと発動する物の集まり（例: エマの D の鉄菱 12 個）。地面の範囲効果に付ける部品で、1 つずつ小さな円の当たり判定を
+/// 持つ。相手が触れた物は消える（ほかの相手ももう踏めない）。触れたかを調べて消すのは World、踏んだ時に何が起きるかは
+/// onStep（スキルの側）が決める。位置は、付けた範囲の円の中に置く（World は円より 1 つ分広い範囲の敵だけを調べる）
+struct StepTriggers {
+    std::vector<Vector2> positions;  // まだ踏まれていない物の位置
+    float radius = 0.0f;             // 1 つの当たり判定の半径
+    /// 相手が 1 つ以上踏むたびに 1 回（同時に 2 つ以上踏んでも 1 回）。firstStep は、その相手がこの集まりの物を初めて
+    /// 踏んだ時に true
+    std::function<void(World&, Unit&, bool firstStep)> onStep;
+
+    /// 円（center, r）に触れている物をすべて消し、消した数を返す。同時に 2 つ以上触れていても全部消す
+    /// （1 つだけ消すと、残りに触れたままなので次の刻みでまた踏んでしまう）
+    std::size_t consumeTouching(Vector2 center, float r);
+};
+
+// ---------------------------------------------------------------------------
 // 地面の範囲効果
 // delay 秒後に発動する。duration が 0 なら発動の瞬間だけ判定し、0 より大きければその間残る
-// （残る範囲で効くのは、置いた物（鉄菱）を踏んだ時だけ）
+// （残る範囲は、踏むと発動する物（StepTriggers）を持てる）
 // ---------------------------------------------------------------------------
 
 /// 地面の範囲効果の見た目の種類（どれを使うかは、スキルの処理が決める）
@@ -76,7 +96,8 @@ enum class AreaVisual {
 };
 
 /// 地面の範囲効果 1 つ。delay 秒後に発動し、duration が 0 なら発動の瞬間だけ範囲の中の敵に当たる。
-/// 0 より大きければ duration の間残り、置いた物（pieces。鉄菱）に触れた敵がそれを踏む
+/// 0 より大きければ duration の間残る。踏むと発動する物（stepTriggers）を持っていれば、発動した刻みから、
+/// 触れた敵がそれを踏む
 struct AreaEffect {
     EntityId id = kInvalidId;
     EntityId owner = kInvalidId;
@@ -96,18 +117,15 @@ struct AreaEffect {
     AreaVisual visual = AreaVisual::Explosion;
     Color color = WHITE;
 
-    // 範囲に残る効果で、踏むと効く物（鉄菱）の、まだ踏まれていない位置。踏まれた物は消える（ほかの敵も踏めなくなる）
-    std::vector<Vector2> pieces;
-    float pieceRadius = 0.0f;  // pieces 1 つの当たり判定の半径
+    std::optional<StepTriggers> stepTriggers;  // 踏むと発動する物（鉄菱など）。残る範囲だけが持てる。無ければ nullopt
 
-    std::vector<EntityId> hitUnits;                             // 当たった相手（残る範囲では「一度でも踏んだ相手」）
-    std::function<void(World&, AreaEffect&)> onActivate;        // 発動した瞬間に 1 回
-    std::function<void(World&, AreaEffect&, Unit&)> onUnitHit;  // 相手ごとに 1 回（残る範囲では、初めて踏んだ時）
-    // 残る範囲で、pieces を踏むたび（同時に 2 つ以上踏んでも 1 回）。firstStep はその相手が初めて踏んだ時に true
-    std::function<void(World&, AreaEffect&, Unit&, bool firstStep)> onStep;
+    std::vector<EntityId> hitUnits;  // 当たった相手（stepTriggers がある範囲では「一度でも踏んだ相手」）
+    std::function<void(World&, AreaEffect&)> onActivate;  // 発動した瞬間に 1 回
+    // 相手ごとに 1 回（stepTriggers がある範囲では、初めて踏んだ時）
+    std::function<void(World&, AreaEffect&, Unit&)> onUnitHit;
     bool alive = true;
 
-    /// この相手に既に当たったか（残る範囲では、一度でも踏んだことがあるか）
+    /// この相手に既に当たったか（stepTriggers がある範囲では、一度でも踏んだことがあるか）
     bool hasHit(EntityId unit) const { return std::find(hitUnits.begin(), hitUnits.end(), unit) != hitUnits.end(); }
 };
 

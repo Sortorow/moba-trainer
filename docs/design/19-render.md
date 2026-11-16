@@ -106,7 +106,7 @@ flowchart TD
 | `inset(const Shape&, float amount)` | 形を内側へ縮めたもの（建物の屋根など） |
 | `drawObstacle(const Obstacle&)` | 障害物。種類ごとに見た目だけ変える（建物 = 屋根つきの灰色、壁 = 明るい灰色、箱 = 茶色で × 印、木 = 緑） |
 | `drawBush(const Shape&)` | ブッシュ（半透明の緑） |
-| `drawArea(const AreaEffect&, bool showHitboxes)` | 発動前: 範囲の輪と、見た目ごとの予告（予告円が埋まる・帽子や鉄菱が弧を描いて飛ぶ）。発動後: 残る範囲（円と残り時間の円弧と、まだ踏まれていない鉄菱を本当の位置に 1 つずつ。円は鉄菱をまいた範囲の目安で、当たり判定ではない。`showHitboxes` なら鉄菱ごとの当たり判定の円も） |
+| `drawArea(const AreaEffect&, bool showHitboxes)` | 発動前: 範囲の輪と、見た目ごとの予告（予告円が埋まる・帽子や鉄菱が弧を描いて飛ぶ）。発動後: 残る範囲（円と残り時間の円弧と、まだ踏まれていない鉄菱（`stepTriggers`）を本当の位置に 1 つずつ。円は鉄菱をまいた範囲の目安で、当たり判定ではない）。`showHitboxes` なら、踏むと発動する物ごとの当たり判定の円も（範囲の見た目によらない） |
 | `drawProp(const Prop&)` | 設置物と残り時間の円弧。飛んで移動している最中（`hiddenTime > 0`）は描かない |
 | `drawRabbit(pos, radius)` | 兎（変身させた敵）の形 |
 | `drawUnit(const Unit&, float time)` | キャラ。影 → 体（変身中は兎）→ 外周の輪 → 向きの線 → 被弾の光 → 状態異常の輪（拘束 = 紫、スロウ = 青）→ 印（回る黄色の輪）。打ち上げ中は 45 だけ浮かせて描く |

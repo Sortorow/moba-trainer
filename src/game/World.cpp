@@ -448,12 +448,14 @@ void World::updateAreas(float dt) {
                 continue;
             }
         }
-        // 一定時間残る範囲（鉄菱）: 発動した刻みから、残っている鉄菱に触れた敵が踏む
+        // 一定時間残る範囲: 踏むと発動する物を持っていれば、発動した刻みから、残っている物に触れた敵が踏む
         // （着地した時に既に上に立っている敵も、ワープで上に来た敵も、触れていれば踏む）。
-        // 鉄菱は円の中にあるので、円より鉄菱 1 つ分広い範囲の敵だけを調べればよい
-        for (Unit* unit : enemiesInCircle(a.center, a.radius + a.pieceRadius, a.team)) {
-            if (a.pieces.empty()) break;
-            stepOnPieces(a, *unit);
+        // 物は円の中に置くので、円より物 1 つ分広い範囲の敵だけを調べればよい
+        if (a.stepTriggers) {
+            for (Unit* unit : enemiesInCircle(a.center, a.radius + a.stepTriggers->radius, a.team)) {
+                if (a.stepTriggers->positions.empty()) break;
+                stepOnTriggers(a, *unit);
+            }
         }
         if (a.elapsed >= a.delay + a.duration) a.alive = false;
     }
@@ -465,16 +467,15 @@ void World::hitWithArea(AreaEffect& a, Unit& target) {
     if (a.onUnitHit) a.onUnitHit(*this, a, target);
 }
 
-void World::stepOnPieces(AreaEffect& a, Unit& unit) {
-    // 触れている鉄菱は、同時に 2 つ以上でもすべて消す（1 つだけ消すと、残りに触れたままなので次の刻みでまた踏んでしまう）
-    const std::size_t stepped = std::erase_if(
-        a.pieces, [&](Vector2 piece) { return geo::circlesOverlap(piece, a.pieceRadius, unit.pos, unit.radius); });
+void World::stepOnTriggers(AreaEffect& a, Unit& unit) {
+    StepTriggers& triggers = *a.stepTriggers;
+    const std::size_t stepped = triggers.consumeTouching(unit.pos, unit.radius);
     if (stepped == 0) return;
     const bool firstStep = !a.hasHit(unit.id);
     log::debug("skill", "castId={} [{}] {}: {} が {} 個踏んだ（残り {} 個）", a.castId, toString(a.slot), a.label,
-               unit.name, stepped, a.pieces.size());
+               unit.name, stepped, triggers.positions.size());
     if (firstStep) hitWithArea(a, unit);  // 命中として数えるのは、1 回の発動につき初めて踏んだ時だけ
-    if (a.onStep) a.onStep(*this, a, unit, firstStep);
+    if (triggers.onStep) triggers.onStep(*this, unit, firstStep);
 }
 
 // ---------------------------------------------------------------------------

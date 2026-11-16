@@ -161,14 +161,21 @@ void drawArea(const AreaEffect& area, bool showHitboxes) {
         // 円は鉄菱をまいた範囲の目安（当たり判定ではない）。効くのは、残っている鉄菱だけ
         DrawCircleV(area.center, area.radius, Fade(area.color, 0.12f));
         DrawRing(area.center, area.radius - 3.0f, area.radius, 0.0f, 360.0f, 64, Fade(area.color, 0.8f));
-        for (const Vector2 piece : area.pieces) {
-            drawCaltrop(piece, area.pieceRadius, Fade(area.color, 0.9f));
-            if (showHitboxes) DrawCircleLinesV(piece, area.pieceRadius, kHitboxColor);
+        if (area.stepTriggers) {
+            for (const Vector2 pos : area.stepTriggers->positions) {
+                drawCaltrop(pos, area.stepTriggers->radius, Fade(area.color, 0.9f));
+            }
         }
         const float ratio = area.duration > 0.0f ? 1.0f - (area.elapsed - area.delay) / area.duration : 0.0f;
         drawLifetimeArc(area.center, area.radius + 6.0f, Clamp(ratio, 0.0f, 1.0f), Fade(area.color, 0.6f));
     } else if (showHitboxes) {
         DrawCircleLinesV(area.center, area.radius, kHitboxColor);
+    }
+    // 踏むと発動する物の当たり判定（見た目によらず、まだ踏まれていない物ごとに）
+    if (showHitboxes && area.stepTriggers) {
+        for (const Vector2 pos : area.stepTriggers->positions) {
+            DrawCircleLinesV(pos, area.stepTriggers->radius, kHitboxColor);
+        }
     }
 }
 

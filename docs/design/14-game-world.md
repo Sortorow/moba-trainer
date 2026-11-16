@@ -8,7 +8,7 @@
 |---|---|
 | [World.h](../../src/game/World.h) / [.cpp](../../src/game/World.cpp) | `World`（中身をまとめて持ち、時間を進める）、`WorldRules` |
 | [Unit.h](../../src/game/Unit.h) | `Unit`（キャラ 1 体）、`CastRequest`、`CastState`、`PropTargetKind` |
-| [Entities.h](../../src/game/Entities.h) / [.cpp](../../src/game/Entities.cpp) | `Projectile`（弾）、`AreaEffect`（地面の範囲）、`Prop`（設置物）、`Vfx`（演出） |
+| [Entities.h](../../src/game/Entities.h) / [.cpp](../../src/game/Entities.cpp) | `Projectile`（弾）、`AreaEffect`（地面の範囲）、`StepTriggers`（踏むと発動する物）、`Prop`（設置物）、`Vfx`（演出） |
 | [StatusEffects.h](../../src/game/StatusEffects.h) / [.cpp](../../src/game/StatusEffects.cpp) | `StatusEffects`（状態異常と印） |
 | [Terrain.h](../../src/game/Terrain.h) / [.cpp](../../src/game/Terrain.cpp) | `Terrain`（地形の当たり・押し出し・経路探索・ブッシュ） |
 | [Vision.h](../../src/game/Vision.h) / [.cpp](../../src/game/Vision.cpp) | `vision::`（視線が通るかの判定と、視界の形の計算）、`VisionRay` |
@@ -28,7 +28,7 @@
 | `PropTargetKind` | 列挙型 | Unit.h |
 | `CastRequest`、`CastState`、`Unit` | 構造体 | Unit.h |
 | `ProjectileVisual`、`AreaVisual`、`PropKind`、`VfxKind` | 列挙型 | Entities.h |
-| `Projectile`、`AreaEffect`、`Prop`、`Vfx` | 構造体 | Entities.h |
+| `Projectile`、`AreaEffect`、`StepTriggers`、`Prop`、`Vfx` | 構造体 | Entities.h |
 | `StatusEffect` | 構造体 | StatusEffects.h |
 | `vision::VisionRay` | 構造体 | Vision.h |
 | `StatusEffects` | クラス | StatusEffects.h |
@@ -39,6 +39,7 @@
 
 - **キャラはすべて同じ `Unit` 構造体**です。自キャラ・敵キャラ・ダミー・スキルショットの的の違いは、陣営（`team`）・キャラの設定の有無（`characterId`）・HP の有無（`maxHp`）だけです。誰が動かすか（プレイヤー・AI・ダミーの動き）は `World` の外（`Match` が持つ各コントローラー）が決め、`Unit` の `moveTarget` に書きます。
 - **弾・範囲の「当たった時の処理」は `std::function` で持ちます**。弾の種類ごとにクラスを作らず、handler（スキルの処理）がラムダで処理を渡します。こうすると、新しいスキルを足しても `World` を変えずに済みます（推測）。
+- **1 つのスキルだけの決まりは `World` に書きません**。`World` が持つのは、当たりの判定・命中の数え方など、どのスキルにも共通の決まりです。鉄菱のように「踏むと消える物」は部品（`StepTriggers`。5.3）にし、踏んだ時に何が起きるかはスキルの側（`onStep`）が決めます（背景は 5.3）。
 - **弾・範囲・設置物の追加は、刻みの区切りでまとめて行います**（`pending*`）。弾の `onHit` の中で新しい弾を出しても（ブランドの R の跳ね返りなど）、ループ中の配列が変わらないようにするためです（根拠: World.h のコメント「更新中に配列が変わらないように」）。
 
 ---
@@ -182,9 +183,9 @@ sequenceDiagram
 | `void updateHomingProjectile(Projectile& p, float dt)` | 追尾弾を対象へ向けて進める。届けば当てて消える。対象がいなくなったら消える |
 | `void hitWithProjectile(Projectile& p, Unit& target)` | 当たった相手を記録し、違う陣営なら `registerHit`、そして弾の `onHit`。**同じ陣営（自分自身）への到達は命中に数えない**（ブランドの R が自分に跳ね返る時） |
 | `void expireProjectile(Projectile& p)` | 弾の `onExpire` を呼んで消す |
-| `void updateAreas(float dt)` | 範囲を進める。`delay` 秒たったら発動（`onActivate`）。`duration` が 0 なら、発動の瞬間だけ範囲の敵に当てて消える。0 より大きければ、その間残り、**発動した刻みから毎刻み、円より鉄菱 1 つ分広い範囲の敵に `stepOnPieces`**（`duration` がたったら、鉄菱が残っていても消える） |
+| `void updateAreas(float dt)` | 範囲を進める。`delay` 秒たったら発動（`onActivate`）。`duration` が 0 なら、発動の瞬間だけ範囲の敵に当てて消える。0 より大きければその間残り、踏むと発動する物（`stepTriggers`）を持っていれば、**発動した刻みから毎刻み、円より物 1 つ分広い範囲の敵に `stepOnTriggers`**（`duration` がたったら、物が残っていても消える） |
 | `void hitWithArea(AreaEffect& a, Unit& target)` | 当たった相手を記録し、`registerHit` と `onUnitHit` |
-| `void stepOnPieces(AreaEffect& a, Unit& unit)` | `unit` が触れている `pieces`（鉄菱）をすべて消す（同時に 2 つ以上触れていても、すべて消す。1 つだけ消すと、残りに触れたままなので次の刻みでまた踏んでしまう）。1 つ以上消したら、その相手が初めて踏んだなら `hitWithArea`（命中は 1 回の発動につき 1 回）、続けて `onStep(firstStep)` を 1 回 |
+| `void stepOnTriggers(AreaEffect& a, Unit& unit)` | `a.stepTriggers` のうち `unit` が触れている物を、`StepTriggers::consumeTouching` ですべて消す。1 つ以上消したら、その相手が初めて踏んだなら `hitWithArea`（命中は 1 回の発動につき 1 回）、続けて `StepTriggers::onStep(firstStep)` を 1 回 |
 | `void updateProps(float dt)` | 設置物の隠れている時間と残り時間を減らし、時間切れなら消す |
 | `void updateVfx(float dt)` | 演出の残り時間を減らす |
 | `void flushSpawns()` | `pending*` の弾・範囲・設置物を本体の配列へ移す |
@@ -321,7 +322,7 @@ sequenceDiagram
 
 ### 5.2 `AreaEffect`（構造体）: 地面の範囲
 
-`delay` 秒後に発動します。`duration` が 0 なら発動の瞬間だけ判定し、0 より大きければその間残ります。残る範囲で効くのは、置いた物（`pieces`。エマの D の鉄菱）を踏んだ時だけです。円に入っても、鉄菱に触れなければ何も起きません。
+`delay` 秒後に発動します。`duration` が 0 なら発動の瞬間だけ判定し、0 より大きければその間残ります。残る範囲は、踏むと発動する物（`stepTriggers`。5.3）を持てます。今ある残る範囲（エマの D の鉄菱）で効くのは、それを踏んだ時だけです。円に入っても、物に触れなければ何も起きません。
 
 | メンバ | 説明 |
 |---|---|
@@ -331,15 +332,33 @@ sequenceDiagram
 | `delay` / `duration` / `elapsed` | 発動までの時間・残る時間・経過時間 |
 | `activated` | 発動したか |
 | `visual` / `color` | 見た目 |
-| `pieces` / `pieceRadius` | 残る範囲で、踏むと効く物（鉄菱）の、まだ踏まれていない位置と、1 つの当たり判定の半径。踏まれた物は消える（ほかの敵も踏めない） |
-| `hitUnits` | 当たった相手（残る範囲では「一度でも踏んだ相手」） |
+| `stepTriggers` | `optional<StepTriggers>`。踏むと発動する物（5.3。エマの D の鉄菱）。残る範囲だけが持てる。無ければ `std::nullopt` |
+| `hitUnits` | 当たった相手（`stepTriggers` がある範囲では「一度でも踏んだ相手」） |
 | `onActivate` | 発動した瞬間に 1 回（エマの W の帽子を置く・エマの D の着地の光） |
-| `onUnitHit` | 相手ごとに 1 回（残る範囲では、初めて踏んだ時） |
-| `onStep` | 残る範囲で、鉄菱を踏むたびに 1 回（同時に 2 つ以上踏んでも 1 回）。`firstStep` は、その相手が初めて踏んだ時に `true`（エマの D のスロウ。文字の演出は初めての時だけ出す） |
+| `onUnitHit` | 相手ごとに 1 回（`stepTriggers` がある範囲では、初めて踏んだ時） |
 | `alive` | 消えていないか |
 | `bool hasHit(EntityId unit) const` | その相手に既に当たったか |
 
-### 5.3 `Prop`（構造体）: 設置物
+### 5.3 `StepTriggers`（構造体）: 踏むと発動する物
+
+範囲（`AreaEffect::stepTriggers`）に付ける部品です。今使っているのは、エマの D の鉄菱 12 個です。1 つずつ小さな円の当たり判定を持ち、相手が触れた物は消えます（ほかの相手ももう踏めません）。
+
+| すること | どこで |
+|---|---|
+| 触れたかを調べ、触れた物を消す | `World::stepOnTriggers` → `consumeTouching` |
+| 命中として数える（その相手が初めて踏んだ時。1 回の発動につき 1 回） | `World::stepOnTriggers` → `hitWithArea` |
+| 踏んだ時に何が起きるか | `onStep`（スキルの側。鉄菱は `handleCaltrops` のスロウ） |
+
+| メンバ | 説明 |
+|---|---|
+| `positions` | まだ踏まれていない物の位置。付けた範囲の円の中に置く（`World` は、円より `radius` だけ広い範囲の敵だけを調べる） |
+| `radius` | 1 つの当たり判定の半径 |
+| `onStep` | `function<void(World&, Unit&, bool firstStep)>`。相手が 1 つ以上踏むたびに 1 回（同時に 2 つ以上踏んでも 1 回）。`firstStep` は、その相手がこの集まりの物を初めて踏んだ時に `true`（エマの D は、初めての時だけ効果の名前の文字を出す） |
+| `size_t consumeTouching(Vector2 center, float r)` | 円（`center`, `r`）に触れている物をすべて消し、消した数を返す。同時に 2 つ以上触れていても全部消す（1 つだけ消すと、残りに触れたままなので次の刻みでまた踏んでしまう） |
+
+**背景**（2026-11-17）: 2026-11-16 に鉄菱を作り直した時は、鉄菱の位置を `AreaEffect` に直接持たせ（`pieces`）、「触れたら消える」を `World` の関数（`stepOnPieces`）に書いていました。`World` に 1 つのスキルの決まりが入るので、ユーザーの指摘で部品に分けました。ゲームエンジンのトリガー（Unity の `OnTriggerEnter` など）と同じく、`World` は触れたかを調べて知らせ、何が起きるかは物の側が決めます。決まりは今の鉄菱に要る「触れたら消える」だけです。消えない物などを選べるようにするのは、2 つ目の使い道が出てからにします（使い道が 1 つの時に選択肢を作ると、実際の使い道に合わない作りになりやすいため）。
+
+### 5.4 `Prop`（構造体）: 設置物
 
 エマの鳩・帽子です。エマの R の対象になります。
 
@@ -353,7 +372,7 @@ sequenceDiagram
 | `hiddenTime` | 0 より大きい間は描かず、対象にもできない（R で飛んで移動している最中） |
 | `alive` | 消えていないか |
 
-### 5.4 `Vfx`（構造体）: 演出
+### 5.5 `Vfx`（構造体）: 演出
 
 当たり判定は無く、残り時間が 0 になったら消えます。
 
@@ -367,7 +386,7 @@ sequenceDiagram
 
 `Text` の演出だけは、日本語を出すため HUD（Dear ImGui）が描きます。他は `Renderer` が描きます。
 
-### 5.5 見た目の列挙型と関数
+### 5.6 見た目の列挙型と関数
 
 | 名前 | 説明 |
 |---|---|

@@ -253,11 +253,11 @@ using SkillHandler = void (*)(SkillContext&);
 | `projectile` | `handleProjectile` | カーソルの方向へ、射程まで直線に飛ぶ弾。当たると印を起爆し、効果を付ける | `speed`・`width`・`pierce`・`visual`・`color`・`onHit`・`detonateMark` |
 | `homing_projectile` | `handleHomingProjectile` | 対象を追尾する弾（**必ず当たる**）。対象がいなければ不発（クールダウンは戻さない。仕様。根拠: character_traits.txt の「共通の仕様」） | 同上（`pierce` なし） |
 | `blink` | `handleBlink` | カーソルの位置（射程より遠ければ射程の端）へ瞬間移動 | `color` |
-| `caltrops` | `handleCaltrops` | 地点に投げ、`flightTime` 後に着地すると、`rings` の並びの鉄菱（`pieces`）が `duration` の間残る。鉄菱に触れた敵は踏み、踏んだ鉄菱は消える。踏むたびに `onStep` の効果（初めて踏んだ時だけ文字の演出）。着地した時に白い光（`onActivate`） | `flightTime`・`radius`・`duration`・`pieceRadius`・`rings`・`color`・`onStep` |
+| `caltrops` | `handleCaltrops` | 地点に投げ、`flightTime` 後に着地すると、`rings` の並びの鉄菱（踏むと発動する物 `StepTriggers`）が `duration` の間残る。鉄菱に触れた敵は踏み、踏んだ鉄菱は消える。踏むたびに `onStep` の効果（初めて踏んだ時だけ文字の演出）。着地した時に白い光（`onActivate`） | `flightTime`・`radius`・`duration`・`pieceRadius`・`rings`・`color`・`onStep` |
 | `ground_blast` | `handleGroundBlast` | 地点が `delay` 後に爆発する（予告円つき） | `delay`・`radius`・`color`・`onHit`・`cooldownRefundOnHit` |
 | `targeted_blast` | `handleTargetedBlast` | 対象の敵とその周りに、すぐに範囲効果。対象がいなければ不発でクールダウンを戻す | `radius`・`color`・`onHit` |
 
-**注意事項**: `caltrops` のスロウは、踏むたびに同じ強さ・長さで付け直します。`StatusEffects::apply` は同じ強さのものを 1 つにまとめて残り時間の長い方にするので、最後に踏んだ時から `onStep` の長さだけ続きます。踏む判定（鉄菱を消す・命中の記録）は `World::stepOnPieces` です（[14-game-world.md](14-game-world.md)）。
+**注意事項**: `caltrops` のスロウは、踏むたびに同じ強さ・長さで付け直します。`StatusEffects::apply` は同じ強さのものを 1 つにまとめて残り時間の長い方にするので、最後に踏んだ時から `onStep` の長さだけ続きます。踏む判定（鉄菱を消す・命中の記録）は `World::stepOnTriggers` です。handler が決めるのは、鉄菱の位置・大きさと、踏んだ時の効果（`StepTriggers::onStep`）だけです（[14-game-world.md の 5.3](14-game-world.md#53-steptriggers構造体-踏むと発動する物)）。
 
 **背景**（2026-11-16）: 以前は `ground_zone` という handler で、円の中にいる間ずっとスロウを付け直していたので、円の中で止まっているとスロウが切れませんでした。ER の鉄菱に合わせて、12 個の鉄菱を 1 つずつ踏む形に作り直しました（known_issue.txt の KI-2）。
 

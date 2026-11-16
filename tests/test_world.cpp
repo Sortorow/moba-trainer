@@ -513,7 +513,8 @@ const AreaEffect* latestCaltrops(Fixture& f) {
 std::size_t remainingCaltrops(Fixture& f) {
     const AreaEffect* area = latestCaltrops(f);
     REQUIRE(area != nullptr);
-    return area->pieces.size();
+    REQUIRE(area->stepTriggers.has_value());
+    return area->stepTriggers->positions.size();
 }
 
 /// 鉄菱を center に投げ、詠唱が終わって鉄菱が飛んでいる間（まだ着地していない）まで進める
@@ -524,7 +525,8 @@ std::vector<Vector2> throwCaltrops(Fixture& f, Vector2 center) {
     const AreaEffect* area = latestCaltrops(f);
     REQUIRE(area != nullptr);
     REQUIRE_FALSE(area->activated);
-    return area->pieces;
+    REQUIRE(area->stepTriggers.has_value());
+    return area->stepTriggers->positions;
 }
 
 /// 鉄菱が着地するまで 1 刻みずつ進める（着地した刻みの直後で止まる）
@@ -618,7 +620,7 @@ TEST_CASE("エマ D: 続けて踏むと、最後に踏んだ時から onStep の
 
     // 0.4 秒後に、隣の鉄菱を踏む（その場で止まる）
     const Vector2 second = touchingFromOutside(center, pieces[1], radius, values.pieceRadius);
-    REQUIRE(touchingCount(latestCaltrops(f)->pieces, second, radius, values.pieceRadius) == 1);
+    REQUIRE(touchingCount(latestCaltrops(f)->stepTriggers->positions, second, radius, values.pieceRadius) == 1);
     f.unit(id).pos = second;
     casting::orderMove(f.world(), f.unit(id), second);
     f.world().update(kTick);
@@ -779,6 +781,72 @@ TEST_CASE("エマ D: 鉄菱は着地から duration で消え、全部踏まれ�
     CHECK(latestCaltrops(f) != nullptr);
     f.run(0.3f);  // 着地から duration + 0.2 秒
     CHECK(latestCaltrops(f) == nullptr);
+}
+
+TEST_CASE("踏むと発動する物: 触れている物をすべて消し、消した数を返す") {
+    StepTriggers triggers;
+    triggers.radius = 10.0f;
+    triggers.positions = {{0, 0}, {30, 0}, {100, 0}};
+    // 左の 2 つにちょうど接している（円どうしは、ちょうど接している時も触れているとする。geo::circlesOverlap）
+    CHECK(triggers.consumeTouching({15, 0}, 5.0f) == 2);
+    REQUIRE(triggers.positions.size() == 1);
+    CHECK(triggers.positions[0].x == doctest::Approx(100.0f));
+    CHECK(triggers.consumeTouching({15, 0}, 5.0f) == 0);  // 消えた物には、もう触れない
+    CHECK(triggers.positions.size() == 1);
+}
+
+TEST_CASE("踏むと発動する物: 鉄菱以外の範囲にも付けられ、World が触れた物だけ消して onStep を呼ぶ") {
+    Fixture f("like_emma");
+    const EntityId id = f.addDummy({0, 600});  // 範囲から離れた所
+    struct Step {
+        EntityId unit;
+        bool firstStep;
+    };
+    std::vector<Step> steps;
+
+    AreaEffect area;  // スキルを使わずに置く、見た目が既定（Explosion）の残る範囲
+    area.owner = f.player().id;
+    area.team = Team::Player;
+    area.label = "test";
+    area.center = {500, 0};
+    area.radius = 200.0f;
+    area.duration = 5.0f;
+    StepTriggers triggers;
+    triggers.radius = 10.0f;
+    triggers.positions = {{400, 0}, {600, 0}};
+    triggers.onStep = [&steps](World&, Unit& unit, bool firstStep) { steps.push_back({unit.id, firstStep}); };
+    area.stepTriggers = std::move(triggers);
+    const EntityId areaId = f.world().spawnArea(std::move(area));
+    const auto spawned = [&]() -> const AreaEffect& {
+        const std::vector<AreaEffect>& areas = f.world().areas();
+        const auto it = std::find_if(areas.begin(), areas.end(), [&](const AreaEffect& a) { return a.id == areaId; });
+        REQUIRE(it != areas.end());
+        return *it;
+    };
+
+    f.world().update(kTick);  // 発動する（誰も触れていない）
+    REQUIRE(spawned().activated);
+    f.unit(id).pos = {500, 0};  // 円の中でも、物に触れていなければ踏まない
+    f.world().update(kTick);
+    CHECK(steps.empty());
+    CHECK(spawned().hitUnits.empty());
+
+    f.unit(id).pos = {400, 70};  // 左の物にだけ触れる（半径 65 + 10 の内側）
+    f.world().update(kTick);
+    REQUIRE(steps.size() == 1);
+    CHECK(steps[0].unit == id);
+    CHECK(steps[0].firstStep);
+    CHECK(spawned().stepTriggers->positions.size() == 1);
+    CHECK(spawned().hasHit(id));  // 初めて踏んだので、範囲の命中として記録される
+    f.world().update(kTick);      // とどまっても、消えた物はもう踏まない
+    CHECK(steps.size() == 1);
+
+    f.unit(id).pos = {600, 0};
+    f.world().update(kTick);
+    REQUIRE(steps.size() == 2);
+    CHECK_FALSE(steps[1].firstStep);
+    CHECK(spawned().stepTriggers->positions.empty());
+    CHECK(spawned().hitUnits.size() == 1);  // 命中は 1 回だけ
 }
 
 TEST_CASE("発動の依頼の結果: 詠唱を始めた・予約した・使えなかった・すぐ発動した") {

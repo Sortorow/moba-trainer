@@ -3,6 +3,7 @@
 #include <array>
 #include <utility>
 
+#include "core/Geometry.h"
 #include "core/Log.h"
 
 namespace moba {
@@ -33,6 +34,10 @@ std::vector<std::string_view> projectileVisualNames() {
     std::vector<std::string_view> names;
     for (const auto& entry : kProjectileVisuals) names.push_back(entry.first);
     return names;
+}
+
+std::size_t StepTriggers::consumeTouching(Vector2 center, float r) {
+    return std::erase_if(positions, [&](Vector2 pos) { return geo::circlesOverlap(pos, radius, center, r); });
 }
 
 std::string_view displayName(PropKind kind) {

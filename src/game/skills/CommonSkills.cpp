@@ -72,26 +72,29 @@ void handleCaltrops(SkillContext& ctx) {
     a.duration = ctx.def.num("duration", 6.0f);
     a.radius = ctx.def.num("radius", 220.0f);
     a.visual = AreaVisual::Caltrops;
-    a.pieceRadius = ctx.def.num("pieceRadius", 20.0f);
-    for (const Vector2 offset : ringLayout(ctx.def.params.value("rings", nlohmann::json::array()), a.radius)) {
-        a.pieces.push_back(a.center + offset);
-    }
-
     a.onActivate = [](World& world, AreaEffect& self) {
         world.addVfx(makeBurstVfx(self.team, self.center, self.radius, Color{235, 245, 255, 255}));  // 着地の白い光
     };
+
+    // 鉄菱そのもの（踏むと発動する物）。踏んだ鉄菱を消すのと命中を数えるのは World（World::stepOnTriggers）
+    StepTriggers caltrops;
+    caltrops.radius = ctx.def.num("pieceRadius", 20.0f);
+    for (const Vector2 offset : ringLayout(ctx.def.params.value("rings", nlohmann::json::array()), a.radius)) {
+        caltrops.positions.push_back(a.center + offset);
+    }
     const std::vector<EffectSpec> effects = ctx.def.effects("onStep");
-    a.onStep = [effects](World& world, AreaEffect& self, Unit& unit, bool firstStep) {
+    caltrops.onStep = [effects, owner = a.owner](World& world, Unit& unit, bool firstStep) {
         if (firstStep) {
-            applyEffects(world, unit, effects, self.owner);  // 効果の名前の文字も出す
+            applyEffects(world, unit, effects, owner);  // 効果の名前の文字も出す
             return;
         }
         // 2 回目に踏んだ時からは、文字を出さずに付け直す（踏むたびに出すと文字が重なる）。同じ強さのスロウは 1 つにまとまり、
         // 残り時間が長い方になるので、最後に踏んだ時から効果の長さだけ続く
-        for (const EffectSpec& effect : effects) unit.status.apply(effect, self.owner);
+        for (const EffectSpec& effect : effects) unit.status.apply(effect, owner);
     };
-    log::debug("skill", "[{}] {}: 鉄菱 {} 個を {} にまく", toString(ctx.def.slot), ctx.def.name, a.pieces.size(),
-               geo::str(a.center));
+    log::debug("skill", "[{}] {}: 鉄菱 {} 個を {} にまく", toString(ctx.def.slot), ctx.def.name,
+               caltrops.positions.size(), geo::str(a.center));
+    a.stepTriggers = std::move(caltrops);
     ctx.world.spawnArea(std::move(a));
 }
 
