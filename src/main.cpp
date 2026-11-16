@@ -12,7 +12,8 @@
 /// プログラムの入口。data フォルダを探し、ログとクラッシュ時の記録を準備し、コマンドライン引数を読んでから App を動かす。
 /// 引数は argv ではなく platform::commandLineArgs() から UTF-8 で受け取る（argv は日本語の Windows では Shift_JIS で、
 /// Shift_JIS で書けない文字が「?」になるため）
-/// @return 終了コード（0 = 正常。data フォルダが無い・引数が読めない時は 1）
+/// @return 終了コード（0 = 正常。data フォルダが無い・引数が読めない時は 1、入力スクリプトが読めない時は 2（App::run）。
+///         1・2 はどれも、ダイアログで知らせてから終わる）
 int main() {
     using namespace moba;
 

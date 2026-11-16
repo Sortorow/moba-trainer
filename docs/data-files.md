@@ -266,7 +266,7 @@ data/
 
 - ステージは、メニューの「ステージ」で選びます。練習場・スキルドッジ・スキルショットのどれでも使えます。
 - ゲームの起動中にファイルを保存すると再読み込みされ、**次に始めたプレイから**反映されます（遊んでいる途中のステージは変わりません）。
-- 地形が妨げるのは**移動だけ**です。弾や範囲は、壁や木を通り抜けます。
+- 地形が妨げるのは**移動と視線**です（視線を遮るのは建物・壁・木で、箱は低いので遮りません）。弾や範囲は、壁や木を通り抜けます。
 - 壁の向こうを右クリックすると、壁を回り込む道のりを自動で探して進みます（敵も同じ）。建物の中など立てない場所を指定した時は、その近くの立てる場所まで進みます。たどり着けない場所なら、その場で止まります。
 - ワープ（フラッシュなど）で建物の中を指定した時は、その近くの立てる位置に出ます。
 
@@ -286,7 +286,7 @@ data/
 
 | 項目 | 既定値 | 意味 | 使うコード |
 |---|---|---|---|
-| `kind` | `"wall"` | 種類。`"building"`（建物）/ `"wall"`（壁・岩）/ `"tree"`（木）/ `"crate"`（箱）。見た目だけが違い、どれも通れない | `src/data/StageDef.cpp`（読み込み）→ `src/render/Renderer.cpp`（種類ごとの見た目） |
+| `kind` | `"wall"` | 種類。`"building"`（建物）/ `"wall"`（壁・岩）/ `"tree"`（木）/ `"crate"`（箱）。どれも通れない。建物・壁・木は視線も遮り、箱は低いので遮らない。見た目も種類ごとに違う | `src/data/StageDef.cpp`（読み込み）→ `src/render/Renderer.cpp`（種類ごとの見た目）、`src/game/Vision.cpp`（視線を遮るか） |
 | `rect` | — | 長方形 `[左, 上, 幅, 高さ]`。`rect` か `circle` のどちらかを書く | `src/data/StageDef.cpp`（読み込み）→ `src/game/Terrain.cpp`、`src/render/Renderer.cpp` |
 | `circle` | — | 円 `[x, y, 半径]` | `src/data/StageDef.cpp`（読み込み）→ `src/game/Terrain.cpp`、`src/render/Renderer.cpp` |
 
@@ -642,7 +642,7 @@ data/
 | `MainMenu.cpp` / `MainMenu.h` | クールダウン倍率の初期値、敵 AI の賢さの名前（`%` を書いても、そのまま表示する）、スキルショットの的の賢さの名前・大きさ・移動速度の選択肢、キャラの一覧、敵として出るキャラの一覧を表示する。カメラ（`cameraMode`。`App.cpp` が持つ今の値）を選ぶ。練習場を選んでいる時は、ダミーのプリセットを選ぶ（`SandboxPanel.cpp` を使う）。ステージの一覧を表示して選ぶ。解像度（`window`）を一覧から選ぶ（画面に入らない解像度・全画面の間は選べない） | settings、ai、sandbox、stages、characters |
 | `SandboxPanel.cpp` / `SandboxPanel.h` | 練習場のダミーのプリセットを選ぶ UI（メニューと、練習場の画面右下のパネル）。プリセットの名前・説明・体数・半径を表示する | sandbox |
 | `DebugPanel.cpp` / `DebugPanel.h` | 視点の広さ・当たり判定の円の表示を一時的に変える。キャラの選択、敵 AI の賢さの名前、スキルショットの的の設定、移動速度の表示 | settings、ai、characters |
-| `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名・ステージ名・敵 AI（スキルショットでは的）の賢さの名前・的の大きさの名前を表示する（値は `Match.cpp` から受け取る） |
+| `ResultScreen.cpp` / `ResultScreen.h` | リザルトに、キャラ名・ステージ名・敵 AI（スキルショットでは的）の賢さの名前・的の大きさの名前を表示する（値は `Match.cpp` から受け取る） | ai、stages、characters |
 | `PauseDialog.cpp` / `PauseDialog.h` | 使わない（スキルドッジ・スキルショットで Esc を押した時の確認ダイアログ） | — |
 | `RecordsPanel.cpp` / `RecordsPanel.h` | 使わない（直近 10 回の順位表と、メニューから開く記録の画面） | — |
 | `StatsDashboard.cpp` / `StatsDashboard.h` | 統計の画面。絞り込みの選択肢に、キャラ・ステージの一覧、敵・的の賢さの名前、的の大きさ・移動速度の選択肢を使う | ai、stages、characters |
@@ -668,6 +668,8 @@ data/
 | `test_geometry.cpp` | 使わない | — |
 | `test_log_retention.cpp` | 使わない | — |
 | `test_main.cpp` | 使わない | — |
+| `test_command_line.cpp` | 使わない（コマンドライン引数の読み込みと、UTF-8 の文字列とパスの変換のテスト） | — |
+| `test_ui_text.cpp` | 使わない（Dear ImGui に文字列を渡す時の部品 `ImGuiText.h` のテスト） | — |
 | `test_ui_scale.cpp` | 使わない（`UiScale.cpp` と `WindowResolution.cpp` の計算を、テスト用の値で確かめる） | — |
 | `test_settings.cpp` | `settings.jsonc` の既定値を確かめる。一時フォルダへ写したもので、`window` の書き戻しと、ファイルの変更を読み込まずに見つけられること（キャラのファイルの写しを書き換える）を確かめる | settings、characters |
 | `test_camera.cpp` | 使わない（`CameraControl.cpp` の計算を、テスト用の値で確かめる） | — |

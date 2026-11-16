@@ -21,7 +21,8 @@ struct Shape {
     float radius = 0.0f;
 };
 
-/// 障害物の種類（見た目だけが違う。どれも通れない）
+/// 障害物の種類。どれも通れない（移動を妨げる）。建物・壁・木は視線も遮り、箱は低いので遮らない（Vision.cpp）。
+/// 見た目も種類ごとに違う
 enum class ObstacleKind { Building, Wall, Tree, Crate };
 
 /// 障害物の種類の、設定ファイルでの表記（"building" など）

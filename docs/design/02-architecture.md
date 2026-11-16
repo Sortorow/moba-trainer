@@ -30,7 +30,7 @@ MOBA（LoL・エターナルリターンなど）のスキルショット（ス�
 
 ```text
 <ルート>/                ← data/settings.jsonc がある場所。exe のフォルダから親へさかのぼって探す
-├─ data/                 設定ファイル（読み込みと、sandbox.jsonc の "preset" の書き戻しだけ）
+├─ data/                 設定ファイル（読み込みと、sandbox.jsonc の "preset"・settings.jsonc の "window" の書き戻しだけ）
 │   ├─ settings.jsonc    全体の設定
 │   ├─ ai.jsonc          敵 AI・的の AI
 │   ├─ sandbox.jsonc     練習場のダミー
@@ -68,7 +68,7 @@ flowchart LR
 | ターゲット | 中身 | 要点 |
 |---|---|---|
 | `thirdparty_ui` | Dear ImGui・rlImGui・ImPlot の `.cpp` | 上流に CMakeLists が無いので、ここで静的ライブラリにする。`NO_FONT_AWESOME` を定義（rlImGui のアイコンフォントを使わない） |
-| `moba_lib` | `src/main.cpp` 以外のすべての `.cpp` | **ゲームの本体をライブラリにして、テストからも同じコードを使う**ため（根拠: CMakeLists のコメント）。`MOBA_VERSION` を定義。`imm32`（IME の無効化）をリンク |
+| `moba_lib` | `src/main.cpp` 以外のすべての `.cpp` | **ゲームの本体をライブラリにして、テストからも同じコードを使う**ため（根拠: CMakeLists のコメント）。`MOBA_VERSION` を定義。`imm32`（IME の無効化）と `shell32`（コマンドライン引数を UTF-16 で受け取る `CommandLineToArgvW`）をリンク |
 | `moba_trainer` | `src/main.cpp` | Release では `/SUBSYSTEM:WINDOWS`（コンソール窓を出さない）。Debug ではコンソールにもログが出る |
 | `moba_tests` | `tests/*.cpp` | `MOBA_SOURCE_DIR`（ソースのルート）を定義し、テストからソースの `data/` を読む |
 
@@ -85,7 +85,7 @@ MSVC のランタイムは静的リンク（`MultiThreaded`）で、exe 1 つで
 | `src/input/` | `moba` | 入力の取得。実際のマウス・キーボードと、入力スクリプトを同じ形（`InputFrame`）にする | `InputSource`、`LiveInput`、`ScriptInput` |
 | `src/game/` | `moba`、`moba::casting` | ゲームのルール。キャラ・弾・範囲・地形・状態異常・スキルの発動の流れ・1 回のプレイ・集計・リザルトの保存 | `World`、`Unit`、`Entities`、`Terrain`、`Vision`、`SkillCasting`、`Match`、`ResultStore`、`ResultStats` |
 | `src/game/skills/` | `moba::skills` | スキルの処理（handler）。設定ファイルの `"handler"` の名前で選ばれる。handler ごとの params の決まりと、読み込む時のチェックも持つ | `Skill.h`、`SkillRegistry.cpp`、`SkillParams`、`*Skills.cpp` |
-| `src/game/ai/` | `moba::ai` | 敵 AI（スキルドッジ）と的の AI（スキルショット） | `EnemyAI`、`SkillShotTarget`、`Aim`、`PlayerObserver` |
+| `src/game/ai/` | `moba::ai` | 敵 AI（スキルドッジ）と的の AI（スキルショット） | `EnemyAI`、`SkillShotTarget`、`Aim`、`PlayerObserver`、`SearchMap` |
 | `src/render/` | `moba` | ゲーム画面の描画（raylib の図形）と HUD（Dear ImGui の文字）、カメラの計算 | `Renderer`、`Hud`、`CameraControl` |
 | `src/ui/` | `moba`、`moba::ui` | 画面の部品（Dear ImGui）。メニュー・ポーズ・リザルト・記録・統計・デバッグパネル・フォント・文字の倍率 | `MainMenu`、`StatsDashboard`、`DebugPanel`、`UiScale` |
 | `tests/` | — | 自動テスト（doctest）と入力スクリプト | `test_*.cpp`、`scripts/*.txt` |
@@ -321,7 +321,7 @@ stateDiagram-v2
 | 入出力 | 内容 | 担当 |
 |---|---|---|
 | 設定ファイル（読み） | `data/*.jsonc`。1 秒ごとに更新日時を見て、変わっていれば読み直す（プレイ中は読み直さず、次のプレイを始める時に読む） | `GameData`、`App` |
-| 設定ファイル（書き） | `sandbox.jsonc` の `"preset"` の値だけ。コメントや他の行は変えない | `saveSelectedSandboxPreset` |
+| 設定ファイル（書き） | `sandbox.jsonc` の `"preset"` の値（練習場のプリセットを選んだ時）と、`settings.jsonc` の `"window"` の `"width"`・`"height"` の値（メニューで解像度を選んだ時）だけ。コメントや他の行は変えない | `GameData::selectSandboxPreset` → `saveSelectedSandboxPreset`、`GameData::saveWindowSize` → `saveWindowSize` |
 | リザルト（読み書き） | `results/dodge/<YYYY-MM-DD>.json` と `results/shot/<YYYY-MM-DD>.json` | `ResultStore` |
 | ログ（書き） | `logs/moba_trainer_YYYYMMDD_HHMMSS.log`。1 ファイル 20MB まで、10 日分 | `core/Log` |
 | 入力スクリプト（読み） | `--script` で渡したテキストファイル | `ScriptInput` |

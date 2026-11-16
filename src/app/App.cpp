@@ -56,7 +56,10 @@ int App::run() {
         std::string error;
         input_ = ScriptInput::load(*options_.scriptFile, error);
         if (!input_) {
+            // ほかの起動時のエラー（data フォルダが無い・引数の誤り）と同じく、ダイアログでも知らせる
+            // （Release の exe にはコンソールが無いので、ダイアログが無いと何も出さずに終わったように見える）
             log::error("app", "{}", error);
+            platform::showErrorDialog("MOBA Trainer", error);
             return 2;
         }
     } else {

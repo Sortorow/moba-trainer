@@ -70,7 +70,7 @@ flowchart LR
 | 設定ファイルの文字列を ImGui の書式に入れる | `%` を `%%` にしてから入れる | `ui::escapeFormat`（賢さの名前） |
 | スキルが使えない | 何もしない。DEBUG のログに理由 | クールダウン中・射程外・対象がいない |
 | リザルトのファイルが読めない | `.broken` を付けて残し、上書きしない。記録の画面に赤字 | `ResultStore::load` |
-| 書き込みに失敗 | ログとエラーの一覧に出し、続ける | リザルトの保存・sandbox.jsonc の保存 |
+| 書き込みに失敗 | ログとエラーの一覧に出し、続ける | リザルトの保存・sandbox.jsonc の保存（プリセット）・settings.jsonc の保存（解像度） |
 | クラッシュ | 原因をログに書いてから終わる | `platform::installCrashHandler` |
 
 例外を捕まえているのは、JSON の読み込み（`nlohmann::json::exception`）と、リザルトの 1 件の読み込み（`std::exception`）だけです。
@@ -205,4 +205,4 @@ flowchart LR
 | コンパイラ | MSVC（Visual Studio Build Tools）。`build.bat` が `vswhere` で探す |
 | スレッド | 1 つ。ログだけは `mutex` で守っているが、他は複数のスレッドを想定していない |
 | 入力 | マウスとキーボードだけ（ゲームパッドは対象外） |
-| 保存するもの | リザルト（results/）と、sandbox.jsonc の `"preset"` の値だけ。他の設定はゲームから書き換えない（デバッグパネルの変更は一時的） |
+| 保存するもの | リザルト（results/）と、sandbox.jsonc の `"preset"` の値・settings.jsonc の `"window"` の `"width"`・`"height"` の値だけ。他の設定はゲームから書き換えない（デバッグパネルの変更は一時的） |

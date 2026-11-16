@@ -359,7 +359,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `Tree` | `"tree"` |
 | `Crate` | `"crate"` |
 
-**種類が違うのは見た目だけ**で、どれも同じように通れません（根拠: StageDef.h のコメント）。`Obstacle` は種類と形の組です。関数: `toString(ObstacleKind)`、`obstacleKindFromString`。
+どれも同じように通れません。**視線を遮るかは種類で違い**、建物・壁・木は遮り、箱は低いので遮りません（`sightBlockers`。[14-game-world.md の 8 章](14-game-world.md#8-visionh--cpp)）。見た目も種類ごとに違います（根拠: StageDef.h のコメント、指示書「建物・壁・木は視線を遮る。箱は低い物なので遮らない」）。`Obstacle` は種類と形の組です。関数: `toString(ObstacleKind)`、`obstacleKindFromString`。
 
 ### 7.3 `StageDef`（構造体）
 
