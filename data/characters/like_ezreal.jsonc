@@ -28,7 +28,8 @@
 //   "blink"       カーソル方向へ瞬間移動（カーソルが射程内ならその位置、外なら射程の端）
 //   "ezreal_e"    瞬間移動した後、近くの敵へ追尾弾を撃つ
 //
-// ■ visual（弾の見た目）: "orb"（球） / "ring"（輪） / "crescent"（半月） / "card"（カード） / "beam" / "bolt"
+// ■ visual（弾の見た目）: "orb"（球） / "ring"（輪） / "crescent"（半月） / "card"（カード） / "beam"（光線） /
+//                       "bolt"（小さな弾） / "dove"（鳩）
 // ■ onHit（効果）の書き方: [ { "type": 種類, "duration": 秒, "amount": 割合, "tag": 印の名前 } ]
 //   type: "slow"（スロウ） / "snare"（拘束） / "stun"（スタン） / "knockup"（打ち上げ） / "polymorph"（変身） / "mark"（印）
 {

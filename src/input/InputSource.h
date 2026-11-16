@@ -14,7 +14,9 @@ namespace moba {
 /// 入力を取り出す時に渡す情報（カメラ・時刻・UI がマウスやキーを使っているか）
 struct InputPollContext {
     const Camera2D& camera;
-    float simTime = 0.0f;       // ゲーム内の経過時間（入力スクリプトの時刻と比べる）
+    // 入力スクリプトの時刻（App::scriptClock_。1 フレームごとに 1/60 秒進み、メニュー・ポーズ中も進む。
+    // ゲーム内の経過時間ではない）。入力スクリプトの命令の時刻と比べる。実際の操作の時は使わない（0 のまま）
+    float simTime = 0.0f;
     bool uiWantsMouse = false;  // マウスが UI（デバッグパネルなど）の上にある
     bool uiWantsText = false;   // UI で文字入力中
 };

@@ -12,7 +12,7 @@ namespace {
 
 constexpr float kNoHit = std::numeric_limits<float>::infinity();
 constexpr int kBaseRayCount = 360;  // 1° ごとの光線
-// 角・接線の両隣に出す光線の、角度のずれ（ラジアン）。距離 900 で約 0.09 ずれる
+// 角・接線の両隣に出す光線の、角度のずれ（ラジアン）。視界の半径の既定値 1000 の所で、約 0.1 ずれる
 constexpr float kEdgeAngleOffset = 1e-4f;
 
 /// 角度（ラジアン。+X 方向が 0）の向きの、長さ 1 のベクトル
