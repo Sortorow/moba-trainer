@@ -207,16 +207,10 @@ data/
 | コード | 使い方 |
 |---|---|
 | `src/data/AiConfig.cpp` | 読み込む。`reactionTime` を 0.15 秒（`AiConfig.h` の `kMinTargetReactionTime`）以上に収める |
-| `src/game/Match.cpp` | メニューで選んだ大きさ・移動速度で的を置く。的の賢さの段階を `src/game/ai/SkillShotTarget.cpp` に渡す。リザルト用に、賢さの `name` と大きさの `name` を取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
+| `src/game/Match.cpp` | メニューで選んだ大きさ・移動速度（`targetRadius`・`targetMoveSpeed`）で的を置く。的の賢さの段階を `src/game/ai/SkillShotTarget.cpp` に渡す。リザルト用に、賢さの `name` と大きさの `name` を取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
 | `src/game/ai/SkillShotTarget.cpp` | `minDistance`・`maxDistance`（視界の内側に収めたもの）・`dodgeMargin` と `levels` のすべての項目を、的の移動と回避に使う。詠唱を見る時と、接近で「射程に入った」かを見る時は、キャラの設定（スキルの `targeting` / `castTime` / `range` / `countsForHitRate` と、`params` の `speed` / `width` / `radius` / `delay`）を `src/game/ai/Aim.cpp` を通して使う |
 | `src/ui/MainMenu.cpp` | 的の賢さの `name` と段階の数、`sizes`（名前と半径）、`moveSpeeds` を表示して選ぶ |
 | `src/ui/DebugPanel.cpp` | `levels` の項目と、的の状態（今のパターン・避けているか・避けた回数）を表示 |
-
----|---|
-| `src/game/Match.cpp` | 的を置く（`targetRadius`・`targetMoveSpeed`）。メニューで選んだ的の賢さの段階を `src/game/ai/SkillShotTarget.cpp` に渡す。リザルト用に `name` を取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
-| `src/game/ai/SkillShotTarget.cpp` | すべての項目を、的の移動と回避に使う。詠唱を見る時は、キャラの設定（スキルの `targeting` / `castTime` / `range` と、`params` の `speed` / `width` / `radius` / `delay`）を `src/game/ai/Aim.cpp` を通して使う |
-| `src/ui/MainMenu.cpp` | `name`（的の賢さのスライダーの表示）と、段階の数 |
-| `src/ui/DebugPanel.cpp` | `levels` のすべての項目と、的の状態（避けているか・避けた回数）を表示 |
 
 ---
 
