@@ -7,6 +7,7 @@
 #include "core/Log.h"
 #include "data/GameData.h"
 #include "game/SkillCasting.h"
+#include "game/UnitCollision.h"
 
 namespace moba {
 
@@ -20,6 +21,8 @@ void World::update(float dt) {
     time_ += dt;
     recentHits_.clear();
     for (Unit& unit : units_) updateUnit(unit, dt);
+    // 押し合いは、全キャラが動いた後にまとめて直す（キャラを処理する順番で結果が変わらないように）
+    collision::resolve(*this, dt);
     flushSpawns();
     updateProjectiles(dt);
     updateAreas(dt);
@@ -34,6 +37,7 @@ void World::update(float dt) {
 // ---------------------------------------------------------------------------
 EntityId World::addUnit(Unit unit) {
     unit.id = ++lastEntityId_;
+    unit.prevPos = unit.pos;  // 置いた位置からは、まだ動いていない（押し合いで「動いた側」にしない）
     log::info("world", "キャラを配置: #{} {} 位置{}", unit.id, unit.name, geo::str(unit.pos));
     units_.push_back(std::move(unit));
     return units_.back().id;
@@ -45,6 +49,7 @@ void World::removeUnit(EntityId id) {
 
 EntityId World::spawnProjectile(Projectile projectile) {
     projectile.id = ++lastEntityId_;
+    projectile.origin = projectile.pos;  // 出た位置（これより後ろには当たらない）
     if (const auto it = casts_.find(projectile.castId); it != casts_.end()) ++it->second.liveEntities;
     pendingProjectiles_.push_back(std::move(projectile));
     return pendingProjectiles_.back().id;
@@ -298,7 +303,10 @@ void World::updateUnit(Unit& unit, float dt) {
 
     // 硬直のある詠唱中と、拘束などで動けない間は移動しない（目的地は覚えておき、動けるようになったら再開する）
     const bool castLocked = unit.cast.active && unit.cast.locksMovement;
+    const Vector2 beforeWalk = unit.pos;
     if (unit.moveTarget && !castLocked && unit.status.canMove()) moveAlongPath(unit, dt);
+    // 歩いて動いたか（押し合いの許可が、詠唱を始めた時に終わるかの判定に使う。ワープは含まない）
+    unit.walking = Vector2DistanceSqr(unit.pos, beforeWalk) > 1e-6f;
     if (!unit.moveTarget) {
         unit.path.clear();
         unit.pathGoal.reset();
@@ -371,7 +379,8 @@ void World::updateProjectiles(float dt) {
         std::vector<Candidate> candidates;
         for (Unit& unit : units_) {
             if (!unit.alive || unit.team == p.team || p.hasHit(unit.id)) continue;
-            if (!geo::sweptCircleHitsCircle(from, to, p.radius, unit.pos, unit.radius)) continue;
+            // 出た位置より後ろ（発射した向きの反対側）には当たらない
+            if (!geo::sweptCircleHitsCircleAhead(p.origin, p.dir, from, to, p.radius, unit.pos, unit.radius)) continue;
             candidates.push_back({&unit, Vector2DotProduct(unit.pos - from, p.dir)});
         }
         std::sort(candidates.begin(), candidates.end(),

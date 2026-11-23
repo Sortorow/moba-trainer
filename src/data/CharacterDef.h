@@ -79,7 +79,8 @@ struct CharacterDef {
     std::string origin;       // "LoL" / "ER"
     int menuOrder = 1000;     // メニューなどに並べる順（小さいほど先。同じなら id の順）
     float moveSpeed = 325.0f;
-    float hitboxRadius = 65.0f;
+    float hitboxRadius = 65.0f;                       // 当たり判定の半径（スキルの当たり・障害物との当たり）
+    float collisionRadius = kDefaultCollisionRadius;  // 押し合いの半径（キャラ同士がぶつかる大きさ）
     Color color{200, 200, 200, 255};
     std::array<std::optional<SkillDef>, kSkillSlotCount> skills;
     std::filesystem::path sourceFile;
@@ -91,7 +92,8 @@ struct CharacterDef {
 /// キャラのファイルの読み込み結果（キャラか、読めなかった理由）
 struct CharacterLoadResult {
     std::optional<CharacterDef> def;
-    std::string error;  // 空なら成功
+    std::string error;                  // 空なら成功
+    std::vector<std::string> warnings;  // 読めたが、書き忘れなどで規定値を使った項目
 };
 
 /// キャラのファイル（data/characters/*.jsonc）を 1 つ読み込む

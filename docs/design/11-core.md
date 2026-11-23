@@ -48,6 +48,14 @@ inline constexpr EntityId kInvalidId = 0;
 
 **注意事項**: 番号はプレイ（`World`）ごとに 1 から振り直します。別のプレイの番号と比べても意味はありません。
 
+### 2.1.1 `kDefaultCollisionRadius`
+
+```cpp
+inline constexpr float kDefaultCollisionRadius = 30.0f;
+```
+
+押し合いの半径の規定値です。キャラのファイルに `collisionRadius` が無い時（警告を出す）と、`Unit` を作った時の初期値に使います。データ（`CharacterDef`）とゲーム（`Unit`）の両方が使うので、ここに置いています。値はユーザーの決定（2026-11-24。今のキャラは全員が成人の人間型で同じ大きさ）。
+
 ### 2.2 `Team`（列挙型）
 
 | 値 | 意味 |
@@ -81,6 +89,7 @@ inline constexpr EntityId kInvalidId = 0;
 |---|---|---|---|
 | `float distanceSqToSegment(Vector2 p, Vector2 a, Vector2 b)` | 点 `p`、線分 `ab` | 距離の 2 乗 | 点から線分までの最短距離の **2 乗**。平方根を取らない分だけ速い。比べる相手も 2 乗する。`a` と `b` がほぼ同じ点なら、`p` と `a` の距離 |
 | `bool sweptCircleHitsCircle(Vector2 a, Vector2 b, float movingRadius, Vector2 center, float radius)` | 動く円の始点・終点・半径、止まっている円の中心・半径 | 触れるか | 円が `a` から `b` へ動く間に、もう 1 つの円に触れるか。**速い弾が 1 回の刻みで敵をすり抜けないように**、動いた道のり全体で判定する |
+| `bool sweptCircleHitsCircleAhead(Vector2 origin, Vector2 dir, Vector2 a, Vector2 b, float movingRadius, Vector2 center, float radius)` | 弾の出た位置・発射した向き（長さ 1）、動く円の始点・終点・半径、止まっている円の中心・半径 | 触れるか | まっすぐ飛ぶ弾の当たり判定。`sweptCircleHitsCircle` と同じだが、**`origin` を通り `dir` に垂直な線より後ろには当たらない**（弾の形の後ろの端を、出た位置で平らに切った形）。円の中心が線より後ろでも、円の一部が線より前に出ていれば、前に出ている部分で調べる（線より前では少しだけ広い、当たりやすい側の近似） |
 | `bool circlesOverlap(Vector2 a, float radiusA, Vector2 b, float radiusB)` | 2 つの円 | 重なるか | ちょうど触れている場合も重なっているとみなす |
 | `Vector2 normalizedOr(Vector2 v, Vector2 fallback)` | ベクトル、代わりの向き | 長さ 1 の向き | 長さがほぼ 0（1e-4 以下）で向きが決まらない時は `fallback` を返す。「カーソルが自キャラと重なっていたら、今の向き」のように使う |
 | `Vector2 clampDistance(Vector2 from, Vector2 to, float maxDistance)` | 始点、目標、最大距離 | 点 | `to` までの距離が `maxDistance` 以内なら `to`、遠ければ途中の点。射程の端に収める時に使う |
@@ -89,6 +98,8 @@ inline constexpr EntityId kInvalidId = 0;
 | `std::string str(Vector2 v)` | 座標 | 文字列 | ログ用の `"(x, y)"`。小数点以下は表示しない |
 
 **背景**: 当たり判定・AI・地形のすべてで同じ計算を使うため、1 か所にまとめています（推測）。`sweptCircleHitsCircle` は、速い弾が 1 回の刻みで敵をすり抜けないようにするためのものです（根拠: Geometry.h のコメント）。例えば弾速 3000 の弾（エマ R の鳩）は 1 刻み（1/120 秒）で 25 進むので、刻みの終わりの位置だけで判定すると、細い弾が小さい的を飛び越えることがあります。
+
+**背景**（2026-11-23、ユーザーの確認）: `sweptCircleHitsCircle` だけで弾を判定していた時は、1 回目の刻みの判定に「出た位置の周りの円」が入るので、出た位置の後ろにいる相手にも当たっていました（作り方の都合で生まれた動き）。ER では弾は自キャラの中心から発射され、反対側には当たらないため、まっすぐ飛ぶ弾は `sweptCircleHitsCircleAhead` で判定します。エマの EQR（兎に重なってカードを出す）で、速く逃げる兎に外れることがあるのも、この決まりによります。
 
 ---
 

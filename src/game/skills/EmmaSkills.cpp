@@ -5,6 +5,7 @@
 
 #include "core/Geometry.h"
 #include "core/Log.h"
+#include "game/UnitCollision.h"
 #include "game/World.h"
 #include "game/skills/Skill.h"
 
@@ -136,7 +137,8 @@ ParamRules emmaWRules() {
 /// R: 鳩・帽子・兎（変身させた敵）のいずれかを指定して、その位置へ瞬間移動し、対象ごとの追加効果を出す
 ///   鳩: エマと鳩の位置が入れ替わる。鳩はエマの元の位置へ飛び、通り道の敵に効果（拘束）。鳩は残り時間を戻して残る
 ///   帽子: エマと帽子の位置が入れ替わる。帽子はエマの元の位置で爆発し、範囲の敵に効果（打ち上げ）。帽子は残り時間を戻して残る
-///   兎: 兎の位置へ移動し、兎の周りの敵に効果（変身）
+///   兎: 兎の中心へ移動して重なり、兎の周りの敵に効果（変身）。着地した時に重なっていた相手とは、
+///       離れきるか、重なったまま歩きながら新しくスキルの詠唱を始めるまで押し合わない（collision::allowLandingOverlap）
 /// R の前の右クリックの移動指示は捨てる（R の後は、新しく右クリックするまで移動先にとどまる）
 /// params: pickRadius, targetKinds, dovePathWidth, doveSpeed, doveOnHit, hatFlightTime, hatRadius, hatOnHit,
 ///         rabbitRadius, rabbitOnHit, color
@@ -215,9 +217,10 @@ void handleEmmaR(SkillContext& ctx) {
             if (!rabbit || !rabbit->alive || !rabbit->status.has(EffectType::Polymorph)) {
                 return cancelAndRefund(ctx, "兎の変身が解けていた");
             }
-            // 兎のすぐ手前（エマ側）に移動する
-            const Vector2 fromRabbit = geo::normalizedOr(oldPos - rabbit->pos, Vector2{-1.0f, 0.0f});
-            teleport(world, emma, rabbit->pos + fromRabbit * (rabbit->radius + emma.radius) * 0.6f, color);
+            // 兎の中心へ移動して重なる（ER の動画では、どの向きから飛んでもエマは兎にほぼ重なる）。
+            // 着地した時に重なっていた相手（兎など）とは、離れきるまで押し合わない
+            teleport(world, emma, rabbit->pos, color);
+            collision::allowLandingOverlap(world, emma, def.name + "（兎）");
 
             AreaEffect a = makeArea(ctx, rabbit->pos);
             a.label = def.name + "（兎）";

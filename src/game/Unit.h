@@ -1,6 +1,7 @@
 #pragma once
 // キャラクター（自キャラ・敵・ダミー）
 
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <string>
@@ -53,6 +54,24 @@ struct CastState {
     bool locksMovement = true;  // 硬直（詠唱中は移動できない）。スキルの lockMovement
 };
 
+/// 押し合いを無くす許可 1 つ（どの相手と重なってよいか、いつ終わるか）。
+/// キャラ同士は基本的に押し合うが、スキルや状態（エマの R で兎に重なった時・将来のすり抜けなど）がこれを付けると、
+/// 対象の相手とは押し合わなくなる。2 体のどちらかが相手を対象に含む許可を持っていれば、その 2 体は押し合わない。
+/// 時間や離れたことで外すのは UnitCollision（collision::resolve）
+struct OverlapPass {
+    std::string reason;                  // 付けた理由（ログ用。スキルの名前など）
+    bool allUnits = false;               // true: すべてのキャラが対象（すり抜け）。false: targets だけ
+    std::vector<EntityId> targets;       // 対象のキャラ（allUnits が false の時）
+    std::optional<float> remaining;      // 残り時間（秒）。無ければ時間では終わらない
+    bool endsWhenSeparated = false;      // 対象と重ならなくなった相手は対象から外す（誰も残らなければ終わる）
+    bool endsOnCastWhileMoving = false;  // 重なったまま歩いている側が、新しくスキルの詠唱を始めたら終わる
+
+    /// unit がこの許可の対象か
+    bool covers(EntityId unit) const {
+        return allUnits || std::find(targets.begin(), targets.end(), unit) != targets.end();
+    }
+};
+
 /// キャラ 1 体（自キャラ・敵キャラ・ダミー）。位置・移動・詠唱・状態異常・クールダウン・HP などを持つ
 struct Unit {
     EntityId id = kInvalidId;
@@ -61,9 +80,19 @@ struct Unit {
     std::string characterId;  // 自キャラの設定 ID（ダミーは空）
     Vector2 pos{};
     Vector2 facing{1.0f, 0.0f};  // 向いている方向（単位ベクトル）
-    float radius = 65.0f;        // 当たり判定の半径
+    float radius = 65.0f;        // 当たり判定の半径（スキルの当たりと、障害物との当たりに使う）
+    // 押し合いの半径（キャラ同士がぶつかる大きさ。当たり判定とは別の値で、ふつうは当たり判定より小さい）
+    float collisionRadius = kDefaultCollisionRadius;
     float baseMoveSpeed = 325.0f;
     Color color = WHITE;
+
+    // 押し合い（UnitCollision）が使う状態
+    std::vector<OverlapPass> overlapPasses;  // 押し合いを無くす許可
+    Vector2 prevPos{};  // 前の刻みの終わりの位置（押し合いで「動いた側」を見分ける。刻みの終わりに覚え直す）
+    // 直前の刻みで歩いて動いたか（ワープや押し合いで動いた分は含まない。World::updateUnit が移動の後に入れる）。
+    // 重なったまま歩いている時に詠唱を始めたら押し合いの許可が終わる、の判定に使う
+    bool walking = false;
+    bool pushOutNow = false;  // 次の押し合いの計算で、動いていなくても重なっている相手から押し出す
 
     std::optional<Vector2> moveTarget;  // 右クリックで指定した目的地
     // 目的地までの道のり（壁を回り込む点の並び。World が moveTarget から作る）

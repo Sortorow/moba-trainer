@@ -38,6 +38,8 @@ struct Projectile {
     std::string label;  // ログ・表示用の名前
 
     Vector2 pos{};
+    Vector2
+        origin{};  // 出た位置（World::spawnProjectile が pos から入れる）。まっすぐ飛ぶ弾は、これより後ろには当たらない
     Vector2 dir{1.0f, 0.0f};
     float speed = 1000.0f;
     float radius = 40.0f;  // 当たり判定の半径（幅の半分）

@@ -57,6 +57,11 @@ void GameData::loadAll() {
     std::map<std::string, CharacterDef, std::less<>> loaded;
     for (const std::filesystem::path& file : jsoncFilesIn(paths_.charactersDir)) {
         CharacterLoadResult result = loadCharacterFile(file);
+        // 書き忘れなどで規定値を使った項目（キャラは使える）
+        for (const std::string& warning : result.warnings) {
+            log::warn("data", "{}", warning);
+            errors_.push_back("警告: " + warning);
+        }
         // スキルの params がルールを満たさなければ、読めなかったファイルと同じく使わない
         if (result.def) {
             const std::vector<std::string> problems = checkCharacter(*result.def);

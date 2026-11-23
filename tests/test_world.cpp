@@ -185,7 +185,7 @@ TEST_CASE("エマ E: 射程外の敵には近づいてから撃ち、当たる�
     CHECK_FALSE(f.unit(target).status.canCast());
 }
 
-TEST_CASE("エマ R（兎）: 兎の位置へ移動し、周りの敵も兎にする") {
+TEST_CASE("エマ R（兎）: 兎の中心へ移動し、周りの敵も兎にする") {
     Fixture f("like_emma");
     const EntityId rabbit = f.addDummy({400, 0});
     const EntityId neighbor = f.addDummy({520, 120});
@@ -197,7 +197,8 @@ TEST_CASE("エマ R（兎）: 兎の位置へ移動し、周りの敵も兎に�
     f.cast(SkillSlot::R, {400, 0});
     f.run(0.2f);
     CHECK(f.unit(neighbor).status.has(EffectType::Polymorph));
-    CHECK(Vector2Distance(f.player().pos, f.unit(rabbit).pos) < 150.0f);
+    // 兎の手前ではなく、兎に重なる（ER の動画で確認。押し合いの許可で、重なったまま残る）
+    CHECK(Vector2Distance(f.player().pos, f.unit(rabbit).pos) < 1.0f);
 }
 
 TEST_CASE("エマ Q: 鳩を残し、次の Q で鳩のカードも飛ぶ。2 枚当たるとスロウ") {

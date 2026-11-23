@@ -83,7 +83,7 @@ MSVC のランタイムは静的リンク（`MultiThreaded`）で、exe 1 つで
 | `src/core/` | `moba`、`moba::geo`、`moba::log`、`moba::platform` | どこからでも使う土台。基本の型・2D の幾何計算・ログ・パス・JSON の読み込み・Windows 固有の処理 | `GameTypes.h`、`Geometry.h`、`Log`、`Paths`、`JsonFile`、`Platform` |
 | `src/data/` | `moba` | 設定ファイルの読み込み（JSON → C++ の構造体）。値を範囲に収め、誤りをエラー・警告として残す | `GameData`、`CharacterDef`、`StageDef`、`AiConfig`、`SandboxConfig`、`Settings`、`EffectSpec` |
 | `src/input/` | `moba` | 入力の取得。実際のマウス・キーボードと、入力スクリプトを同じ形（`InputFrame`）にする | `InputSource`、`LiveInput`、`ScriptInput` |
-| `src/game/` | `moba`、`moba::casting` | ゲームのルール。キャラ・弾・範囲・地形・状態異常・スキルの発動の流れ・1 回のプレイ・集計・リザルトの保存 | `World`、`Unit`、`Entities`、`Terrain`、`Vision`、`SkillCasting`、`Match`、`ResultStore`、`ResultStats` |
+| `src/game/` | `moba`、`moba::casting` | ゲームのルール。キャラ・弾・範囲・地形・状態異常・スキルの発動の流れ・1 回のプレイ・集計・リザルトの保存 | `World`、`Unit`、`Entities`、`Terrain`、`Vision`、`UnitCollision`、`SkillCasting`、`Match`、`ResultStore`、`ResultStats` |
 | `src/game/skills/` | `moba::skills` | スキルの処理（handler）。設定ファイルの `"handler"` の名前で選ばれる。handler ごとの params の決まりと、読み込む時のチェックも持つ | `Skill.h`、`SkillRegistry.cpp`、`SkillParams`、`*Skills.cpp` |
 | `src/game/ai/` | `moba::ai` | 敵 AI（スキルドッジ）と的の AI（スキルショット） | `EnemyAI`、`SkillShotTarget`、`Aim`、`PlayerObserver`、`SearchMap` |
 | `src/render/` | `moba` | ゲーム画面の描画（raylib の図形）と HUD（Dear ImGui の文字）、カメラの計算 | `Renderer`、`Hud`、`CameraControl` |

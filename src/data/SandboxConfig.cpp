@@ -21,7 +21,7 @@ std::optional<Vector2> pointFromJson(const json& j, std::string_view key) {
     return Vector2{(*it)[0].get<float>(), (*it)[1].get<float>()};
 }
 
-/// ダミー 1 体の設定を読む。プリセットに書いた radius / moveSpeed / color を、ダミーごとの値の既定値にする
+/// ダミー 1 体の設定を読む。プリセットに書いた radius / collisionRadius / moveSpeed / color を、ダミーごとの値の既定値にする
 /// @param defaults プリセットの値（ダミーに書かれていない項目に使う）
 /// @param index プリセットの中で何体目か（0 始まり。名前を省略した時の「ダミー1」などに使う）
 /// @param warnings 読めたがおかしかった項目の説明を足す
@@ -37,6 +37,7 @@ DummyDef parseDummy(const json& j, const DummyDef& defaults, std::size_t index, 
     }
     dummy.patrolTo = pointFromJson(j, "patrolTo");
     dummy.radius = std::clamp(j.value("radius", dummy.radius), 10.0f, 400.0f);
+    dummy.collisionRadius = std::clamp(j.value("collisionRadius", dummy.collisionRadius), 0.0f, 400.0f);
     dummy.moveSpeed = std::clamp(j.value("moveSpeed", dummy.moveSpeed), 0.0f, 2000.0f);
     if (const auto it = j.find("color"); it != j.end()) dummy.color = colorFromJson(*it, dummy.color);
     return dummy;
@@ -45,13 +46,13 @@ DummyDef parseDummy(const json& j, const DummyDef& defaults, std::size_t index, 
 /// 2 つの座標がまったく同じか
 bool samePoint(Vector2 a, Vector2 b) { return a.x == b.x && a.y == b.y; }
 
-/// 2 体のダミーの設定（名前・位置・往復先・大きさ・速さ・色）がすべて同じか
+/// 2 体のダミーの設定（名前・位置・往復先・大きさ・押し合いの大きさ・速さ・色）がすべて同じか
 bool sameDummy(const DummyDef& a, const DummyDef& b) {
     const bool samePatrol =
         a.patrolTo.has_value() == b.patrolTo.has_value() && (!a.patrolTo || samePoint(*a.patrolTo, *b.patrolTo));
     return a.name == b.name && samePoint(a.position, b.position) && samePatrol && a.radius == b.radius &&
-           a.moveSpeed == b.moveSpeed && a.color.r == b.color.r && a.color.g == b.color.g && a.color.b == b.color.b &&
-           a.color.a == b.color.a;
+           a.collisionRadius == b.collisionRadius && a.moveSpeed == b.moveSpeed && a.color.r == b.color.r &&
+           a.color.g == b.color.g && a.color.b == b.color.b && a.color.a == b.color.a;
 }
 
 /// 2 つのプリセット（名前・説明・すべてのダミー）が同じか
@@ -101,6 +102,8 @@ SandboxConfigLoadResult loadSandboxConfig(const std::filesystem::path& file) {
             }
             DummyDef defaults;
             defaults.radius = std::clamp(item.value("radius", defaults.radius), 10.0f, 400.0f);
+            defaults.collisionRadius =
+                std::clamp(item.value("collisionRadius", defaults.collisionRadius), 0.0f, 400.0f);
             defaults.moveSpeed = std::clamp(item.value("moveSpeed", defaults.moveSpeed), 0.0f, 2000.0f);
             if (const auto it = item.find("color"); it != item.end())
                 defaults.color = colorFromJson(*it, defaults.color);

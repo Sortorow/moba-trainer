@@ -306,6 +306,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `menuOrder` | 1000 | メニューに並べる順（小さいほど先）。根拠: `845816d`「エマ → エズリアル → ブランド。以降のキャラは実装順に末尾へ足す」 |
 | `moveSpeed` | 325 | 移動速度 |
 | `hitboxRadius` | 65 | 当たり判定の半径（1 以上） |
+| `collisionRadius` | 30（`kDefaultCollisionRadius`） | 押し合いの半径（0 以上）。書かれていなければ、`CharacterLoadResult::warnings` に警告を足す（キャラは使える） |
 | `color` | 灰色 | 体の色 |
 | `skills` | — | Q〜F のスキル（`array<optional<SkillDef>, 6>`）。`null` や書かれていないキーはスキル無し |
 | `sourceFile` | — | 読んだファイル（読み込みに失敗した時に、前回の内容を探すため） |
@@ -315,7 +316,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 
 | 関数 | 説明 |
 |---|---|
-| `CharacterLoadResult loadCharacterFile(const path& file)` | キャラのファイルを 1 つ読む。`id` と `skills` は必須。スキルに誤り（handler が無い・`targeting` や `usableDuringCast` の値が不明・`params` がオブジェクトでない）があれば、**そのキャラ全体**がエラー |
+| `CharacterLoadResult loadCharacterFile(const path& file)` | キャラのファイルを 1 つ読む。`id` と `skills` は必須。スキルに誤り（handler が無い・`targeting` や `usableDuringCast` の値が不明・`params` がオブジェクトでない）があれば、**そのキャラ全体**がエラー。書き忘れで規定値を使った項目（今は `collisionRadius` だけ）は `warnings` に入り、`GameData::loadAll` が「警告: 」を付けて設定ファイルのエラーの一覧に出す |
 | `Color colorFromJson(const json& value, Color fallback)` | `[R, G, B]` か `[R, G, B, A]`（各 0〜255。範囲外は収める）を色にする。要素が 3 つ未満なら `fallback`。sandbox の色にも使う |
 | `parseSkill`（.cpp の中だけ） | スキル 1 つを読む |
 | `warnMissingOnce`（.cpp の中だけ） | 必須の params が無い警告を、組ごとに 1 回だけ出す（`recordDataWarning` が初めての誤りと判断した時だけ、ログにも出す） |
@@ -439,6 +440,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `TargetSize::name` / `radius` | 的の大きさの選択肢 1 つ（メニューの名前と半径） |
 | `SkillShotConfig::sizes` | 大きさの選択肢（**必須**） |
 | `SkillShotConfig::moveSpeeds` | 移動速度の選択肢（**必須**） |
+| `SkillShotConfig::collisionRadius` | 的の押し合いの半径（既定 20。0〜400）。大きさの選択に関係なく同じ |
 | `SkillShotConfig::minDistance` / `maxDistance` | 自キャラとの距離の下限・上限（上限は下限 + 100 以上）。下限は移動先（パターン）を選ぶ時だけに使い、回避の時は使わない。上限は回避の時も守る |
 | `SkillShotConfig::visionMargin` | 自キャラとの距離の上限を、視界の半径からこの値だけ内側までに抑える（既定 100。0 以上） |
 | `float SkillShotConfig::maxDistanceWithin(float visionRadius) const` | 視界の半径が `visionRadius` の時の距離の上限。`maxDistance` と「`visionRadius` − `visionMargin`」の小さい方で、`minDistance` + 100 より小さくはしない。`Match::setupSkillShot` が的の AI に渡す前に使う |
@@ -486,6 +488,7 @@ handler は、`params` を直接触らずに次の関数で読みます。
 | `position` | (0, 0) | 置く位置（自キャラは (0, 0) から始まる）。書かないと警告 |
 | `patrolTo` | なし | あれば `position` とこの位置の間を往復する。無ければ静止 |
 | `radius` | プリセットの値か 65 | 当たり判定の半径（10〜400） |
+| `collisionRadius` | プリセットの値か 20 | 押し合いの半径（0〜400）。ER のダミーと同じく、一番小さいキャラくらい |
 | `moveSpeed` | プリセットの値か 300 | 往復の速さ。静止のダミーも、押し出された時に元の位置へ戻る速さに使う（0〜2000） |
 | `color` | プリセットの値か赤 | 色 |
 

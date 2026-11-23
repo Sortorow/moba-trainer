@@ -38,7 +38,7 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | ファイル | 対象 | 主な内容 |
 |---|---|---|
 | [test_main.cpp](../../tests/test_main.cpp) | — | doctest の `main`（`DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN`） |
-| [test_geometry.cpp](../../tests/test_geometry.cpp) | `core/Geometry.h` | 点と線分の距離・動く円の当たり判定・射程の制限 |
+| [test_geometry.cpp](../../tests/test_geometry.cpp) | `core/Geometry.h` | 点と線分の距離・動く円の当たり判定・まっすぐ飛ぶ弾は出た位置より後ろに当たらない（体の一部が前に出ていれば当たる）・射程の制限 |
 | [test_log_retention.cpp](../../tests/test_log_retention.cpp) | `core/LogRetention` | ファイル名から日付を読む・11 日目で最も古い日を消す・「ログがある日」で数える |
 | [test_command_line.cpp](../../tests/test_command_line.cpp) | `app/CommandLine`・`pathFromUtf8` | 引数の読み込みとエラー・日本語や Shift_JIS で書けない文字を含むパスがそのままのパスになる・エラーの文が文字化けしない・`pathFromUtf8` と `toUtf8` が互いに逆で、そのパスでファイルを作れる |
 | [test_character_data.cpp](../../tests/test_character_data.cpp) | `data/` | data フォルダがすべて読める（params の確認も通る）・キャラの並び順・すべての handler が実在し params が決まりを満たす（警告も無い）・決まりの細かい判定（0 を許す項目・型違い・選択肢・書き忘れ・効果・整数・負の値・知らない項目名は警告・鉄菱の `rings`）・決まりを満たさないキャラのファイルは使わない（読み直しなら前回の内容、初めてなら選べない）・警告だけなら使えて一覧に出る・設定値が読めている |
@@ -51,6 +51,7 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | [test_sandbox.cpp](../../tests/test_sandbox.cpp) | `SandboxConfig`・練習場 | プリセットが読める・`"preset"` だけが書き換わりコメントが残る・コメント / 文字列 / 内側のオブジェクトの `"preset"` は書き換えない・一番外側に無ければ保存しない・プリセットの切り替えでダミーが置き直される・キャラのファイルを保存した後にプリセットを選んでも、キャラの変更を読んだことにしない |
 | [test_results.cpp](../../tests/test_results.cpp) | `ResultStore` | 1 日 20 件・180 日・モードごとの保存・保存して読み直しても同じ・読めないファイルを `.broken` にする・順位 |
 | [test_status_effects.cpp](../../tests/test_status_effects.cpp) | `StatusEffects` | スロウを 2 つ受けた時、その時に残っている中で最も強いものが効き、強い方が先に切れたら残っている弱い方が効く（character_traits.txt の例 1〜3）・同じ強さのスロウを付け直すと 1 つにまとまり、最後に付けた時から数え直す（鉄菱を続けて踏んだ時）・同じ強さの付け直しで残り時間が縮まない |
+| [test_collision.cpp](../../tests/test_collision.cpp) | `collision::`（押し合い）・押し合いの許可・エマの R（兎）・弾の後ろ・押し合いの半径の設定 | 動いた側だけが相手の円に沿って回り込み、止まっている相手は動かない・真正面からぶつかると進む向きの右側へ回り込んで抜ける（右向き・左向き）・向かい合って歩く 2 体はそれぞれ右へよけてすれ違う・右側が障害物（ステージの端）でふさがっていれば左側へ回り込んで抜ける・両側が壁の狭い通路で静止のダミーにふさがれた往復のダミーは約 1 秒で折り返す・どのステージ（障害物なし・路地裏・森）とプリセットでも、往復のダミーが詰まって折り返すことなく往復する（2026-11-24 の路地裏の不具合の再現条件を含む）・ワープで相手の上に移った側が押し出される・押し出した先がステージの外なら障害物を優先する・時間で終わる許可は時間切れで外れて押し合いに戻る・エマの R は兎の中心へ移動し、どちらも動かなければ重なったまま（向こう側から飛んでも同じ）・兎が歩いて離れる間は押し合わず、離れきったら許可が外れる・重なったまま歩きながら詠唱を始めるとエマだけが押し出される・止まったまま（R の直後の Q）や EQR では押し出されない・まっすぐ飛ぶ弾は出た位置より後ろの相手に当たらない（エズリアルの Q で 5 通り）・押し合いの半径はキャラ 30・ダミーと的 20・キャラのファイルに無ければ警告を出して 30 |
 | [test_stats.cpp](../../tests/test_stats.cpp) | `ResultStats` | 絞り込み・平均と自己ベスト・直近 7 日の比較・移動平均（数を合計してから割り、割合の平均にならない）・自己ベストの更新と TOP 3・自己ベストの数字 / TOP 3 / グラフの更新の印が同じプレイを指す・日ごと / 賢さごと / キーごと |
 | [test_camera.cpp](../../tests/test_camera.cpp) | `render/CameraControl` | 固定・固定しない・画面の端・ステージの外まで動かない・Space・UI の上 |
 | [test_ui_scale.cpp](../../tests/test_ui_scale.cpp) | `ui::scaleForWindowHeight`・`ui::resolutionList`・`ui::fitsInArea`・`ui::startupWindowSize` | 文字の倍率は高さ ÷ 900 × `uiScale`・解像度の一覧はピクセル数の少ない順（1920×1080・2160×1440・2400×1350 を含む）・タイトルバーと枠を足して作業領域に入るか（ちょうどは入る、1 ピクセルはみ出すと入らない）・起動時は入る中で最も大きく、同じ縦横比を優先・どれも入らなければ最小 |
@@ -94,6 +95,7 @@ build\release\moba_tests.exe -s                   # 成功したテストの MES
 | `TempDir`・`dodgeResult`・`shotResult`・`at` | test_results.cpp | 一時フォルダと、テスト用の結果・日時 |
 | `containsText`・`realSkill` | test_character_data.cpp | 文の一覧に、ある文字列を含む文があるか・本物の設定ファイルのスキル定義の写し（params を書き換えて決まりの判定を試す） |
 | `makeResult`・`pointers` | test_stats.cpp | テスト用の保存した結果 |
+| `CollisionFixture`・`distanceBetween`・`emmaLandsOnRabbit` | test_collision.cpp | 障害物のない `World` の (0, 0) に、指定したキャラの自キャラ（押し合いの半径はキャラのファイルの値）を置く。`addDummy`（押し合いの半径の規定値 20）・`cast`・`run(seconds, onStep)`（刻みごとに `onStep` を呼ぶ）。2 体の中心の距離。エマで (400, 0) のダミーを E で兎にして R で移動するまで進める |
 | `slow`・`advance`・`kQDoubleHit`・`kCaltrops` | test_status_effects.cpp | スロウの効果（エマの Q の 2 枚当て・鉄菱を 1 つ踏んだ時）と、World と同じく 1 刻みずつ残り時間を減らして進める |
 | `inputAt` | test_camera.cpp | カーソルの位置だけを決めた `CameraControlInput` |
 | `makeFiles`・`contains` | test_log_retention.cpp | テスト用のログファイルの一覧 |

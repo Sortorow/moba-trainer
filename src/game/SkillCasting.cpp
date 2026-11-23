@@ -8,6 +8,7 @@
 #include "core/Log.h"
 #include "data/CharacterDef.h"
 #include "data/Settings.h"
+#include "game/UnitCollision.h"
 #include "game/World.h"
 #include "game/skills/Skill.h"
 
@@ -128,6 +129,8 @@ void finishCast(World& world, Unit& caster) {
 
 /// 詠唱を始める（クールダウンを入れ、対象の方を向く）。詠唱時間が 0 なら、すぐに発動する
 void beginCast(World& world, Unit& caster, const SkillDef& def, const CastRequest& request) {
+    // 重なったまま歩いている時に新しく詠唱を始めると、押し合いの許可が終わって押し出される（エマの R の後など）
+    collision::onCastStarted(world, caster);
     caster.cooldowns[static_cast<std::size_t>(index(def.slot))] = def.cooldown * world.cooldownScaleFor(caster);
     caster.cast = CastState{true, request, def.castTime, def.castTime, def.lockMovement};
 
@@ -212,6 +215,7 @@ CastOutcome requestCast(World& world, Unit& caster, const CastRequest& request) 
         // 今の詠唱は続けたまま、このスキルをすぐに発動する
         log::debug("skill", "[{}] の詠唱を続けたまま、[{}] {} を使います", toString(caster.cast.request.slot),
                    toString(request.slot), def->name);
+        collision::onCastStarted(world, caster);  // 新しいスキルを使い始めたことは、詠唱の開始と同じ
         caster.cooldowns[static_cast<std::size_t>(index(def->slot))] = def->cooldown * world.cooldownScaleFor(caster);
         runSkill(world, caster, *def, resolved);
         return CastOutcome::Fired;

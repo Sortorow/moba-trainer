@@ -55,6 +55,7 @@ std::string loadSkillShot(const nlohmann::json& j, SkillShotConfig& c) {
     }
     for (const nlohmann::json& item : j.at("moveSpeeds"))
         c.moveSpeeds.push_back(std::clamp(item.get<float>(), 0.0f, 1500.0f));
+    c.collisionRadius = std::clamp(j.value("collisionRadius", c.collisionRadius), 0.0f, 400.0f);
     c.minDistance = std::max(0.0f, j.value("minDistance", c.minDistance));
     c.maxDistance = std::max(c.minDistance + 100.0f, j.value("maxDistance", c.maxDistance));
     c.visionMargin = std::max(0.0f, j.value("visionMargin", c.visionMargin));

@@ -174,6 +174,12 @@ CharacterLoadResult loadCharacterFile(const std::filesystem::path& file) {
         def.menuOrder = root.value("menuOrder", def.menuOrder);
         def.moveSpeed = std::max(0.0f, root.value("moveSpeed", def.moveSpeed));
         def.hitboxRadius = std::max(1.0f, root.value("hitboxRadius", def.hitboxRadius));
+        if (!root.contains("collisionRadius")) {
+            result.warnings.push_back(
+                std::format("{}: \"collisionRadius\"（押し合いの半径）が書かれていないため、{} にします", fileName,
+                            kDefaultCollisionRadius));
+        }
+        def.collisionRadius = std::max(0.0f, root.value("collisionRadius", def.collisionRadius));
         def.color = colorFromJson(root.value("color", json::array()), def.color);
 
         const json& skills = root.at("skills");

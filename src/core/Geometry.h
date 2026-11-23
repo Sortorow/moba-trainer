@@ -27,6 +27,23 @@ inline bool sweptCircleHitsCircle(Vector2 a, Vector2 b, float movingRadius, Vect
     return distanceSqToSegment(center, a, b) <= r * r;
 }
 
+/// まっすぐ飛ぶ弾の当たり判定。半径 movingRadius の弾が a から b へ動く間に、中心 center・半径 radius の円に触れるか。
+/// ただし弾は出た位置 origin から dir の向きへ発射されたものとし、「origin を通り dir に垂直な線」より後ろには当たらない
+/// （弾の形の後ろの端を、出た位置で平らに切った形）。a・b は origin から dir の向きに進んだ所にあること
+/// @param dir 発射した向き（長さ 1）
+inline bool sweptCircleHitsCircleAhead(Vector2 origin, Vector2 dir, Vector2 a, Vector2 b, float movingRadius,
+                                       Vector2 center, float radius) {
+    // 円の中心が、出た位置の線よりどれだけ後ろにあるか（前なら 0 以下）
+    const float behind = -Vector2DotProduct(center - origin, dir);
+    if (behind <= 0.0f) return sweptCircleHitsCircle(a, b, movingRadius, center, radius);
+    if (behind >= radius) return false;  // 円がすべて線より後ろ
+    // 円のうち線より前に出ている部分は、線の上の点（中心を線まで前へ移した点）を中心とする、
+    // 半径 √(radius² − behind²) の円に収まる。その円で調べる（線の上では、前に出ている部分の幅とちょうど同じ。
+    // 線より前では少しだけ広いので、わずかに当たりやすい側の近似になる）
+    return sweptCircleHitsCircle(a, b, movingRadius, center + dir * behind,
+                                 std::sqrt(radius * radius - behind * behind));
+}
+
 /// 2 つの円が重なっているか（ちょうど触れている場合も重なっているとみなす）
 inline bool circlesOverlap(Vector2 a, float radiusA, Vector2 b, float radiusB) {
     const float r = radiusA + radiusB;

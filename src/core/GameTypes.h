@@ -11,6 +11,10 @@ namespace moba {
 using EntityId = std::uint32_t;
 inline constexpr EntityId kInvalidId = 0;
 
+/// 押し合いの半径の規定値（キャラファイルに collisionRadius が無い時に使う）。
+/// 今あるキャラは、設定上どれも成人の人間型で、大きさも同じ
+inline constexpr float kDefaultCollisionRadius = 30.0f;
+
 /// 陣営（自キャラ側・敵側）。ダミーは敵側
 enum class Team { Player, Enemy };
 

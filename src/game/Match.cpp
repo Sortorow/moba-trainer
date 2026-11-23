@@ -116,6 +116,7 @@ void Match::setupSkillDodge(const CharacterDef& character) {
         enemy.name = std::format("敵{}: {}", i + 1, def.displayName);
         enemy.characterId = def.id;
         enemy.radius = def.hitboxRadius;
+        enemy.collisionRadius = def.collisionRadius;
         enemy.baseMoveSpeed = def.moveSpeed;
         enemy.color = def.color;
         // 建物や木の中に決まった時は、近くの立てる位置へ
@@ -141,6 +142,7 @@ void Match::setupSkillShot(const CharacterDef& character) {
     target.team = Team::Enemy;
     target.name = "的";
     target.radius = config_.targetRadius;
+    target.collisionRadius = shot.collisionRadius;
     target.baseMoveSpeed = config_.targetMoveSpeed;
     target.color = kTargetColor;
     target.pos = world_->placeable(target_.startPosition(player.pos), target.radius);

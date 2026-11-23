@@ -15,6 +15,7 @@ Unit makePlayerUnit(const CharacterDef& character) {
     player.characterId = character.id;
     player.pos = Vector2{0.0f, 0.0f};
     player.radius = character.hitboxRadius;
+    player.collisionRadius = character.collisionRadius;
     player.baseMoveSpeed = character.moveSpeed;
     player.color = character.color;
     return player;
@@ -43,6 +44,7 @@ void placeDummies(World& world, DummyController& dummies, const SandboxPreset* p
         dummy.pos = world.placeable(def.position, def.radius);
         dummy.facing = Vector2{-1.0f, 0.0f};
         dummy.radius = def.radius;
+        dummy.collisionRadius = def.collisionRadius;
         dummy.baseMoveSpeed = def.moveSpeed;
         dummy.color = def.color;
         const EntityId id = world.addUnit(dummy);

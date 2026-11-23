@@ -77,6 +77,7 @@ struct TargetSize {
 struct SkillShotConfig {
     std::vector<TargetSize> sizes;  // 的の大きさの選択肢（メニューで選ぶ）
     std::vector<float> moveSpeeds;  // 的の移動速度の選択肢（メニューで選ぶ）
+    float collisionRadius = 20.0f;  // 的の押し合いの半径（大きさの選択に関係なく同じ。練習場のダミーと同じ規定値）
     /// 移動先（パターン）を選ぶ時、自キャラにこれより近い位置を選ばない。回避の時は使わない（避けた先は、これより近くてもよい）
     float minDistance = 300.0f;
     /// 自キャラからこれより離れない。回避の時も（視界の内側に収める上限は maxDistanceWithin）

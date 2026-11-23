@@ -85,6 +85,7 @@ add_library(moba_lib STATIC
   src/game/CastStats.cpp
   src/game/Terrain.cpp
   src/game/Vision.cpp
+  src/game/UnitCollision.cpp
   src/game/World.cpp
   src/game/SkillCasting.cpp
   src/game/PlayerController.cpp
@@ -162,6 +163,7 @@ add_executable(moba_tests
   tests/test_stage.cpp
   tests/test_vision.cpp
   tests/test_search.cpp
-  tests/test_status_effects.cpp)
+  tests/test_status_effects.cpp
+  tests/test_collision.cpp)
 target_link_libraries(moba_tests PRIVATE moba_lib doctest::doctest)
 target_compile_definitions(moba_tests PRIVATE MOBA_SOURCE_DIR="${CMAKE_SOURCE_DIR}")

@@ -126,7 +126,7 @@ flowchart TD
 | `void runSkill(World&, Unit& caster, const SkillDef&, const CastRequest&)` | handler を実行する。発動の番号を振り、`World::beginCast`、ヒット率の対象なら `CastStats::recordCast`（**自キャラだけ**）、対象のキャラがいれば `World::revealAttacker`（相手から見えていない所から撃ったら、しばらく見えるようにする。兎を対象にしたエマの R も含む）、handler を呼ぶ、`endCastIfIdle` |
 | `bool usableDuringCurrentCast(const World&, const Unit& caster, const SkillDef& requested)` | 今の詠唱を中断せずにすぐ使えるスキルか。条件: 詠唱中・使いたいスキルの詠唱時間が 0・今詠唱しているスキルの `usableDuringCast` にある |
 | `void finishCast(World&, Unit& caster)` | 詠唱を終えて `runSkill` する。**詠唱を始めた位置ではなく、今いる位置から発動する**（溜めの間に R で移動していれば移動先から。根拠: `6700cb2`）。予約があれば続けて `requestCast` |
-| `void beginCast(World&, Unit& caster, const SkillDef&, const CastRequest&)` | クールダウンを入れ（`cooldown × 陣営の倍率`）、詠唱の状態にし、対象（無ければカーソル）の方を向く。詠唱時間が 0 ならすぐ `finishCast` |
+| `void beginCast(World&, Unit& caster, const SkillDef&, const CastRequest&)` | 押し合いの許可の終わりを調べ（`collision::onCastStarted`。重なったまま歩いている時に詠唱を始めると、許可が終わって押し出される）、クールダウンを入れ（`cooldown × 陣営の倍率`）、詠唱の状態にし、対象（無ければカーソル）の方を向く。詠唱時間が 0 ならすぐ `finishCast`。詠唱中にすぐ使えるスキル（`requestCast` の中で `runSkill` を直接呼ぶ所）も、同じく `onCastStarted` を呼ぶ |
 | `kUnitPickTolerance = 60` | 対象指定で、カーソルと敵の当たり判定の間にこの距離までの隙間があっても対象にする |
 
 ### 2.4 注意事項
@@ -304,7 +304,7 @@ using SkillHandler = void (*)(SkillContext&);
 |---|---|---|
 | 鳩 | エマと鳩の位置が入れ替わる。鳩はエマの元の位置へ飛び、**通り道の敵**に効果（拘束）。鳩は残り時間を最初に戻して残る（飛んでいる間は描かない） | `doveSpeed`・`dovePathWidth`・`doveOnHit` |
 | 帽子 | エマと帽子の位置が入れ替わる。帽子はエマの元の位置へ飛んで爆発し、範囲の敵に効果（打ち上げ）。帽子は残り時間を最初に戻して残る | `hatFlightTime`・`hatRadius`・`hatOnHit` |
-| 兎 | 兎の位置（の少し手前）へ移動し、兎の周りの敵に効果（変身） | `rabbitRadius`・`rabbitOnHit` |
+| 兎 | 兎の中心へ移動して重なり、兎の周りの敵に効果（変身）。着地した時に重なっていた相手とは、押し合わない許可を付ける（`collision::allowLandingOverlap`。離れきるか、重なったまま歩きながら詠唱を始めたら終わる） | `rabbitRadius`・`rabbitOnHit` |
 
 共通の params: `pickRadius`・`targetKinds`（発動の流れが対象を選ぶのに使う）・`color`
 
@@ -313,6 +313,8 @@ using SkillHandler = void (*)(SkillContext&);
 - Q の溜めの間に鳩を対象にした場合は、Q の依頼に `doveCardOrigin` を書き込みます（5.2）。
 
 **背景**（根拠: `46688e0`「エマ R: 鳩・帽子と位置を入れ替えた後、鳩・帽子は残り時間を戻して残る」）。
+
+**背景**（2026-11-23〜24、兎）: 以前は「兎の中心から、エマ側へ (兎の半径 + エマの半径) × 0.6 だけ手前」へ移動していましたが、ER の動画（skill_videos/emma_ER_behavior.mp4）では、どの向きから飛んでもエマは兎にほぼ重なります（仕様書の確認漏れ）。兎の中心へ移動するように直し、重なったまま残れるよう、押し合い判定（14-game-world.md の 9 章）と一緒に入れました。
 
 **EmmaSkills.cpp の中だけ**: `kDoveColor`（鳩の色）、`cancelAndRefund(ctx, reason)`（クールダウンを 0 に戻して INFO のログを出す）。
 

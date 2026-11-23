@@ -170,6 +170,7 @@ data/
 |---|---|---|---|
 | `sizes` | （必須） | 的の大きさの選択肢。`name`（メニューに出す名前）と `radius`（当たり判定の半径。10〜300）の組の配列。練習場のダミーのプリセット（小さい的 40 / 標準 65 / 大きい的 100）と同じ段階 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ半径は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（当たり判定）、`src/game/ai/SkillShotTarget.cpp`（避ける距離）、`src/render/Renderer.cpp`（大きさ）で使われる。`src/game/Match.cpp` はリザルト用に `name` も取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
 | `moveSpeeds` | （必須） | 的の移動速度の選択肢（0〜1500）の配列 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ速度は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（移動）、`src/game/ai/SkillShotTarget.cpp`（避けるのに間に合うかの見積もり）で使われる |
+| `collisionRadius` | `20` | 的の押し合いの半径（0〜400。キャラ同士がぶつかる大きさ）。大きさの選択（`sizes`）に関係なく同じ。練習場のダミーと同じ規定値 | `src/data/AiConfig.cpp`（読み込み）→ `src/game/Match.cpp`（的の情報へコピー）→ `src/game/UnitCollision.cpp`（押し合い） |
 | `minDistance` | `300` | 的が移動先（往復・接近・ランダム）を選ぶ時に、自キャラからこれより近い位置を選ばない。弾・範囲を避ける時は使わない（避けた先は、これより近くてもよい） | `src/game/ai/SkillShotTarget.cpp` |
 | `maxDistance` | `1100` | 自キャラからこれより離れない（11m）。弾・範囲を避ける時も、これより離れた位置へは避けない。ただし視界の内側に収めるため、実際の上限は下の `visionMargin` で決まる（視界 1000 なら 900）。自キャラが動いて上限より離れたら、的はすぐに近づき直す | `src/data/AiConfig.cpp`（`maxDistanceWithin`）→ `src/game/Match.cpp`（的の AI に渡す前に上限を決める）→ `src/game/ai/SkillShotTarget.cpp` |
 | `visionMargin` | `100` | 自キャラとの距離の上限を、視界の半径（`settings.jsonc` の `visionRadius`）からこの値だけ内側までに抑える（0 以上）。上限は `maxDistance` と「`visionRadius` − `visionMargin`」の小さい方（`minDistance` + 100 より小さくはしない） | 同上 |
@@ -237,6 +238,7 @@ data/
 | `name` | `プリセット1` など | 名前。メニューと練習場の画面に出る | `src/data/SandboxConfig.cpp`（`preset` との照合）<br>`src/ui/SandboxPanel.cpp`（表示）<br>`src/game/Sandbox.cpp`（ログ） |
 | `description` | 空 | 説明。選んでいるプリセットの下に出る | `src/ui/SandboxPanel.cpp` |
 | `radius` | `65` | このプリセットのダミーの当たり判定の半径（10〜400） | `src/data/SandboxConfig.cpp`（ダミーごとの `radius` の既定値にする） |
+| `collisionRadius` | `20` | このプリセットのダミーの押し合いの半径（0〜400。キャラ同士がぶつかる大きさ）。ER のダミーと同じく、一番小さいキャラくらい。当たり判定の大きさに関係なく、ふつうは書かなくてよい | `src/data/SandboxConfig.cpp`（ダミーごとの `collisionRadius` の既定値にする） |
 | `moveSpeed` | `300` | このプリセットのダミーの移動速度（0〜2000） | `src/data/SandboxConfig.cpp`（ダミーごとの `moveSpeed` の既定値にする） |
 | `color` | `[215, 75, 75]`（赤） | このプリセットのダミーの色 | `src/data/SandboxConfig.cpp`（ダミーごとの `color` の既定値にする） |
 | `dummies` | `[]` | ダミーの一覧（下の表）。0 体でもよい | `src/game/Sandbox.cpp`（ダミーを置く）<br>`src/ui/SandboxPanel.cpp`（体数・静止と往復の数・半径をまとめて表示） |
@@ -249,6 +251,7 @@ data/
 | `position` | `[0, 0]`（書かないと警告） | 置く位置 `[x, y]`。自キャラは (0, 0) から始まる。x は右、y は下がプラス。ステージの外なら端に寄せ、建物や木と重なる位置なら近くの立てる位置へずらす（路地裏・森では、プリセットの位置からずれることがある） | `src/game/Sandbox.cpp`（置く位置・静止する位置。ずらす計算は `src/game/World.cpp` → `src/game/Terrain.cpp`）→ `src/game/DummyController.cpp`（押し出された時に戻る位置・往復の一方） |
 | `patrolTo` | なし | 書くと、`position` とこの位置の間を往復する。書かなければ静止する | `src/game/Sandbox.cpp`（動き方を決める）→ `src/game/DummyController.cpp`（往復） |
 | `radius` | プリセットの `radius` | このダミーだけの当たり判定の半径 | `src/game/Sandbox.cpp`（キャラの情報にコピー）→ 自キャラ・敵と同じく、キャラの当たり判定の半径として使われる（使うコードは [7 章](#7-charactersjsoncキャラとスキル)の `hitboxRadius` の行と同じ）<br>`src/ui/SandboxPanel.cpp`（半径の表示） |
+| `collisionRadius` | プリセットの `collisionRadius` | このダミーだけの押し合いの半径 | `src/game/Sandbox.cpp`（キャラの情報にコピー）→ `src/game/UnitCollision.cpp`（押し合い） |
 | `moveSpeed` | プリセットの `moveSpeed` | このダミーだけの移動速度 | `src/game/Sandbox.cpp`（キャラの情報にコピー）→ `src/game/World.cpp`（移動）、`src/ui/DebugPanel.cpp`（一時的に変えるスライダー） |
 | `color` | プリセットの `color` | このダミーだけの色 | `src/game/Sandbox.cpp`（キャラの情報にコピー）→ `src/render/Renderer.cpp`（描画） |
 
@@ -317,7 +320,8 @@ data/
 | `origin` | 空 | 元のゲーム（`"LoL"` / `"ER"`）。メニューの表示用 | `src/ui/MainMenu.cpp` |
 | `menuOrder` | `1000` | キャラを並べる順（小さいほど先。同じなら `id` の順）。今は エマ 1・エズリアル 2・ブランド 3 で、新しいキャラは今の最後の番号の次を付けて末尾に足す。一覧の最初のキャラがメニューの初期値になる | `src/data/GameData.cpp`（キャラの一覧と、敵として出られるキャラの一覧の並び）→ `src/ui/MainMenu.cpp`（キャラの選択・登場する敵の表示）、`src/ui/DebugPanel.cpp`（キャラの選択）、`src/app/App.cpp`（コマンドラインでキャラを指定しなかった時の初期値）、`src/game/Match.cpp`（キャラが見つからない時の代わり・敵のキャラの選択） |
 | `moveSpeed` | `325` | 移動速度（ゲーム内単位 / 秒） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（移動）、`src/game/ai/EnemyAI.cpp`（狙いの計算）、`src/ui/DebugPanel.cpp`（表示） |
-| `hitboxRadius` | `65` | 当たり判定の半径。画面に描く円の大きさでもある | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（当たり判定・カーソル下の敵の選択・地形との当たりと経路探索。地形の計算は `src/game/Terrain.cpp`）、`src/game/SkillCasting.cpp`（移動先の調整・兎の選択）、`src/game/skills/SkillHelpers.cpp`（ワープ先の調整）、`src/game/skills/EmmaSkills.cpp`（R の移動先）、`src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp`（狙いの計算）、`src/render/Renderer.cpp`（描画）、`src/render/Hud.cpp`（名前の位置・画面外の判定） |
+| `hitboxRadius` | `65` | 当たり判定の半径。画面に描く円の大きさでもある | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（当たり判定・カーソル下の敵の選択・地形との当たりと経路探索。地形の計算は `src/game/Terrain.cpp`）、`src/game/SkillCasting.cpp`（移動先の調整・兎の選択）、`src/game/skills/SkillHelpers.cpp`（ワープ先の調整）、`src/game/UnitCollision.cpp`（押し合いで押し出した後に、障害物から押し出し直す）、`src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp`（狙いの計算）、`src/render/Renderer.cpp`（描画）、`src/render/Hud.cpp`（名前の位置・画面外の判定） |
+| `collisionRadius` | `30`（書かないと警告） | 押し合いの半径（0 以上。キャラ同士がぶつかる大きさ）。当たり判定（`hitboxRadius`）とは別の値で、ふつうは当たり判定より小さい。今のキャラは全員が成人の人間型なので 30。決まりは claude_directive.txt の「押し合い」 | `src/data/CharacterDef.cpp`（読み込み・書き忘れの警告）→ `src/data/GameData.cpp`（警告を設定ファイルのエラーの一覧へ）<br>`src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）→ `src/game/UnitCollision.cpp`（押し合い・押し合いの許可） |
 | `color` | 灰色 | キャラの色 | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/render/Renderer.cpp`（描画）、`src/game/skills/SkillHelpers.cpp`（スキルの `color` を省略した時の弾・範囲の色） |
 | `skills` | （必須） | `Q` `W` `E` `R` `D` `F` のスキル。`null` にすると、そのキーにはスキルが無い | 下の表 |
 
@@ -580,8 +584,9 @@ data/
 | `ResultStore.cpp` / `ResultStore.h` | 使わない（リザルトの保存。[docs/results.md](results.md) を参照） | — |
 | `ResultStats.cpp` / `ResultStats.h` | 使わない（統計の計算。[docs/results.md](results.md) を参照） | — |
 | `Match.cpp` / `Match.h` | スキルドッジでキャラを配置し、敵を選ぶ。敵のクールダウン倍率と、敵 AI の賢さを設定する。スキルショットで的を置き（メニューで選んだ大きさ・移動速度）、的の AI の賢さを設定する。リザルトに出すキャラ名・ステージ名・賢さの名前・的の大きさの名前を渡す。選んだステージの地形で World を作り、自キャラ・敵を立てる位置に置く。練習場では、選んでいるプリセットのダミーを置き、プリセットが変わったら置き直す | ai、sandbox、stages、characters |
-| `Sandbox.cpp` / `Sandbox.h` | 練習場で自キャラとダミーを配置する（ダミーの名前・位置・往復先・大きさ・移動速度・色）。建物や木と重なる位置はずらす | sandbox、stages、characters |
-| `World.cpp` / `World.h` | キャラの設定を ID で探す。移動速度・当たり判定の半径を使って移動と当たり判定をする。地形（`Terrain.cpp`）を持ち、道のりに沿って移動させ、障害物から押し出す。視界の判定をする（`visionRadius`・`attackRevealTime`）。敵のクールダウン倍率を保持する | settings、ai、stages、characters |
+| `Sandbox.cpp` / `Sandbox.h` | 練習場で自キャラとダミーを配置する（ダミーの名前・位置・往復先・大きさ・押し合いの大きさ・移動速度・色）。建物や木と重なる位置はずらす | sandbox、stages、characters |
+| `UnitCollision.cpp` / `UnitCollision.h` | キャラ同士の押し合い（押し合いの半径 `collisionRadius` で重なりを調べ、動いた側を押し出す）と、押し合いを無くす許可の管理。押し出した後は、当たり判定の半径で障害物から押し出し直す | characters、sandbox、ai、stages |
+| `World.cpp` / `World.h` | キャラの設定を ID で探す。移動速度・当たり判定の半径を使って移動と当たり判定をする（まっすぐ飛ぶ弾は、出た位置より後ろには当たらない）。地形（`Terrain.cpp`）を持ち、道のりに沿って移動させ、障害物から押し出す。全キャラが動いた後に、押し合い（`UnitCollision.cpp`）を呼ぶ。視界の判定をする（`visionRadius`・`attackRevealTime`）。敵のクールダウン倍率を保持する | settings、ai、stages、characters |
 | `Terrain.cpp` / `Terrain.h` | 地形の計算: 障害物との当たり・押し出し・まっすぐ進めるかの判定・経路探索（マス目の A*）・どのブッシュの中か | stages |
 | `Vision.cpp` / `Vision.h` | 視線が通るかの判定と、視界の形（多角形）の計算。障害物の種類（`kind`。箱は遮らない）とブッシュを使う | stages |
 | `SkillCasting.cpp` / `SkillCasting.h` | スキル発動の流れ（詠唱・クールダウン・射程・対象の選択・詠唱中に使えるスキル・移動系だけ使えるルール）。相手から見えていない時に対象指定のスキルで撃ったら、見えるようにする。見えない兎は選ばない。射程外の対象へ近づいている途中で対象が見えなくなったら、発動をやめる | settings、stages、characters |

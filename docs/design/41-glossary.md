@@ -24,6 +24,7 @@
 | 障害物 | 通れない場所（建物・壁・木・箱）。移動と視線（箱を除く）を妨げ、弾は通り抜ける | `Obstacle`、`ObstacleKind` |
 | ブッシュ | 草むら。中のキャラと、ブッシュの奥は外から見えない | `StageDef::bushes`、`Terrain::bushAt`、`World::canSee` |
 | 視界 | キャラから半径 `visionRadius`（1000）の中で、視線が遮られていない所。視界の外の敵キャラは見えず、地面は暗く描く | `vision::lineOfSight`、`vision::visionPolygon`、`World::canSee`、`World::canSeePoint`、`VisionLayers` |
+| 押し合い | キャラ同士がぶつかる決まり。押し合いの半径（`collisionRadius`。当たり判定とは別）で重なりを調べ、動いた側を押し出す。特定のスキル・状態では「押し合いを無くす許可」で重なってよい（エマの R の兎） | `collision::resolve`、`Unit::collisionRadius`、`OverlapPass`、`collision::allowLandingOverlap` |
 | 全視界 | 敵も味方も、ステージのすべてが見える状態。メニューの「視界」で選ぶ。練習場の初期値 | `MatchConfig::fullVision`、`WorldRules::fullVision`、`defaultFullVision` |
 | 追跡 | 敵が自キャラを見失った直後に、消えた方向の先（賢いほど先まで読む）へ追いかける動き | `EnemyDirector::Mode::Chase`、`AiLevel::chasePredict` |
 | 探索 | 追いかけた先にもいなかった時に、敵全員で手分けして、まだ見ていないエリアを探す動き。全エリアを探しても見つからなければ最初から探し直す | `EnemyDirector::Mode::Search`、`ai::SearchMap`、`SearchConfig` |
