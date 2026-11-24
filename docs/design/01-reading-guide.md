@@ -158,7 +158,7 @@ sequenceDiagram
 | 敵の考え方を変えたい | [src/game/ai/EnemyAI.cpp](../../src/game/ai/EnemyAI.cpp) の `tryCast` と `planMovement` | [16-game-ai.md](16-game-ai.md) |
 | ステージを足したい | `data/stages/*.jsonc` を足す（コードの変更は不要） | [data-files.md](../data-files.md) |
 | 壁の当たり・経路探索を直したい | [src/game/Terrain.cpp](../../src/game/Terrain.cpp) | [14-game-world.md](14-game-world.md) |
-| キャラ同士の押し合い（ぶつかり方・重なってよい場合）を直したい | [src/game/UnitCollision.cpp](../../src/game/UnitCollision.cpp) と、許可を付けるスキル（`EmmaSkills.cpp` の R） | [14-game-world.md](14-game-world.md#9-unitcollisionh--cppmobacollision) |
+| キャラ同士の押し合い（ぶつかり方・重なってよい場合）を直したい | [src/game/UnitCollision.cpp](../../src/game/UnitCollision.cpp) と、許可を付けるスキル（`EmmaSkills.cpp` の R） | [14-game-world.md](14-game-world.md#9-unitcollisionh--cppmobacollision)、[collision.md](../collision.md) |
 | 視界（何が視線を遮るか・見える範囲）を直したい | [src/game/Vision.cpp](../../src/game/Vision.cpp) と `World::canSee` | [14-game-world.md](14-game-world.md#8-visionh--cpp) |
 | ヒット率・ドッジ率の数え方を知りたい | [src/game/CastStats.h](../../src/game/CastStats.h) と `World::finishCastRecord` | [18-game-results.md](18-game-results.md) |
 | メニューの項目を足したい | [src/ui/MainMenu.cpp](../../src/ui/MainMenu.cpp) と [src/game/MatchConfig.h](../../src/game/MatchConfig.h) | [20-ui.md](20-ui.md) |

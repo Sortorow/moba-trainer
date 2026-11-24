@@ -119,6 +119,7 @@ C++ のコードの書式は [.clang-format](.clang-format) で決めていま�
 | --- | --- |
 | [docs/data-files.md](docs/data-files.md) | data フォルダの設定ファイル（用途・書ける項目・単位・参照しているソースコード） |
 | [docs/results.md](docs/results.md) | リザルトの保存と統計（ルール・直近 10 回の表示・統計の画面・ファイルの形式） |
+| [docs/collision.md](docs/collision.md) | キャラ同士の押し合いと当たり判定（決まり・大きさ・押し出し方・押し合いを無くす許可・エマの R と EQR・弾が後ろに当たらない決まり・経緯と ER の動画の分析） |
 | [docs/dpi-scaling.md](docs/dpi-scaling.md) | 画面の文字が小さく表示される問題と、Windows の拡大率への対応（背景・原因・修正方法・今後の注意） |
 
 VSCode では、Markdown ファイルを開いて `Ctrl + Shift + V` を押すと、画像や表が整った状態で読めます。

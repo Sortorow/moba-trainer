@@ -21,7 +21,8 @@ void World::update(float dt) {
     time_ += dt;
     recentHits_.clear();
     for (Unit& unit : units_) updateUnit(unit, dt);
-    // 押し合いは、全キャラが動いた後にまとめて直す（キャラを処理する順番で結果が変わらないように）
+    // 押し合いは、全キャラが動いた後にまとめて直す（キャラを動かす順番に左右されないように。
+    // 重なった組を直す順番はキャラを加えた順なので、3 体以上が重なった時などは、その順番でわずかに結果が変わる）
     collision::resolve(*this, dt);
     flushSpawns();
     updateProjectiles(dt);
