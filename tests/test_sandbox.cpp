@@ -44,7 +44,7 @@ TEST_CASE("sandbox.jsonc: プリセットが読み込める") {
     REQUIRE(standard->dummies.size() == 3);
     CHECK_FALSE(standard->dummies[0].patrolTo.has_value());  // A は静止
     CHECK(standard->dummies[1].patrolTo.has_value());        // B は往復
-    CHECK(standard->dummies[0].radius == doctest::Approx(65.0f));
+    CHECK(standard->dummies[0].radius == doctest::Approx(55.0f));
 }
 
 TEST_CASE("sandbox.jsonc: プリセットを選ぶと \"preset\" だけが書き換わり、コメントは残る") {
@@ -115,7 +115,7 @@ TEST_CASE("練習場: 選んだプリセットのダミーが置かれ、プレ�
     Match match(data, config);
     REQUIRE(match.valid());
     REQUIRE(dummyUnits(match).size() == 3);
-    CHECK(dummyUnits(match)[0]->radius == doctest::Approx(65.0f));
+    CHECK(dummyUnits(match)[0]->radius == doctest::Approx(55.0f));
 
     // プリセットを選び直すと、ダミーが置き直され、ファイルにも保存される
     REQUIRE(data.selectSandboxPreset("距離の練習"));

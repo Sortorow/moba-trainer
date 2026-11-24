@@ -168,7 +168,7 @@ data/
 
 | 項目 | 既定値 | 意味 | 使うコード |
 |---|---|---|---|
-| `sizes` | （必須） | 的の大きさの選択肢。`name`（メニューに出す名前）と `radius`（当たり判定の半径。10〜300）の組の配列。練習場のダミーのプリセット（小さい的 40 / 標準 65 / 大きい的 100）と同じ段階 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ半径は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（当たり判定）、`src/game/ai/SkillShotTarget.cpp`（避ける距離）、`src/render/Renderer.cpp`（大きさ）で使われる。`src/game/Match.cpp` はリザルト用に `name` も取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
+| `sizes` | （必須） | 的の大きさの選択肢。`name`（メニューに出す名前）と `radius`（当たり判定の半径。10〜300）の組の配列。練習場のダミーのプリセット（小さい的 35 / 標準 55 / 大きい的 90）と同じ段階 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ半径は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（当たり判定）、`src/game/ai/SkillShotTarget.cpp`（避ける距離）、`src/render/Renderer.cpp`（大きさ）で使われる。`src/game/Match.cpp` はリザルト用に `name` も取り出す（→ `src/ui/ResultScreen.cpp` が表示） |
 | `moveSpeeds` | （必須） | 的の移動速度の選択肢（0〜1500）の配列 | `src/ui/MainMenu.cpp`（選択肢の表示）→ 選んだ速度は `src/game/Match.cpp` が的の情報（`Unit`）へコピーし、`src/game/World.cpp`（移動）、`src/game/ai/SkillShotTarget.cpp`（避けるのに間に合うかの見積もり）で使われる |
 | `collisionRadius` | `20` | 的の押し合いの半径（0〜400。キャラ同士がぶつかる大きさ）。大きさの選択（`sizes`）に関係なく同じ。練習場のダミーと同じ規定値 | `src/data/AiConfig.cpp`（読み込み）→ `src/game/Match.cpp`（的の情報へコピー）→ `src/game/UnitCollision.cpp`（押し合い） |
 | `minDistance` | `300` | 的が移動先（往復・接近・ランダム）を選ぶ時に、自キャラからこれより近い位置を選ばない。弾・範囲を避ける時は使わない（避けた先は、これより近くてもよい） | `src/game/ai/SkillShotTarget.cpp` |
@@ -237,7 +237,7 @@ data/
 |---|---|---|---|
 | `name` | `プリセット1` など | 名前。メニューと練習場の画面に出る | `src/data/SandboxConfig.cpp`（`preset` との照合）<br>`src/ui/SandboxPanel.cpp`（表示）<br>`src/game/Sandbox.cpp`（ログ） |
 | `description` | 空 | 説明。選んでいるプリセットの下に出る | `src/ui/SandboxPanel.cpp` |
-| `radius` | `65` | このプリセットのダミーの当たり判定の半径（10〜400） | `src/data/SandboxConfig.cpp`（ダミーごとの `radius` の既定値にする） |
+| `radius` | `55` | このプリセットのダミーの当たり判定の半径（10〜400） | `src/data/SandboxConfig.cpp`（ダミーごとの `radius` の既定値にする） |
 | `collisionRadius` | `20` | このプリセットのダミーの押し合いの半径（0〜400。キャラ同士がぶつかる大きさ）。ER のダミーと同じく、一番小さいキャラくらい。当たり判定の大きさに関係なく、ふつうは書かなくてよい | `src/data/SandboxConfig.cpp`（ダミーごとの `collisionRadius` の既定値にする） |
 | `moveSpeed` | `300` | このプリセットのダミーの移動速度（0〜2000） | `src/data/SandboxConfig.cpp`（ダミーごとの `moveSpeed` の既定値にする） |
 | `color` | `[215, 75, 75]`（赤） | このプリセットのダミーの色 | `src/data/SandboxConfig.cpp`（ダミーごとの `color` の既定値にする） |
@@ -320,7 +320,7 @@ data/
 | `origin` | 空 | 元のゲーム（`"LoL"` / `"ER"`）。メニューの表示用 | `src/ui/MainMenu.cpp` |
 | `menuOrder` | `1000` | キャラを並べる順（小さいほど先。同じなら `id` の順）。今は エマ 1・エズリアル 2・ブランド 3 で、新しいキャラは今の最後の番号の次を付けて末尾に足す。一覧の最初のキャラがメニューの初期値になる | `src/data/GameData.cpp`（キャラの一覧と、敵として出られるキャラの一覧の並び）→ `src/ui/MainMenu.cpp`（キャラの選択・登場する敵の表示）、`src/ui/DebugPanel.cpp`（キャラの選択）、`src/app/App.cpp`（コマンドラインでキャラを指定しなかった時の初期値）、`src/game/Match.cpp`（キャラが見つからない時の代わり・敵のキャラの選択） |
 | `moveSpeed` | `325` | 移動速度（ゲーム内単位 / 秒） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（移動）、`src/game/ai/EnemyAI.cpp`（狙いの計算）、`src/ui/DebugPanel.cpp`（表示） |
-| `hitboxRadius` | `65` | 当たり判定の半径。画面に描く円の大きさでもある | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（当たり判定・カーソル下の敵の選択・地形との当たりと経路探索。地形の計算は `src/game/Terrain.cpp`）、`src/game/SkillCasting.cpp`（移動先の調整・兎の選択）、`src/game/skills/SkillHelpers.cpp`（ワープ先の調整）、`src/game/UnitCollision.cpp`（押し合いで押し出した後に、障害物から押し出し直す）、`src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp`（狙いの計算）、`src/render/Renderer.cpp`（描画）、`src/render/Hud.cpp`（名前の位置・画面外の判定） |
+| `hitboxRadius` | `55` | 当たり判定の半径。画面に描く円の大きさでもある。壁・建物などとの当たりと経路探索にも使う（キャラ同士の押し合いは `collisionRadius`） | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/game/World.cpp`（当たり判定・カーソル下の敵の選択・地形との当たりと経路探索。地形の計算は `src/game/Terrain.cpp`）、`src/game/SkillCasting.cpp`（移動先の調整・兎の選択）、`src/game/skills/SkillHelpers.cpp`（ワープ先の調整）、`src/game/UnitCollision.cpp`（押し合いで押し出した後に、障害物から押し出し直す）、`src/game/ai/EnemyAI.cpp` → `src/game/ai/Aim.cpp`（狙いの計算）、`src/render/Renderer.cpp`（描画）、`src/render/Hud.cpp`（名前の位置・画面外の判定） |
 | `collisionRadius` | `30`（書かないと警告） | 押し合いの半径（0 以上。キャラ同士がぶつかる大きさ）。当たり判定（`hitboxRadius`）とは別の値で、ふつうは当たり判定より小さい。今のキャラは全員が成人の人間型なので 30。決まりは claude_directive.txt の「押し合い」 | `src/data/CharacterDef.cpp`（読み込み・書き忘れの警告）→ `src/data/GameData.cpp`（警告を設定ファイルのエラーの一覧へ）<br>`src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）→ `src/game/UnitCollision.cpp`（押し合い・押し合いの許可） |
 | `color` | 灰色 | キャラの色 | `src/game/Match.cpp`、`src/game/Sandbox.cpp`（キャラの情報にコピー）<br>→ `src/render/Renderer.cpp`（描画）、`src/game/skills/SkillHelpers.cpp`（スキルの `color` を省略した時の弾・範囲の色） |
 | `skills` | （必須） | `Q` `W` `E` `R` `D` `F` のスキル。`null` にすると、そのキーにはスキルが無い | 下の表 |

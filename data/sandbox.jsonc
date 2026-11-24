@@ -8,7 +8,7 @@
 //   プリセットの項目
 //     name         名前（メニューに出る。プリセット同士で重複しないこと）
 //     description  説明（省略可）
-//     radius       このプリセットのダミーの当たり判定の半径（省略すると 65。自キャラの hitboxRadius と同じ単位）
+//     radius       このプリセットのダミーの当たり判定の半径（省略すると 55。自キャラの hitboxRadius と同じ単位）
 //     collisionRadius  このプリセットのダミーの押し合いの半径（省略すると 20。ER のダミーと同じく、一番小さいキャラくらい。
 //                  当たり判定の大きさに関係なく、ふつうは書かなくてよい）
 //     moveSpeed    このプリセットのダミーの移動速度（省略すると 300）
@@ -30,7 +30,7 @@
     {
       "name": "標準",
       "description": "静止 2 体と、上下に往復する 1 体",
-      "radius": 65,
+      "radius": 55,
       "moveSpeed": 300,
       "dummies": [
         { "name": "ダミーA（静止）", "position": [650, -200] },
@@ -41,7 +41,7 @@
     {
       "name": "小さい的",
       "description": "標準と同じ配置で、当たり判定を小さくする",
-      "radius": 40,
+      "radius": 35,
       "moveSpeed": 300,
       "dummies": [
         { "name": "ダミーA（静止）", "position": [650, -200] },
@@ -52,7 +52,7 @@
     {
       "name": "大きい的",
       "description": "標準と同じ配置で、当たり判定を大きくする",
-      "radius": 100,
+      "radius": 90,
       "moveSpeed": 300,
       "dummies": [
         { "name": "ダミーA（静止）", "position": [650, -200] },
@@ -63,7 +63,7 @@
     {
       "name": "動く的",
       "description": "向きと速さの違う 3 体が往復する（偏差撃ちの練習）",
-      "radius": 65,
+      "radius": 55,
       "dummies": [
         { "name": "ダミーA（縦・遅い）", "position": [700, -500], "patrolTo": [700, 500], "moveSpeed": 250 },
         { "name": "ダミーB（横・普通）", "position": [800, -700], "patrolTo": [1500, -700], "moveSpeed": 340 },
@@ -73,7 +73,7 @@
     {
       "name": "距離の練習",
       "description": "右へ 300 ずつ離れて並ぶ 5 体（射程の確認）",
-      "radius": 65,
+      "radius": 55,
       "dummies": [
         { "name": "300", "position": [300, 0] },
         { "name": "600", "position": [600, 0] },

@@ -70,7 +70,7 @@ struct SkillShotLevel {
 /// スキルショットの的の大きさの選択肢 1 つ（メニューに出す名前と、当たり判定の半径）
 struct TargetSize {
     std::string name;
-    float radius = 65.0f;
+    float radius = 55.0f;
 };
 
 /// スキルショットの的の設定（ai.jsonc の "skillShot"）。的の大きさ・移動速度の選択肢、自キャラとの距離と、賢さ 1〜5 ごとの設定

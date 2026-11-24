@@ -79,7 +79,7 @@ struct CharacterDef {
     std::string origin;       // "LoL" / "ER"
     int menuOrder = 1000;     // メニューなどに並べる順（小さいほど先。同じなら id の順）
     float moveSpeed = 325.0f;
-    float hitboxRadius = 65.0f;                       // 当たり判定の半径（スキルの当たり・障害物との当たり）
+    float hitboxRadius = 55.0f;                       // 当たり判定の半径（スキルの当たり・障害物との当たり）
     float collisionRadius = kDefaultCollisionRadius;  // 押し合いの半径（キャラ同士がぶつかる大きさ）
     Color color{200, 200, 200, 255};
     std::array<std::optional<SkillDef>, kSkillSlotCount> skills;

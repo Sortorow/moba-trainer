@@ -67,7 +67,7 @@
 | `enemyCount` | 3 | スキルドッジの敵の数（1〜5） |
 | `aiLevel` | 3 | スキルドッジの敵の賢さ（1〜5） |
 | `targetLevel` | 3 | スキルショットの的の賢さ（1〜5） |
-| `targetRadius` | 65 | 的の大きさ（ai.jsonc の `skillShot.sizes` から選ぶ） |
+| `targetRadius` | 55 | 的の大きさ（ai.jsonc の `skillShot.sizes` から選ぶ。既定値は「標準」と同じ） |
 | `targetMoveSpeed` | 340 | 的の移動速度（`skillShot.moveSpeeds` から選ぶ） |
 | `timeLimitSeconds` | 120 | 制限時間 |
 | `seed` | 0 | 乱数の種。**0 なら `Match` を作る時に決める**。ログに残るので、同じ展開を再現できる |

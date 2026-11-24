@@ -19,7 +19,7 @@ struct DummyDef {
     std::string name;
     Vector2 position{};               // 置く位置（自キャラは (0, 0) から始まる）
     std::optional<Vector2> patrolTo;  // あれば position とこの位置の間を往復する。無ければ静止
-    float radius = 65.0f;             // 当たり判定の半径
+    float radius = 55.0f;             // 当たり判定の半径
     float collisionRadius = 20.0f;    // 押し合いの半径（ER のダミーと同じく、一番小さいキャラくらい）
     float moveSpeed = 300.0f;         // 往復する速さ（静止のダミーも、押し出された時に元の位置へ戻る速さに使う）
     Color color{215, 75, 75, 255};
